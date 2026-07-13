@@ -7,6 +7,7 @@ import net.minecraft.core.UUIDUtil;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
+import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -60,6 +61,10 @@ public record SpaceUnitRecord(
     }
 
     public boolean canView(UUID playerId) {
+        return canView(playerId, false);
+    }
+
+    public boolean canView(UUID playerId, boolean friendsWithOwner) {
         if (playerId == null || this.visibility == SpaceUnitVisibility.HIDDEN) {
             return false;
         }
@@ -67,7 +72,12 @@ public record SpaceUnitRecord(
         return this.owner.equals(playerId)
                 || this.administrators.contains(playerId)
                 || this.allowedPlayers.contains(playerId)
-                || this.visibility == SpaceUnitVisibility.PUBLIC;
+                || this.visibility == SpaceUnitVisibility.PUBLIC
+                || (this.visibility == SpaceUnitVisibility.FRIENDS && friendsWithOwner);
+    }
+
+    public boolean canManage(UUID playerId) {
+        return playerId != null && (this.owner.equals(playerId) || this.administrators.contains(playerId));
     }
 
     public SpaceUnitRecord withStructure(SpaceStructureSnapshot nextStructure, long gameTime) {
@@ -83,6 +93,108 @@ public record SpaceUnitRecord(
                 this.administrators,
                 this.allowedPlayers,
                 nextStructure,
+                this.createdGameTime,
+                gameTime
+        );
+    }
+
+    public SpaceUnitRecord withStatus(SpaceUnitStatus nextStatus, long gameTime) {
+        return new SpaceUnitRecord(
+                this.id,
+                this.type,
+                this.dimension,
+                this.pos,
+                this.owner,
+                this.name,
+                this.visibility,
+                nextStatus,
+                this.administrators,
+                this.allowedPlayers,
+                this.structure,
+                this.createdGameTime,
+                gameTime
+        );
+    }
+
+    public SpaceUnitRecord withVisibility(SpaceUnitVisibility nextVisibility, long gameTime) {
+        return new SpaceUnitRecord(
+                this.id,
+                this.type,
+                this.dimension,
+                this.pos,
+                this.owner,
+                this.name,
+                nextVisibility,
+                this.status,
+                this.administrators,
+                this.allowedPlayers,
+                this.structure,
+                this.createdGameTime,
+                gameTime
+        );
+    }
+
+    public SpaceUnitRecord withName(String nextName, long gameTime) {
+        return new SpaceUnitRecord(
+                this.id,
+                this.type,
+                this.dimension,
+                this.pos,
+                this.owner,
+                nextName,
+                this.visibility,
+                this.status,
+                this.administrators,
+                this.allowedPlayers,
+                this.structure,
+                this.createdGameTime,
+                gameTime
+        );
+    }
+
+    public SpaceUnitRecord withAdministrator(UUID playerId, boolean enabled, long gameTime) {
+        Set<UUID> nextAdministrators = new HashSet<>(this.administrators);
+        if (enabled) {
+            nextAdministrators.add(playerId);
+        } else {
+            nextAdministrators.remove(playerId);
+        }
+        return new SpaceUnitRecord(
+                this.id,
+                this.type,
+                this.dimension,
+                this.pos,
+                this.owner,
+                this.name,
+                this.visibility,
+                this.status,
+                nextAdministrators,
+                this.allowedPlayers,
+                this.structure,
+                this.createdGameTime,
+                gameTime
+        );
+    }
+
+    public SpaceUnitRecord withAllowedPlayer(UUID playerId, boolean enabled, long gameTime) {
+        Set<UUID> nextAllowedPlayers = new HashSet<>(this.allowedPlayers);
+        if (enabled) {
+            nextAllowedPlayers.add(playerId);
+        } else {
+            nextAllowedPlayers.remove(playerId);
+        }
+        return new SpaceUnitRecord(
+                this.id,
+                this.type,
+                this.dimension,
+                this.pos,
+                this.owner,
+                this.name,
+                this.visibility,
+                this.status,
+                this.administrators,
+                nextAllowedPlayers,
+                this.structure,
                 this.createdGameTime,
                 gameTime
         );
