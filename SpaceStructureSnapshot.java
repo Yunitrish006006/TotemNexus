@@ -10,7 +10,8 @@ public record SpaceStructureSnapshot(
         double interference,
         double environmentStability,
         double wear,
-        int tier) {
+        int tier,
+        int amethystCatalystBlocks) {
 
     public static final SpaceStructureSnapshot EMPTY = new SpaceStructureSnapshot(
             0.0D,
@@ -19,6 +20,7 @@ public record SpaceStructureSnapshot(
             0.0D,
             0.0D,
             0.0D,
+            0,
             0
     );
 
@@ -29,6 +31,18 @@ public record SpaceStructureSnapshot(
             Codec.DOUBLE.optionalFieldOf("interference", 0.0D).forGetter(SpaceStructureSnapshot::interference),
             Codec.DOUBLE.optionalFieldOf("environment_stability", 0.0D).forGetter(SpaceStructureSnapshot::environmentStability),
             Codec.DOUBLE.optionalFieldOf("wear", 0.0D).forGetter(SpaceStructureSnapshot::wear),
-            Codec.INT.optionalFieldOf("tier", 0).forGetter(SpaceStructureSnapshot::tier)
+            Codec.INT.optionalFieldOf("tier", 0).forGetter(SpaceStructureSnapshot::tier),
+            Codec.INT.optionalFieldOf("amethyst_catalyst_blocks", 0).forGetter(SpaceStructureSnapshot::amethystCatalystBlocks)
     ).apply(instance, SpaceStructureSnapshot::new));
+
+    public SpaceStructureSnapshot(
+            double completeness,
+            double symmetry,
+            double resonance,
+            double interference,
+            double environmentStability,
+            double wear,
+            int tier) {
+        this(completeness, symmetry, resonance, interference, environmentStability, wear, tier, 0);
+    }
 }
