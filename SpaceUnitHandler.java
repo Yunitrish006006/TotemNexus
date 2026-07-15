@@ -250,6 +250,7 @@ public final class SpaceUnitHandler {
                 source.get().type(),
                 source.get().id(),
                 target.get().id(),
+                target.get().type(),
                 player.level().dimension(),
                 player.blockPosition().immutable(),
                 prepareTicks,
@@ -626,7 +627,7 @@ public final class SpaceUnitHandler {
             Optional<TeleportTarget> target = resolveTeleportTarget(player, session.targetUnitId(), false);
             if (target.isEmpty()) {
                 iterator.remove();
-                notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.target"));
+                notify(player, targetCancelReason(player, session.targetType(), session.targetUnitId()));
                 continue;
             }
 
@@ -1118,7 +1119,7 @@ public final class SpaceUnitHandler {
 
         Optional<TeleportTarget> finalTarget = resolveTeleportTarget(player, target.id(), false, true);
         if (finalTarget.isEmpty()) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.target"));
+            notify(player, targetCancelReason(player, target.type(), target.id()));
             return;
         }
 
@@ -1251,12 +1252,25 @@ public final class SpaceUnitHandler {
         Optional<SpaceUnitRecord> targetUnit = units(server).get(targetUnitId);
         if (targetUnit.isEmpty()) {
             ServerPlayer targetPlayer = server.getPlayerList().getPlayer(targetUnitId);
-            if (targetPlayer == null || targetPlayer.getUUID().equals(player.getUUID())) {
+            if (targetPlayer == null) {
+                notifyIfRequested(player, notifyFailure, Component.translatable(
+                        PlayerTeleportTargetPolicy.cancellationMessageKey(PlayerTeleportTargetPolicy.State.OFFLINE)));
+                return Optional.empty();
+            }
+            if (targetPlayer.getUUID().equals(player.getUUID())) {
                 notifyIfRequested(player, notifyFailure, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.target"));
                 return Optional.empty();
             }
-            if (!friends(server).areFriends(player.getUUID(), targetPlayer.getUUID())) {
-                notifyIfRequested(player, notifyFailure, Component.translatable("message.deadrecall.space_unit.no_permission"));
+
+            PlayerTeleportTargetPolicy.State targetState = PlayerTeleportTargetPolicy.classify(
+                    true,
+                    targetPlayer.isAlive(),
+                    targetPlayer.isRemoved(),
+                    friends(server).areFriends(player.getUUID(), targetPlayer.getUUID())
+            );
+            if (targetState != PlayerTeleportTargetPolicy.State.AVAILABLE) {
+                notifyIfRequested(player, notifyFailure, Component.translatable(
+                        PlayerTeleportTargetPolicy.cancellationMessageKey(targetState)));
                 return Optional.empty();
             }
             return Optional.of(TeleportTarget.player(targetPlayer));
@@ -1305,6 +1319,25 @@ public final class SpaceUnitHandler {
                 0,
                 SpaceUnitType.PLAYER
         );
+    }
+
+    private static Component targetCancelReason(
+            ServerPlayer player,
+            SpaceUnitType targetType,
+            UUID targetId) {
+        if (targetType != SpaceUnitType.PLAYER) {
+            return Component.translatable("message.deadrecall.space_unit.teleport_cancelled.target");
+        }
+
+        MinecraftServer server = player.level().getServer();
+        ServerPlayer targetPlayer = server.getPlayerList().getPlayer(targetId);
+        PlayerTeleportTargetPolicy.State targetState = PlayerTeleportTargetPolicy.classify(
+                targetPlayer != null,
+                targetPlayer != null && targetPlayer.isAlive(),
+                targetPlayer != null && targetPlayer.isRemoved(),
+                targetPlayer != null && friends(server).areFriends(player.getUUID(), targetId)
+        );
+        return Component.translatable(PlayerTeleportTargetPolicy.cancellationMessageKey(targetState));
     }
 
     private static Component teleportCancelReason(ServerPlayer player, TeleportSession session) {
@@ -2151,6 +2184,7 @@ public final class SpaceUnitHandler {
             String sourceType,
             UUID sourceUnitId,
             UUID targetUnitId,
+            SpaceUnitType targetType,
             net.minecraft.resources.ResourceKey<Level> startDimension,
             BlockPos startPos,
             int totalTicks,
@@ -2162,6 +2196,7 @@ public final class SpaceUnitHandler {
                     this.sourceType,
                     this.sourceUnitId,
                     this.targetUnitId,
+                    this.targetType,
                     this.startDimension,
                     this.startPos,
                     this.totalTicks,
