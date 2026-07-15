@@ -66,6 +66,31 @@ public class DeadRecallSpaceDiscoverySavedData extends SavedData {
         return this.discoveredByPlayer.getOrDefault(playerId, Set.of()).contains(unitId);
     }
 
+    public boolean removeDiscovered(UUID playerId, UUID unitId) {
+        boolean changed = false;
+
+        Set<UUID> discovered = this.discoveredByPlayer.get(playerId);
+        if (discovered != null && discovered.remove(unitId)) {
+            changed = true;
+            if (discovered.isEmpty()) {
+                this.discoveredByPlayer.remove(playerId);
+            }
+        }
+
+        Set<UUID> favorites = this.favoritesByPlayer.get(playerId);
+        if (favorites != null && favorites.remove(unitId)) {
+            changed = true;
+            if (favorites.isEmpty()) {
+                this.favoritesByPlayer.remove(playerId);
+            }
+        }
+
+        if (changed) {
+            setDirty();
+        }
+        return changed;
+    }
+
     public boolean isFavorite(UUID playerId, UUID unitId) {
         return this.favoritesByPlayer.getOrDefault(playerId, Set.of()).contains(unitId);
     }
