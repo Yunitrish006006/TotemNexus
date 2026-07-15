@@ -63,7 +63,6 @@ public final class SpaceUnitHandler {
     private static final int MIN_CROSS_DIMENSION_AMETHYST_COST = 2;
     private static final int LODESTONE_VALIDATION_INTERVAL_TICKS = 40;
     private static final int LODESTONE_REGISTRATION_CONFIRM_TICKS = 20 * 30;
-    private static final int PLAYER_TARGET_CONSENT_TICKS = 20 * 30;
     private static final int MAX_LODESTONE_NAME_LENGTH = 48;
     private static final double SESSION_MOVE_CANCEL_DISTANCE = 4.0D;
     private static final int SAFE_LANDING_VERTICAL_SEARCH = 4;
@@ -71,7 +70,6 @@ public final class SpaceUnitHandler {
 
     private static final Map<UUID, TeleportSession> teleportSessions = new HashMap<>();
     private static final Map<UUID, PendingLodestoneRegistration> pendingLodestoneRegistrations = new HashMap<>();
-    private static final Map<PlayerTeleportConsentKey, PendingPlayerTeleportConsent> pendingPlayerTeleportConsents = new HashMap<>();
     private static int lodestoneValidationTicker = 0;
 
     private SpaceUnitHandler() {
@@ -217,16 +215,11 @@ public final class SpaceUnitHandler {
         notify(player, Component.translatable("message.deadrecall.space_unit.map_source_missing"));
     }
 
-    public static void startTeleport(ServerPlayer player, String sourceType, UUID sourceUnitId, UUID targetUnitId) {
-        startTeleport(player, sourceType, sourceUnitId, targetUnitId, false);
-    }
-
-    private static void startTeleport(
+    public static void startTeleport(
             ServerPlayer player,
             String sourceType,
             UUID sourceUnitId,
-            UUID targetUnitId,
-            boolean playerTargetConsentGranted) {
+            UUID targetUnitId) {
         teleportSessions.remove(player.getUUID());
 
         Optional<MapSource> source = resolveMapSource(player, sourceType, sourceUnitId, true, true);
@@ -242,11 +235,6 @@ public final class SpaceUnitHandler {
         TeleportQuote quote = calculateTeleportQuote(player, source.get(), target.get());
         if (!quote.canTeleport()) {
             notify(player, Component.translatable(quote.blockedReason()));
-            return;
-        }
-
-        if (target.get().requiresConsent() && !playerTargetConsentGranted) {
-            requestPlayerTeleportConsent(player, source.get(), target.get());
             return;
         }
 
@@ -595,9 +583,6 @@ public final class SpaceUnitHandler {
             return;
         }
 
-        pendingPlayerTeleportConsents.remove(new PlayerTeleportConsentKey(playerId, friendId));
-        pendingPlayerTeleportConsents.remove(new PlayerTeleportConsentKey(friendId, playerId));
-
         String otherName = playerDisplayName(server, friendId);
         notify(player, Component.translatable("message.deadrecall.space_unit.friend_removed", otherName));
         sendFriendList(player);
@@ -672,7 +657,6 @@ public final class SpaceUnitHandler {
 
         long gameTime = server.overworld().getGameTime();
         pendingLodestoneRegistrations.entrySet().removeIf(entry -> entry.getValue().isExpired(gameTime));
-        pendingPlayerTeleportConsents.entrySet().removeIf(entry -> entry.getValue().isExpired(gameTime));
 
         DeadRecallSpaceUnitSavedData units = units(server);
         for (SpaceUnitRecord unit : units.activeLodestones()) {
@@ -968,10 +952,6 @@ public final class SpaceUnitHandler {
             return InteractionResult.SUCCESS;
         }
 
-        if (acceptPendingPlayerTeleport(player, target)) {
-            return InteractionResult.SUCCESS;
-        }
-
         DeadRecallFriendSavedData.FriendActionResult result = friends(player.level().getServer())
                 .inviteOrAccept(player.getUUID(), target.getUUID());
         switch (result) {
@@ -988,57 +968,6 @@ public final class SpaceUnitHandler {
             case INVALID -> notify(player, Component.translatable("message.deadrecall.space_unit.friend_invalid"));
         }
         return InteractionResult.SUCCESS;
-    }
-
-    private static void requestPlayerTeleportConsent(ServerPlayer requester, MapSource source, TeleportTarget target) {
-        MinecraftServer server = requester.level().getServer();
-        ServerPlayer targetPlayer = server.getPlayerList().getPlayer(target.id());
-        if (targetPlayer == null || !friends(server).areFriends(requester.getUUID(), target.id())) {
-            notify(requester, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.target"));
-            return;
-        }
-
-        long expiresGameTime = server.overworld().getGameTime() + PLAYER_TARGET_CONSENT_TICKS;
-        pendingPlayerTeleportConsents.put(
-                new PlayerTeleportConsentKey(requester.getUUID(), target.id()),
-                new PendingPlayerTeleportConsent(
-                        requester.getUUID(),
-                        target.id(),
-                        source.type(),
-                        source.id(),
-                        expiresGameTime
-                )
-        );
-        notify(requester, Component.translatable(
-                "message.deadrecall.space_unit.player_anchor_request_sent",
-                targetPlayer.getName(),
-                seconds(PLAYER_TARGET_CONSENT_TICKS)
-        ));
-        notify(targetPlayer, Component.translatable(
-                "message.deadrecall.space_unit.player_anchor_request_received",
-                requester.getName(),
-                seconds(PLAYER_TARGET_CONSENT_TICKS)
-        ));
-    }
-
-    private static boolean acceptPendingPlayerTeleport(ServerPlayer accepter, ServerPlayer requester) {
-        MinecraftServer server = accepter.level().getServer();
-        PlayerTeleportConsentKey key = new PlayerTeleportConsentKey(requester.getUUID(), accepter.getUUID());
-        PendingPlayerTeleportConsent pending = pendingPlayerTeleportConsents.get(key);
-        if (pending == null) {
-            return false;
-        }
-        if (pending.isExpired(server.overworld().getGameTime())
-                || !friends(server).areFriends(requester.getUUID(), accepter.getUUID())) {
-            pendingPlayerTeleportConsents.remove(key);
-            return false;
-        }
-
-        pendingPlayerTeleportConsents.remove(key);
-        notify(accepter, Component.translatable("message.deadrecall.space_unit.player_anchor_request_accepted", requester.getName()));
-        notify(requester, Component.translatable("message.deadrecall.space_unit.player_anchor_request_accepted_by", accepter.getName()));
-        startTeleport(requester, pending.sourceType(), pending.sourceUnitId(), accepter.getUUID(), true);
-        return true;
     }
 
     private static InteractionResult handleLodestoneUse(ServerPlayer player, ServerLevel level, ItemStack stack, BlockPos pos) {
@@ -2158,8 +2087,7 @@ public final class SpaceUnitHandler {
             double stability,
             int tier,
             double wear,
-            boolean lodestoneAnchor,
-            boolean requiresConsent) {
+            boolean lodestoneAnchor) {
 
         private static TeleportTarget unit(SpaceUnitRecord unit) {
             return new TeleportTarget(
@@ -2171,8 +2099,7 @@ public final class SpaceUnitHandler {
                     unit.structure().resonance(),
                     unit.structure().tier(),
                     unit.structure().wear(),
-                    unit.isLodestoneAnchor(),
-                    false
+                    unit.isLodestoneAnchor()
             );
         }
 
@@ -2186,8 +2113,7 @@ public final class SpaceUnitHandler {
                     0.6D,
                     0,
                     0.0D,
-                    false,
-                    true
+                    false
             );
         }
     }
@@ -2214,23 +2140,6 @@ public final class SpaceUnitHandler {
         private boolean matchesDimensionId(String dimensionId) {
             return this.dimension.identifier().toString().equals(dimensionId);
         }
-
-        private boolean isExpired(long gameTime) {
-            return gameTime > this.expiresGameTime;
-        }
-    }
-
-    private record PlayerTeleportConsentKey(
-            UUID requesterId,
-            UUID targetId) {
-    }
-
-    private record PendingPlayerTeleportConsent(
-            UUID requesterId,
-            UUID targetId,
-            String sourceType,
-            UUID sourceUnitId,
-            long expiresGameTime) {
 
         private boolean isExpired(long gameTime) {
             return gameTime > this.expiresGameTime;
