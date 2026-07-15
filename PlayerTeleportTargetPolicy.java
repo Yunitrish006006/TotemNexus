@@ -1,6 +1,7 @@
 package com.adaptor.deadrecall.space;
 
 public final class PlayerTeleportTargetPolicy {
+    // PLAYER destinations use more precise cancellation reasons than fixed Space Units.
     private static final String GENERIC_TARGET_KEY = "message.deadrecall.space_unit.teleport_cancelled.target";
     private static final String OFFLINE_TARGET_KEY = "message.deadrecall.space_unit.teleport_cancelled.target_offline";
     private static final String UNAVAILABLE_TARGET_KEY = "message.deadrecall.space_unit.teleport_cancelled.target_unavailable";
