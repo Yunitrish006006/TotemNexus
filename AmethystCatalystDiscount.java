@@ -13,12 +13,44 @@ public final class AmethystCatalystDiscount {
     }
 
     public static int finalCost(int baseCost, int sourceCatalysts, int targetCatalysts) {
-        if (baseCost <= 0) {
-            return 0;
+        return quote(baseCost, sourceCatalysts, targetCatalysts).finalCost();
+    }
+
+    public static Quote quote(int baseCost, int sourceCatalysts, int targetCatalysts) {
+        int normalizedBaseCost = Math.max(0, baseCost);
+        int normalizedSourceCatalysts = Math.max(0, sourceCatalysts);
+        int normalizedTargetCatalysts = Math.max(0, targetCatalysts);
+        int availableDiscount = catalystDiscount(normalizedSourceCatalysts, normalizedTargetCatalysts);
+
+        if (normalizedBaseCost == 0) {
+            return new Quote(
+                    0,
+                    normalizedSourceCatalysts,
+                    normalizedTargetCatalysts,
+                    availableDiscount,
+                    0,
+                    0
+            );
         }
-        return Math.max(
-                MINIMUM_CROSS_DIMENSION_COST,
-                baseCost - catalystDiscount(sourceCatalysts, targetCatalysts)
+
+        int finalCost = Math.max(MINIMUM_CROSS_DIMENSION_COST, normalizedBaseCost - availableDiscount);
+        int appliedDiscount = normalizedBaseCost - finalCost;
+        return new Quote(
+                normalizedBaseCost,
+                normalizedSourceCatalysts,
+                normalizedTargetCatalysts,
+                availableDiscount,
+                appliedDiscount,
+                finalCost
         );
+    }
+
+    public record Quote(
+            int baseCost,
+            int sourceCatalysts,
+            int targetCatalysts,
+            int availableDiscount,
+            int appliedDiscount,
+            int finalCost) {
     }
 }
