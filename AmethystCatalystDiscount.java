@@ -12,8 +12,26 @@ public final class AmethystCatalystDiscount {
         return totalCatalysts / CATALYST_BLOCKS_PER_SHARD;
     }
 
+    public static int eligibleCatalysts(boolean lodestoneEndpoint, int catalystBlocks) {
+        return lodestoneEndpoint ? Math.max(0, catalystBlocks) : 0;
+    }
+
     public static int finalCost(int baseCost, int sourceCatalysts, int targetCatalysts) {
         return quote(baseCost, sourceCatalysts, targetCatalysts).finalCost();
+    }
+
+    public static Quote quoteForEndpoints(
+            int baseCost,
+            boolean sourceLodestone,
+            int sourceCatalysts,
+            boolean targetLodestone,
+            int targetCatalysts
+    ) {
+        return quote(
+                baseCost,
+                eligibleCatalysts(sourceLodestone, sourceCatalysts),
+                eligibleCatalysts(targetLodestone, targetCatalysts)
+        );
     }
 
     public static Quote quote(int baseCost, int sourceCatalysts, int targetCatalysts) {
