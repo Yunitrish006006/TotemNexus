@@ -261,7 +261,12 @@ public final class SpaceUnitHandler {
             return;
         }
 
-        TeleportQuote quote = calculateTeleportQuote(player, source.get(), target.get());
+        TeleportQuote quote = calculateTeleportQuote(
+                player,
+                source.get(),
+                target.get(),
+                interfaceContext.get().interfaceType()
+        );
         if (!quote.canTeleport()) {
             notify(player, Component.translatable(quote.blockedReason()));
             return;
@@ -690,7 +695,12 @@ public final class SpaceUnitHandler {
                 continue;
             }
 
-            TeleportQuote quote = calculateTeleportQuote(player, source.get(), target.get());
+            TeleportQuote quote = calculateTeleportQuote(
+                    player,
+                    source.get(),
+                    target.get(),
+                    session.interfaceType()
+            );
             if (!quote.canTeleport()) {
                 iterator.remove();
                 notify(player, Component.translatable(quote.blockedReason()));
@@ -1234,7 +1244,12 @@ public final class SpaceUnitHandler {
             return;
         }
 
-        TeleportQuote finalQuote = calculateTeleportQuote(player, finalSource.get(), finalTarget.get());
+        TeleportQuote finalQuote = calculateTeleportQuote(
+                player,
+                finalSource.get(),
+                finalTarget.get(),
+                session.interfaceType()
+        );
         if (!finalQuote.canTeleport()) {
             notify(player, Component.translatable(finalQuote.blockedReason()));
             return;
@@ -1600,11 +1615,11 @@ public final class SpaceUnitHandler {
             TeleportTarget target,
             TeleportQuote quote,
             RandomSource random) {
-        if (quote.damageChancePercent() <= 0) {
+        if (quote.structureWearChancePercent() <= 0) {
             return;
         }
 
-        double chance = quote.damageChancePercent() / 100.0D;
+        double chance = quote.structureWearChancePercent() / 100.0D;
         MinecraftServer server = player.level().getServer();
         DeadRecallSpaceUnitSavedData units = units(server);
         boolean worn = false;
@@ -1745,6 +1760,10 @@ public final class SpaceUnitHandler {
         List<SpaceUnitMapPayload.Entry> entries = new ArrayList<>(Math.min(visibleUnits.size(), SpaceUnitMapPayload.MAX_ENTRIES));
         MinecraftServer server = player.level().getServer();
         UUID playerId = player.getUUID();
+        TeleportInterfaceType interfaceType = currentInterfaceContext(player)
+                .map(TeleportInterfaceContext::interfaceType)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Cannot build a teleport map payload without a valid interface context"));
         DeadRecallSpaceDiscoverySavedData discoveryData = discovery(server);
         DeadRecallFriendSavedData friendData = friends(server);
         for (SpaceUnitRecord unit : visibleUnits) {
@@ -1752,7 +1771,7 @@ public final class SpaceUnitHandler {
                 break;
             }
             TeleportTarget target = TeleportTarget.unit(unit);
-            TeleportQuote quote = calculateTeleportQuote(player, source, target);
+            TeleportQuote quote = calculateTeleportQuote(player, source, target, interfaceType);
             boolean friendShared = !unit.owner().equals(playerId) && friendData.areFriends(playerId, unit.owner());
             entries.add(new SpaceUnitMapPayload.Entry(
                     target.id(),
@@ -1776,6 +1795,9 @@ public final class SpaceUnitHandler {
                     quote.prepareTicks(),
                     quote.maxHorizontalDeviation(),
                     quote.damageChancePercent(),
+                    quote.structureWearChancePercent(),
+                    quote.interfaceBonusActive(),
+                    quote.interfaceBonusMessageKey(),
                     discoveryData.isFavorite(playerId, unit.id()),
                     unit.canManage(playerId),
                     unit.owner().equals(playerId),
@@ -1794,7 +1816,7 @@ public final class SpaceUnitHandler {
             }
 
             TeleportTarget target = TeleportTarget.player(friend);
-            TeleportQuote quote = calculateTeleportQuote(player, source, target);
+            TeleportQuote quote = calculateTeleportQuote(player, source, target, interfaceType);
             BlockPos displayPos = approximatePlayerDisplayPos(friend.blockPosition());
             entries.add(new SpaceUnitMapPayload.Entry(
                     target.id(),
@@ -1818,6 +1840,9 @@ public final class SpaceUnitHandler {
                     quote.prepareTicks(),
                     quote.maxHorizontalDeviation(),
                     quote.damageChancePercent(),
+                    quote.structureWearChancePercent(),
+                    quote.interfaceBonusActive(),
+                    quote.interfaceBonusMessageKey(),
                     false,
                     false,
                     false,
@@ -1836,11 +1861,16 @@ public final class SpaceUnitHandler {
                 source.pos().getX(),
                 source.pos().getY(),
                 source.pos().getZ(),
+                interfaceType,
                 entries
         );
     }
 
-    private static TeleportQuote calculateTeleportQuote(ServerPlayer player, MapSource source, TeleportTarget target) {
+    private static TeleportQuote calculateTeleportQuote(
+            ServerPlayer player,
+            MapSource source,
+            TeleportTarget target,
+            TeleportInterfaceType interfaceType) {
         boolean sameDimension = source.dimension().equals(target.dimension());
         boolean sameUnit = SOURCE_TYPE_LODESTONE.equals(source.type()) && source.id().equals(target.id());
         int distanceBlocks = sameDimension ? distanceBlocks(source.pos(), target.pos()) : -1;
@@ -1850,9 +1880,17 @@ public final class SpaceUnitHandler {
         int amethystAvailable = countAmethyst(player);
         int amethystCost = sameUnit || sameDimension ? 0 : Math.max(MIN_CROSS_DIMENSION_AMETHYST_COST,
                 MIN_CROSS_DIMENSION_AMETHYST_COST + (int) Math.ceil((1.0D - routeStability) * 4.0D));
-        int prepareTicks = sameUnit ? 0 : prepareTicks(target, sameDimension, distanceBlocks, routeStability);
-        int maxHorizontalDeviation = sameUnit ? 0 : maxHorizontalDeviation(routeStability);
+        int basePrepareTicks = sameUnit ? 0 : prepareTicks(target, sameDimension, distanceBlocks, routeStability);
+        int baseMaxHorizontalDeviation = sameUnit ? 0 : maxHorizontalDeviation(routeStability);
         int damageChancePercent = sameUnit ? 0 : damageChancePercent(source, target, sameDimension, distanceBlocks, routeStability);
+        TeleportInterfaceQuotePolicy.Quote interfaceQuote = TeleportInterfaceQuotePolicy.specialize(
+                interfaceType,
+                target.type(),
+                player.getUUID().equals(target.ownerId()),
+                basePrepareTicks,
+                baseMaxHorizontalDeviation,
+                damageChancePercent
+        );
         String blockedReason = blockedReason(source, target, routeStability, cost, amethystCost, amethystAvailable, sameDimension, sameUnit);
         return new TeleportQuote(
                 routeStability,
@@ -1863,9 +1901,12 @@ public final class SpaceUnitHandler {
                 cost.safeFoodPointsAvailable(),
                 amethystCost,
                 amethystAvailable,
-                prepareTicks,
-                maxHorizontalDeviation,
+                interfaceQuote.prepareTicks(),
+                interfaceQuote.maxHorizontalDeviation(),
                 damageChancePercent,
+                interfaceQuote.structureWearChancePercent(),
+                interfaceQuote.bonusActive(),
+                interfaceQuote.bonusMessageKey(),
                 blockedReason.isEmpty(),
                 blockedReason
         );
@@ -2296,6 +2337,9 @@ public final class SpaceUnitHandler {
             int prepareTicks,
             int maxHorizontalDeviation,
             int damageChancePercent,
+            int structureWearChancePercent,
+            boolean interfaceBonusActive,
+            String interfaceBonusMessageKey,
             boolean canTeleport,
             String blockedReason) {
     }
@@ -2327,7 +2371,8 @@ public final class SpaceUnitHandler {
             double stability,
             int tier,
             double wear,
-            boolean lodestoneAnchor) {
+            boolean lodestoneAnchor,
+            UUID ownerId) {
 
         private static TeleportTarget unit(SpaceUnitRecord unit) {
             return new TeleportTarget(
@@ -2339,7 +2384,8 @@ public final class SpaceUnitHandler {
                     unit.structure().resonance(),
                     unit.structure().tier(),
                     unit.structure().wear(),
-                    unit.isLodestoneAnchor()
+                    unit.isLodestoneAnchor(),
+                    unit.owner()
             );
         }
 
@@ -2353,7 +2399,8 @@ public final class SpaceUnitHandler {
                     0.6D,
                     0,
                     0.0D,
-                    false
+                    false,
+                    player.getUUID()
             );
         }
     }

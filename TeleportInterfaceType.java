@@ -1,5 +1,8 @@
 package com.adaptor.deadrecall.space;
 
+import java.util.Locale;
+import java.util.Optional;
+
 public enum TeleportInterfaceType {
     COMPASS("compass", true),
     RECOVERY_COMPASS("recovery_compass", false),
@@ -20,5 +23,18 @@ public enum TeleportInterfaceType {
 
     public boolean hasCompassCapabilities() {
         return this.compassCapabilities;
+    }
+
+    public static Optional<TeleportInterfaceType> fromId(String id) {
+        if (id == null || id.isBlank()) {
+            return Optional.empty();
+        }
+        String normalized = id.trim().toLowerCase(Locale.ROOT);
+        for (TeleportInterfaceType type : values()) {
+            if (type.id.equals(normalized)) {
+                return Optional.of(type);
+            }
+        }
+        return Optional.empty();
     }
 }
