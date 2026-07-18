@@ -1,7 +1,8 @@
 package com.adaptor.deadrecall.space;
 
-/** Pure Phase B specialization rules applied after the ordinary-compass quote is calculated. */
+/** Pure interface specialization rules applied after the ordinary-compass quote is calculated. */
 public final class TeleportInterfaceQuotePolicy {
+    public static final int MAX_FOOD_COST = 20;
     public static final int MAX_PREPARE_TICKS = 300;
     public static final int MAX_DEVIATION = 96;
     public static final int MAX_WEAR_CHANCE_PERCENT = 60;
@@ -14,6 +15,8 @@ public final class TeleportInterfaceQuotePolicy {
             TeleportInterfaceType interfaceType,
             SpaceUnitType targetType,
             boolean targetOwnedByPlayer,
+            boolean filledMapCoversTarget,
+            int baseFoodCost,
             int basePrepareTicks,
             int baseDeviation,
             int baseStructureWearChancePercent) {
@@ -21,6 +24,7 @@ public final class TeleportInterfaceQuotePolicy {
             throw new IllegalArgumentException("Interface and target types are required");
         }
 
+        int foodCost = clamp(baseFoodCost, 0, MAX_FOOD_COST);
         int prepareTicks = clamp(basePrepareTicks, 0, MAX_PREPARE_TICKS);
         int deviation = clamp(baseDeviation, 0, MAX_DEVIATION);
         int wearChance = clamp(baseStructureWearChancePercent, 0, MAX_WEAR_CHANCE_PERCENT);
@@ -29,6 +33,7 @@ public final class TeleportInterfaceQuotePolicy {
                 && targetType == SpaceUnitType.DEATH
                 && targetOwnedByPlayer) {
             return new Quote(
+                    foodCost,
                     prepareTicks,
                     floorMultiply(deviation, 0.50D),
                     wearChance,
@@ -41,6 +46,7 @@ public final class TeleportInterfaceQuotePolicy {
                 && targetType == SpaceUnitType.LODESTONE
                 && prepareTicks > 0) {
             return new Quote(
+                    foodCost,
                     clamp(Math.max(BOOK_MIN_PREPARE_TICKS, ceilMultiply(prepareTicks, 0.80D)),
                             BOOK_MIN_PREPARE_TICKS, MAX_PREPARE_TICKS),
                     deviation,
@@ -50,7 +56,21 @@ public final class TeleportInterfaceQuotePolicy {
             );
         }
 
+        if (interfaceType == TeleportInterfaceType.FILLED_MAP
+                && filledMapCoversTarget
+                && (foodCost > 0 || deviation > 0)) {
+            return new Quote(
+                    foodCost == 0 ? 0 : Math.max(1, ceilMultiply(foodCost, 0.80D)),
+                    prepareTicks,
+                    floorMultiply(deviation, 0.80D),
+                    wearChance,
+                    true,
+                    "message.deadrecall.space_unit.interface_bonus.filled_map.active"
+            );
+        }
+
         return new Quote(
+                foodCost,
                 prepareTicks,
                 deviation,
                 wearChance,
@@ -65,7 +85,7 @@ public final class TeleportInterfaceQuotePolicy {
             case RECOVERY_COMPASS ->
                     "message.deadrecall.space_unit.interface_bonus.recovery_compass.inactive";
             case BOOK -> "message.deadrecall.space_unit.interface_bonus.book.inactive";
-            case FILLED_MAP -> "message.deadrecall.space_unit.interface_bonus.filled_map.pending";
+            case FILLED_MAP -> "message.deadrecall.space_unit.interface_bonus.filled_map.inactive";
         };
     }
 
@@ -82,6 +102,7 @@ public final class TeleportInterfaceQuotePolicy {
     }
 
     public record Quote(
+            int foodCost,
             int prepareTicks,
             int maxHorizontalDeviation,
             int structureWearChancePercent,
@@ -89,7 +110,8 @@ public final class TeleportInterfaceQuotePolicy {
             String bonusMessageKey) {
 
         public Quote {
-            if (prepareTicks < 0 || prepareTicks > MAX_PREPARE_TICKS
+            if (foodCost < 0 || foodCost > MAX_FOOD_COST
+                    || prepareTicks < 0 || prepareTicks > MAX_PREPARE_TICKS
                     || maxHorizontalDeviation < 0 || maxHorizontalDeviation > MAX_DEVIATION
                     || structureWearChancePercent < 0
                     || structureWearChancePercent > MAX_WEAR_CHANCE_PERCENT) {

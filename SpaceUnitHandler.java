@@ -31,6 +31,7 @@ import net.minecraft.world.food.FoodData;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.MapItem;
 import net.minecraft.world.item.component.Consumable;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.LodestoneTracker;
@@ -38,6 +39,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.saveddata.maps.MapId;
+import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -265,7 +267,8 @@ public final class SpaceUnitHandler {
                 player,
                 source.get(),
                 target.get(),
-                interfaceContext.get().interfaceType()
+                interfaceContext.get().interfaceType(),
+                interfaceContext.get().mapId()
         );
         if (!quote.canTeleport()) {
             notify(player, Component.translatable(quote.blockedReason()));
@@ -290,6 +293,8 @@ public final class SpaceUnitHandler {
                 interfaceContext.get().interfaceType(),
                 interfaceContext.get().interactionHand(),
                 interfaceContext.get().mapId(),
+                quote.filledMapDataValid(),
+                quote.interfaceBonusActive(),
                 prepareTicks,
                 prepareTicks
         ));
@@ -699,8 +704,15 @@ public final class SpaceUnitHandler {
                     player,
                     source.get(),
                     target.get(),
-                    session.interfaceType()
+                    session.interfaceType(),
+                    session.mapId()
             );
+            if (filledMapSessionQuoteInvalid(session, quote)) {
+                iterator.remove();
+                notify(player, Component.translatable(
+                        "message.deadrecall.space_unit.teleport_cancelled.interface_quote_changed"));
+                continue;
+            }
             if (!quote.canTeleport()) {
                 iterator.remove();
                 notify(player, Component.translatable(quote.blockedReason()));
@@ -1248,8 +1260,14 @@ public final class SpaceUnitHandler {
                 player,
                 finalSource.get(),
                 finalTarget.get(),
-                session.interfaceType()
+                session.interfaceType(),
+                session.mapId()
         );
+        if (filledMapSessionQuoteInvalid(session, finalQuote)) {
+            notify(player, Component.translatable(
+                    "message.deadrecall.space_unit.teleport_cancelled.interface_quote_changed"));
+            return;
+        }
         if (!finalQuote.canTeleport()) {
             notify(player, Component.translatable(finalQuote.blockedReason()));
             return;
@@ -1490,6 +1508,14 @@ public final class SpaceUnitHandler {
                     "message.deadrecall.space_unit.teleport_cancelled.interface_item");
         }
         return null;
+    }
+
+    private static boolean filledMapSessionQuoteInvalid(
+            TeleportSession session,
+            TeleportQuote quote) {
+        return session.interfaceType() == TeleportInterfaceType.FILLED_MAP
+                && ((session.filledMapDataValidAtStart() && !quote.filledMapDataValid())
+                || (session.filledMapBonusActiveAtStart() && !quote.interfaceBonusActive()));
     }
 
     private static boolean deductTeleportCost(ServerPlayer player, TeleportQuote quote) {
@@ -1760,10 +1786,11 @@ public final class SpaceUnitHandler {
         List<SpaceUnitMapPayload.Entry> entries = new ArrayList<>(Math.min(visibleUnits.size(), SpaceUnitMapPayload.MAX_ENTRIES));
         MinecraftServer server = player.level().getServer();
         UUID playerId = player.getUUID();
-        TeleportInterfaceType interfaceType = currentInterfaceContext(player)
-                .map(TeleportInterfaceContext::interfaceType)
+        TeleportInterfaceContext interfaceContext = currentInterfaceContext(player)
                 .orElseThrow(() -> new IllegalStateException(
                         "Cannot build a teleport map payload without a valid interface context"));
+        TeleportInterfaceType interfaceType = interfaceContext.interfaceType();
+        MapId mapId = interfaceContext.mapId();
         DeadRecallSpaceDiscoverySavedData discoveryData = discovery(server);
         DeadRecallFriendSavedData friendData = friends(server);
         for (SpaceUnitRecord unit : visibleUnits) {
@@ -1771,7 +1798,7 @@ public final class SpaceUnitHandler {
                 break;
             }
             TeleportTarget target = TeleportTarget.unit(unit);
-            TeleportQuote quote = calculateTeleportQuote(player, source, target, interfaceType);
+            TeleportQuote quote = calculateTeleportQuote(player, source, target, interfaceType, mapId);
             boolean friendShared = !unit.owner().equals(playerId) && friendData.areFriends(playerId, unit.owner());
             entries.add(new SpaceUnitMapPayload.Entry(
                     target.id(),
@@ -1816,7 +1843,7 @@ public final class SpaceUnitHandler {
             }
 
             TeleportTarget target = TeleportTarget.player(friend);
-            TeleportQuote quote = calculateTeleportQuote(player, source, target, interfaceType);
+            TeleportQuote quote = calculateTeleportQuote(player, source, target, interfaceType, mapId);
             BlockPos displayPos = approximatePlayerDisplayPos(friend.blockPosition());
             entries.add(new SpaceUnitMapPayload.Entry(
                     target.id(),
@@ -1870,27 +1897,31 @@ public final class SpaceUnitHandler {
             ServerPlayer player,
             MapSource source,
             TeleportTarget target,
-            TeleportInterfaceType interfaceType) {
+            TeleportInterfaceType interfaceType,
+            MapId mapId) {
         boolean sameDimension = source.dimension().equals(target.dimension());
         boolean sameUnit = SOURCE_TYPE_LODESTONE.equals(source.type()) && source.id().equals(target.id());
         int distanceBlocks = sameDimension ? distanceBlocks(source.pos(), target.pos()) : -1;
         double routeStability = sameUnit ? 1.0D : routeStability(source, target, sameDimension, distanceBlocks);
         int baseFoodCost = sameUnit ? 0 : baseFoodCost(target, sameDimension, distanceBlocks);
-        CostBreakdown cost = calculateCostBreakdown(player, baseFoodCost);
         int amethystAvailable = countAmethyst(player);
         int amethystCost = sameUnit || sameDimension ? 0 : Math.max(MIN_CROSS_DIMENSION_AMETHYST_COST,
                 MIN_CROSS_DIMENSION_AMETHYST_COST + (int) Math.ceil((1.0D - routeStability) * 4.0D));
         int basePrepareTicks = sameUnit ? 0 : prepareTicks(target, sameDimension, distanceBlocks, routeStability);
         int baseMaxHorizontalDeviation = sameUnit ? 0 : maxHorizontalDeviation(routeStability);
         int damageChancePercent = sameUnit ? 0 : damageChancePercent(source, target, sameDimension, distanceBlocks, routeStability);
+        FilledMapCoverageStatus mapCoverage = resolveFilledMapCoverage(player, interfaceType, mapId, target);
         TeleportInterfaceQuotePolicy.Quote interfaceQuote = TeleportInterfaceQuotePolicy.specialize(
                 interfaceType,
                 target.type(),
                 player.getUUID().equals(target.ownerId()),
+                mapCoverage.targetCovered(),
+                baseFoodCost,
                 basePrepareTicks,
                 baseMaxHorizontalDeviation,
                 damageChancePercent
         );
+        CostBreakdown cost = calculateCostBreakdown(player, interfaceQuote.foodCost());
         String blockedReason = blockedReason(source, target, routeStability, cost, amethystCost, amethystAvailable, sameDimension, sameUnit);
         return new TeleportQuote(
                 routeStability,
@@ -1907,9 +1938,33 @@ public final class SpaceUnitHandler {
                 interfaceQuote.structureWearChancePercent(),
                 interfaceQuote.bonusActive(),
                 interfaceQuote.bonusMessageKey(),
+                mapCoverage.dataValid(),
                 blockedReason.isEmpty(),
                 blockedReason
         );
+    }
+
+    private static FilledMapCoverageStatus resolveFilledMapCoverage(
+            ServerPlayer player,
+            TeleportInterfaceType interfaceType,
+            MapId mapId,
+            TeleportTarget target) {
+        if (interfaceType != TeleportInterfaceType.FILLED_MAP || mapId == null) {
+            return FilledMapCoverageStatus.NOT_APPLICABLE;
+        }
+        MapItemSavedData mapData = MapItem.getSavedData(mapId, player.level());
+        if (mapData == null) {
+            return FilledMapCoverageStatus.UNAVAILABLE;
+        }
+        boolean covered = FilledMapCoverage.covers(
+                mapData.dimension,
+                mapData.centerX,
+                mapData.centerZ,
+                mapData.scale,
+                target.dimension(),
+                target.pos()
+        );
+        return new FilledMapCoverageStatus(true, covered);
     }
 
     private static CostBreakdown calculateCostBreakdown(ServerPlayer player, int baseFoodCost) {
@@ -2340,6 +2395,7 @@ public final class SpaceUnitHandler {
             int structureWearChancePercent,
             boolean interfaceBonusActive,
             String interfaceBonusMessageKey,
+            boolean filledMapDataValid,
             boolean canTeleport,
             String blockedReason) {
     }
@@ -2349,6 +2405,13 @@ public final class SpaceUnitHandler {
             int hungerCost,
             int foodPointsNeeded,
             int safeFoodPointsAvailable) {
+    }
+
+    private record FilledMapCoverageStatus(boolean dataValid, boolean targetCovered) {
+        private static final FilledMapCoverageStatus NOT_APPLICABLE =
+                new FilledMapCoverageStatus(false, false);
+        private static final FilledMapCoverageStatus UNAVAILABLE =
+                new FilledMapCoverageStatus(false, false);
     }
 
     private record MapSource(
@@ -2444,6 +2507,8 @@ public final class SpaceUnitHandler {
             TeleportInterfaceType interfaceType,
             InteractionHand interactionHand,
             MapId mapId,
+            boolean filledMapDataValidAtStart,
+            boolean filledMapBonusActiveAtStart,
             int totalTicks,
             int remainingTicks) {
 
@@ -2459,6 +2524,8 @@ public final class SpaceUnitHandler {
                     this.interfaceType,
                     this.interactionHand,
                     this.mapId,
+                    this.filledMapDataValidAtStart,
+                    this.filledMapBonusActiveAtStart,
                     this.totalTicks,
                     this.remainingTicks - 1
             );
