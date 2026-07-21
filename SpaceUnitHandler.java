@@ -209,6 +209,13 @@ public final class SpaceUnitHandler {
         }
     }
 
+    public static boolean disableDeathNode(ServerPlayer player, ServerLevel level, UUID unitId) {
+        if (unitId == null) {
+            return false;
+        }
+        return units(level.getServer()).disableDeathUnit(player.getUUID(), unitId, level.getGameTime());
+    }
+
     public static void sendSpaceUnitMap(ServerPlayer player) {
         Optional<InteractionHand> hand = findBoundCompassHand(player);
         if (hand.isEmpty()) {
