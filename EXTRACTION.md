@@ -146,6 +146,16 @@ After the explicit map client-cutover seam was added, the rebuilt Nexus
 dedicated-server directory. It reached `Done (0.722s)` and saved the
 overworld, Nether and End with no DeadRecall or Remnant artifact present.
 
+## Runtime validation
+
+On 2026-07-23, all 23 Nexus Fabric GameTests passed in the standalone Core +
+Fabric API runtime. They cover teleport preparation and cross-dimension quote
+gates, visibility and friendship privacy, server-authoritative multi-player
+map projection, persisted data restart round-tripping, and legacy SavedData
+keys. The companion JUnit suite loads and re-encodes an actual legacy
+`space_discovery` JSON document. This completes the additive validation gate;
+the compatibility-bundle authority cutover remains a separate step.
+
 ## Migrated privacy primitives
 
 Nexus now owns the relationship-bound teleport-session policy and player-target
