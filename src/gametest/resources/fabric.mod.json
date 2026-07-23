@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "totem-nexus-gametest",
+  "version": "1.0.0",
+  "name": "TotemNexus GameTests",
+  "environment": "server",
+  "entrypoints": {
+    "fabric-gametest": [
+      "dev.totem.nexus.space.NexusDistributedSpawnGameTest"
+    ]
+  },
+  "depends": {
+    "fabricloader": "*",
+    "fabric-api": "*",
+    "minecraft": "*",
+    "totem-nexus": "*"
+  }
+}

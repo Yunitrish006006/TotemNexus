@@ -14,6 +14,12 @@ compatibility review.
 
 All preserve their current `data_version` field and codecs.
 
+The copied subset is guarded by `NexusCompatibilitySurfaceTest`; extending the
+copy requires extending that test before activation in a bundle release.
+
+All payload IDs listed below now have a Nexus codec and compatibility assertion;
+their receivers remain inactive until the corresponding authority/UI cutover.
+
 ## Payload IDs
 
 - `deadrecall:request_space_unit_map`
