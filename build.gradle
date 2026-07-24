@@ -8,6 +8,9 @@ group = project.maven_group
 
 base { archivesName = project.archives_base_name }
 
+def totemCoreJar = file(providers.gradleProperty('totemCoreJar')
+        .getOrElse('../TotemCore/build/libs/totem-core-0.1.1.jar'))
+
 loom {
     splitEnvironmentSourceSets()
     mods {
@@ -41,7 +44,7 @@ dependencies {
     runtimeOnly "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
     // Local development artifact; release builds will consume the versioned Core API.
-    modImplementation files('../TotemCore/build/libs/totem-core-0.1.0-SNAPSHOT.jar')
+    modImplementation files(totemCoreJar)
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
