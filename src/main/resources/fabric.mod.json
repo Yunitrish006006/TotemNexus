@@ -8,6 +8,7 @@
     "main": ["dev.totem.nexus.TotemNexus"],
     "client": ["dev.totem.nexus.client.TotemNexusClient"]
   },
+  "mixins": ["totem-nexus.mixins.json"],
   "depends": {
     "fabricloader": ">=0.19.3",
     "fabric-api": "*",

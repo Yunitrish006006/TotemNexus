@@ -28,6 +28,6 @@ public final class NexusDeathBackpackNodeAdapter implements DeathBackpackNodeLif
 
     @Override
     public boolean recover(ServerPlayer recoveringPlayer, UUID nodeId) {
-        return authority.disable(recoveringPlayer, recoveringPlayer.level(), nodeId);
+        return authority.recover(recoveringPlayer, nodeId);
     }
 }

@@ -12,9 +12,11 @@ implementation can replace it. Move and verify the following units in order:
 6. GameTests for privacy, multi-player, cross-dimension, legacy worlds and
    restart; then standalone and compatibility-bundle validation.
 
-`NexusTeleportAuthority` is the required implementation surface. Do not invoke
-any Nexus payload receiver or Core death-backpack adapter before an authority
-implementation has passed the gate that owns its operation.
+`NexusTeleportAuthority` is the required implementation surface. The complete
+0.1.1 implementation is composed only by `NexusAuthorityBootstrap`, which
+registers the Core death-backpack lifecycle adapter, interaction hooks,
+distributed-spawn rule, payload codecs/receivers, death-node administration,
+server ticks and command after the exact bundle selects this artifact.
 
 Favorite mutation belongs to the map/session unit, not the standalone discovery
 store: legacy behavior first validates a short-lived `TeleportInterfaceContext`,
@@ -22,8 +24,8 @@ then checks active/visible/discovered target ownership, writes the favorite, and
 resends the authoritative map. Moving only `setFavorite` would bypass source
 and session validation, so it is intentionally deferred.
 
-Rollback before cutover is removing the Nexus module or leaving its entrypoints
-inactive; DeadRecall remains the sole live authority throughout this phase.
+Rollback is selecting the prior immutable Nexus pin; persisted `deadrecall`
+SavedData keys and payload IDs do not change.
 
 ## Current extraction state
 
@@ -48,9 +50,11 @@ inactive; DeadRecall remains the sole live authority throughout this phase.
   round-trips with UUID integer-array encoding and default-version semantics.
 - Completed and GameTest-covered: codec-backed restart retention for
   lodestone, friendship and distributed-spawn SavedData fields.
-- Still bundle-owned: map construction/resend, friend-list presentation,
-  lodestone management/registration, all teleport session execution and item
-  interactions.
+- Completed in the 0.1.1 candidate: map construction/resend, friend-list
+  presentation, Lodestone management/registration, teleport session execution,
+  item/block interactions, distributed spawning, refresh-quote handling,
+  full death-node administration and the complete client map/friends/preview/
+  administrator screens.
 
 The next implementation must connect this complete map projection and its
 post-mutation resends to the client map state consumer. It cannot be cut down
@@ -65,3 +69,22 @@ distance/unloaded checks, public-update fan-out and authoritative map resend
 as one later cutover unit.
 The copied death-node admin receiver remains inactive until its menu and
 permission-flow validation can be cut over with this authority.
+
+## Full authority candidate
+
+`NexusSpaceUnitAuthority` is now the complete, inactive port of the legacy
+Space Unit server implementation. `NexusGameplayAuthority` adapts it to the
+existing `NexusTeleportAuthority` receiver surface without importing a
+DeadRecall feature class.  The port owns the preserved SavedData codecs,
+death-node lifecycle, map/friend projection, Lodestone mutations, teleport
+sessions, interaction callbacks and both server ticks.  Discord publication is
+an optional `NexusOptionalIntegrations` callback rather than a direct feature
+dependency.
+
+`totem-nexus.mixins.json` now owns the server and client candidate Mixin
+composition, while the server and client entrypoints activate the same atomic
+bootstrap. A Java 25 standalone build loaded that config and passed all 24
+required Fabric GameTests. The remaining bundle work is to pin this immutable
+artifact in DeadRecall, gate every matching root registration and Mixin, then
+prove legacy-world restart, multi-player and Dedicated Server behavior in the
+exact compatibility bundle.

@@ -66,7 +66,7 @@ public final class NexusDistributedSpawnGameTest {
     }
 
     @GameTest(maxTicks = 20)
-    public void deathNodeCreateAndDisableRemainOwnerBound(GameTestHelper helper) {
+    public void deathNodeRollbackIsOwnerBoundButRecoveryIsIdempotent(GameTestHelper helper) {
         var owner = helper.makeMockServerPlayerInLevel();
         var other = helper.makeMockServerPlayerInLevel();
         NexusDeathBackpackNodeAdapter adapter = new NexusDeathBackpackNodeAdapter(new NexusDeathNodeAuthority());
@@ -79,13 +79,33 @@ public final class NexusDistributedSpawnGameTest {
             helper.fail("Created Death Node was not persisted and discovered for its owner");
             return;
         }
-        if (adapter.recover(other, nodeId)) {
-            helper.fail("Non-owner disabled a Death Node");
+        adapter.rollback(other, helper.getLevel(), nodeId);
+        if (units.get(nodeId).filter(unit -> unit.status() == SpaceUnitStatus.ACTIVE).isEmpty()) {
+            helper.fail("Non-owner rolled back a Death Node");
             return;
         }
-        if (!adapter.recover(owner, nodeId)
+        if (!adapter.recover(other, nodeId)
                 || units.get(nodeId).filter(unit -> unit.status() == SpaceUnitStatus.DISABLED).isEmpty()) {
-            helper.fail("Owner could not disable the active Death Node");
+            helper.fail("Recovery did not disable the active Death Node");
+            return;
+        }
+        if (!adapter.recover(owner, nodeId) || !adapter.recover(other, UUID.randomUUID())) {
+            helper.fail("Death Node recovery was not idempotent");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 20)
+    public void completeAuthorityFacadeUsesThePreservedDeathNodeSchema(GameTestHelper helper) {
+        var owner = helper.makeMockServerPlayerInLevel();
+        NexusGameplayAuthority authority = new NexusGameplayAuthority();
+        UUID nodeId = authority.createDeathNode(owner, helper.getLevel(), helper.absolutePos(new BlockPos(7, 2, 2)));
+        net.minecraft.world.item.ItemStack backpack = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.CHEST);
+        authority.bindDeathNode(backpack, nodeId);
+        if (!nodeId.equals(DeathNodeBackpackBinding.read(backpack))
+                || !authority.disableDeathNode(owner, helper.getLevel(), nodeId)) {
+            helper.fail("Complete Nexus authority did not preserve the Death Node lifecycle");
             return;
         }
         helper.succeed();

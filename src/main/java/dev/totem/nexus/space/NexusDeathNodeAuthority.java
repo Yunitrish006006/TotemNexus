@@ -27,4 +27,10 @@ public final class NexusDeathNodeAuthority {
                 .computeIfAbsent(NexusSpaceUnitSavedData.TYPE)
                 .disableDeathUnit(player.getUUID(), nodeId, level.getGameTime());
     }
+
+    public boolean recover(ServerPlayer player, UUID nodeId) {
+        return nodeId != null && player.level().getServer().overworld().getDataStorage()
+                .computeIfAbsent(NexusSpaceUnitSavedData.TYPE)
+                .recoverDeathUnit(nodeId, player.level().getGameTime());
+    }
 }
