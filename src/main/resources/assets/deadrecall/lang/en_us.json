@@ -1,0 +1,12 @@
+{
+  "message.deadrecall.space_unit.friends_title": "Space Unit Friends",
+  "message.deadrecall.space_unit.friends_refresh": "Refresh",
+  "message.deadrecall.space_unit.friends_remove": "Remove",
+  "message.deadrecall.space_unit.friends_empty": "No friends or pending invites",
+  "message.deadrecall.space_unit.friends_count": "%s entries",
+  "message.deadrecall.space_unit.friend_status.friend": "friend",
+  "message.deadrecall.space_unit.friend_status.incoming": "incoming",
+  "message.deadrecall.space_unit.friend_status.outgoing": "invited",
+  "message.deadrecall.space_unit.friend_online": "online",
+  "message.deadrecall.space_unit.friend_offline": "offline"
+}

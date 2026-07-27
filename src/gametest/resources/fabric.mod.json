@@ -3,10 +3,13 @@
   "id": "totem-nexus-gametest",
   "version": "1.0.0",
   "name": "TotemNexus GameTests",
-  "environment": "server",
+  "environment": "*",
   "entrypoints": {
     "fabric-gametest": [
       "dev.totem.nexus.space.NexusDistributedSpawnGameTest"
+    ],
+    "fabric-client-gametest": [
+      "dev.totem.nexus.client.NexusFriendsVisualGameTest"
     ]
   },
   "depends": {

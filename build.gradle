@@ -26,7 +26,7 @@ fabricApi {
         createSourceSet = true
         modId = "totem-nexus-gametest"
         enableGameTests = true
-        enableClientGameTests = false
+        enableClientGameTests = true
         eula = true
     }
 }

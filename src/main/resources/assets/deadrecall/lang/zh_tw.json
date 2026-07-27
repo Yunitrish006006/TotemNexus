@@ -1,0 +1,12 @@
+{
+  "message.deadrecall.space_unit.friends_title": "Space Unit 好友",
+  "message.deadrecall.space_unit.friends_refresh": "重新整理",
+  "message.deadrecall.space_unit.friends_remove": "移除",
+  "message.deadrecall.space_unit.friends_empty": "沒有好友或待處理邀請",
+  "message.deadrecall.space_unit.friends_count": "%s 位",
+  "message.deadrecall.space_unit.friend_status.friend": "好友",
+  "message.deadrecall.space_unit.friend_status.incoming": "收到邀請",
+  "message.deadrecall.space_unit.friend_status.outgoing": "已邀請",
+  "message.deadrecall.space_unit.friend_online": "在線",
+  "message.deadrecall.space_unit.friend_offline": "離線"
+}
