@@ -188,6 +188,27 @@ public class NexusSpaceUnitSavedData extends SavedData {
         return created;
     }
 
+    /**
+     * Persists the ItemEntity UUID owned by a death node. This reverse link is
+     * intentionally SavedData-only so administration diagnostics never search
+     * unloaded chunks for entities.
+     */
+    public boolean bindDeathBackpack(UUID unitId, UUID backpackEntityId, long gameTime) {
+        if (unitId == null || backpackEntityId == null) {
+            return false;
+        }
+        Optional<NexusSpaceUnitRecord> unit = get(unitId);
+        if (unit.isEmpty()
+                || unit.get().type() != SpaceUnitType.DEATH
+                || unit.get().status() != SpaceUnitStatus.ACTIVE) {
+            return false;
+        }
+        NexusSpaceUnitRecord bound = unit.get().withBackpackId(backpackEntityId, gameTime);
+        this.unitsById.put(bound.id(), bound);
+        setDirty();
+        return true;
+    }
+
     public boolean disableDeathUnit(UUID ownerId, UUID unitId, long gameTime) {
         Optional<NexusSpaceUnitRecord> unit = get(unitId);
         if (unit.isEmpty()

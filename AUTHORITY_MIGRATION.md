@@ -88,3 +88,19 @@ required Fabric GameTests. The remaining bundle work is to pin this immutable
 artifact in DeadRecall, gate every matching root registration and Mixin, then
 prove legacy-world restart, multi-player and Dedicated Server behavior in the
 exact compatibility bundle.
+
+## Safe-landing execution budget
+
+Safe-landing selection now follows the architecture requirement that large
+teleport scans use a bounded server session. Starting a teleport no longer
+performs an eager landing scan. After preparation, Nexus asynchronously tickets
+only the target anchor chunk, checks at most 128 columns per server tick, reads
+blocks directly from already-loaded `LevelChunk` instances, and ignores other
+unloaded chunks instead of entering `ServerChunkCache#getChunkBlocking`.
+
+The session retains the legacy random-deviation priority and nearest-column
+fallback without allowing either path to synchronously generate surrounding
+chunks. It uses an existing heightmap only when the surface remains close to
+the authoritative target height, revalidates the final target and landing
+before cost deduction, and releases its temporary ticket on success,
+cancellation, disconnect, timeout or server shutdown.

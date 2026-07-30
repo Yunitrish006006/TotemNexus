@@ -186,3 +186,11 @@ the future Space Unit map quote migration.
 Teleport interface IDs and specialization quote rules are now also copied and
 unit-tested. This provides the bounded-cost constants required by the remaining
 `space_unit_map` payload migration.
+
+The cut-over safe-landing implementation is now incremental and non-blocking:
+it asynchronously prepares one authoritative anchor chunk, scans at most 128
+columns per tick, uses only already-loaded chunks for surrounding candidates,
+and reads through cached `LevelChunk` instances. This removes the legacy eager
+preflight scan and prevents safe-landing block checks from forcing a
+`getChunkBlocking` call across the deviation square. Cursor policy is covered
+by JUnit and the live loaded-chunk path is covered by Fabric GameTest.

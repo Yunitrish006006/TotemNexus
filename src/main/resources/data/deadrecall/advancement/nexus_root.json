@@ -1,0 +1,27 @@
+{
+  "parent": "deadrecall:root",
+  "criteria": {
+    "ready": {
+      "trigger": "minecraft:tick"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "background": "minecraft:gui/advancements/backgrounds/end",
+    "description": {
+      "translate": "advancements.deadrecall.nexus_root.description"
+    },
+    "icon": {
+      "id": "minecraft:lodestone"
+    },
+    "show_toast": false,
+    "title": {
+      "translate": "advancements.deadrecall.nexus_root.title"
+    }
+  },
+  "requirements": [
+    [
+      "ready"
+    ]
+  ]
+}

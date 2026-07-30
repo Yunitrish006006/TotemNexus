@@ -6,10 +6,12 @@
   "environment": "*",
   "entrypoints": {
     "fabric-gametest": [
-      "dev.totem.nexus.space.NexusDistributedSpawnGameTest"
+      "dev.totem.nexus.space.NexusDistributedSpawnGameTest",
+      "dev.totem.nexus.space.NexusDeathNodeAdminAuthorizationGameTest"
     ],
     "fabric-client-gametest": [
-      "dev.totem.nexus.client.NexusFriendsVisualGameTest"
+      "dev.totem.nexus.client.NexusFriendsVisualGameTest",
+      "dev.totem.nexus.client.TotemAdvancementsVisualGameTest"
     ]
   },
   "depends": {

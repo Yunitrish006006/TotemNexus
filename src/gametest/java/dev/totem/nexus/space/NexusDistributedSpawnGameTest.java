@@ -8,6 +8,44 @@ import java.util.UUID;
 
 /** Exercises the stable distributed-spawn schema with a live server registry. */
 public final class NexusDistributedSpawnGameTest {
+    @GameTest(maxTicks = 40)
+    public void safeLandingSearchAdvancesIncrementallyOnLoadedChunks(GameTestHelper helper) {
+        BlockPos feet = new BlockPos(2, 3, 2);
+        helper.setBlock(feet.below(), net.minecraft.world.level.block.Blocks.STONE);
+        helper.setBlock(feet, net.minecraft.world.level.block.Blocks.AIR);
+        helper.setBlock(feet.above(), net.minecraft.world.level.block.Blocks.AIR);
+
+        BlockPos expected = helper.absolutePos(feet);
+        NexusSafeLanding.Search search =
+                NexusSafeLanding.begin(
+                        helper.getLevel(),
+                        expected,
+                        false,
+                        48,
+                        net.minecraft.util.RandomSource.create(42L),
+                        true
+                );
+        java.util.concurrent.atomic.AtomicBoolean finished =
+                new java.util.concurrent.atomic.AtomicBoolean();
+        helper.onEachTick(() -> {
+            if (finished.get()) {
+                return;
+            }
+            NexusSafeLanding.Progress progress = search.advance();
+            if (progress.state() == NexusSafeLanding.State.SEARCHING) {
+                return;
+            }
+            finished.set(true);
+            search.close();
+            if (progress.state() != NexusSafeLanding.State.FOUND
+                    || !progress.landing().orElseThrow().equals(expected)) {
+                helper.fail("Incremental safe-landing search did not return the loaded exact column");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
     @GameTest(maxTicks = 20)
     public void savedDataKeysRemainInTheLegacyNamespace(GameTestHelper helper) {
         if (!NexusSpaceUnitSavedData.TYPE.id().toString().equals("deadrecall:space_units")

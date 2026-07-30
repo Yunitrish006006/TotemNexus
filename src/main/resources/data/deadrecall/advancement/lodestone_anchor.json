@@ -1,0 +1,31 @@
+{
+  "parent": "deadrecall:nexus_root",
+  "criteria": {
+    "has_lodestone": {
+      "conditions": {
+        "items": [
+          {
+            "items": "minecraft:lodestone"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.deadrecall.nexus_lodestone_anchor.description"
+    },
+    "icon": {
+      "id": "minecraft:lodestone"
+    },
+    "title": {
+      "translate": "advancements.deadrecall.nexus_lodestone_anchor.title"
+    }
+  },
+  "requirements": [
+    [
+      "has_lodestone"
+    ]
+  ]
+}

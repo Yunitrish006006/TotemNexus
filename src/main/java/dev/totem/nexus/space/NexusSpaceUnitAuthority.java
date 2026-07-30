@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.core.BlockPos;
@@ -36,7 +37,6 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.LodestoneTracker;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
@@ -70,10 +70,9 @@ public final class NexusSpaceUnitAuthority {
     private static final int TELEPORT_INTERFACE_CONTEXT_TICKS = 20 * 60 * 10;
     private static final int MAX_LODESTONE_NAME_LENGTH = 48;
     private static final double SESSION_MOVE_CANCEL_DISTANCE = 4.0D;
-    private static final int SAFE_LANDING_VERTICAL_SEARCH = 4;
-    private static final int RANDOM_LANDING_ATTEMPTS = 24;
 
     private static final Map<UUID, TeleportSession> teleportSessions = new HashMap<>();
+    private static final Map<UUID, LandingSearchSession> landingSearchSessions = new HashMap<>();
     private static final Map<UUID, TeleportInterfaceContext> teleportInterfaceContexts = new HashMap<>();
     private static final Map<UUID, PendingLodestoneRegistration> pendingLodestoneRegistrations = new HashMap<>();
     private static int lodestoneValidationTicker = 0;
@@ -171,9 +170,11 @@ public final class NexusSpaceUnitAuthority {
         ServerPlayConnectionEvents.DISCONNECT.register((listener, server) -> {
             UUID playerId = listener.getPlayer().getUUID();
             teleportSessions.remove(playerId);
+            closeLandingSearch(playerId);
             teleportInterfaceContexts.remove(playerId);
             pendingLodestoneRegistrations.remove(playerId);
         });
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> clearTeleportSessions());
     }
 
     public static UUID createDeathNode(ServerPlayer player, ServerLevel level, BlockPos deathPos) {
@@ -279,6 +280,7 @@ public final class NexusSpaceUnitAuthority {
             UUID sourceUnitId,
             UUID targetUnitId) {
         teleportSessions.remove(player.getUUID());
+        closeLandingSearch(player.getUUID());
 
         Optional<TeleportInterfaceContext> interfaceContext =
                 requireInterfaceContext(player, sourceType, sourceUnitId, true);
@@ -309,7 +311,7 @@ public final class NexusSpaceUnitAuthority {
         }
 
         ServerLevel targetLevel = player.level().getServer().getLevel(target.get().dimension());
-        if (targetLevel == null || findNearestSafeLanding(targetLevel, target.get(), quote.maxHorizontalDeviation()).isEmpty()) {
+        if (targetLevel == null) {
             notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.no_landing"));
             return;
         }
@@ -698,7 +700,7 @@ public final class NexusSpaceUnitAuthority {
     }
 
     public static void tickTeleportSessions(MinecraftServer server) {
-        if (teleportSessions.isEmpty()) {
+        if (teleportSessions.isEmpty() && landingSearchSessions.isEmpty()) {
             return;
         }
 
@@ -761,6 +763,7 @@ public final class NexusSpaceUnitAuthority {
             iterator.remove();
             completeTeleport(player, source.get(), target.get(), quote, session);
         }
+        tickLandingSearchSessions(server);
     }
 
     public static void tickLodestoneIntegrity(MinecraftServer server) {
@@ -787,9 +790,26 @@ public final class NexusSpaceUnitAuthority {
     }
 
     public static void cancelTeleport(ServerPlayer player, Component reason) {
-        if (teleportSessions.remove(player.getUUID()) != null) {
+        boolean cancelled = teleportSessions.remove(player.getUUID()) != null;
+        cancelled = closeLandingSearch(player.getUUID()) || cancelled;
+        if (cancelled) {
             notify(player, reason);
         }
+    }
+
+    private static boolean closeLandingSearch(UUID playerId) {
+        LandingSearchSession pending = landingSearchSessions.remove(playerId);
+        if (pending == null) {
+            return false;
+        }
+        pending.search().close();
+        return true;
+    }
+
+    private static void clearTeleportSessions() {
+        teleportSessions.clear();
+        landingSearchSessions.values().forEach(pending -> pending.search().close());
+        landingSearchSessions.clear();
     }
 
     private static Optional<ManageableLodestone> resolveManageableLodestone(
@@ -1318,8 +1338,185 @@ public final class NexusSpaceUnitAuthority {
             return;
         }
 
-        Optional<LandingPlan> landing = selectLanding(targetLevel, finalTarget.get(), finalQuote, player, targetLevel.getRandom());
-        if (landing.isEmpty()) {
+        NexusSafeLanding.Search search = NexusSafeLanding.begin(
+                targetLevel,
+                finalTarget.get().pos(),
+                finalTarget.get().lodestoneAnchor(),
+                finalQuote.maxHorizontalDeviation(),
+                targetLevel.getRandom(),
+                finalTarget.get().type() == SpaceUnitType.PLAYER
+        );
+        LandingSearchSession previous = landingSearchSessions.put(
+                player.getUUID(),
+                new LandingSearchSession(session, search)
+        );
+        if (previous != null) {
+            previous.search().close();
+        }
+    }
+
+    private static void tickLandingSearchSessions(MinecraftServer server) {
+        Iterator<Map.Entry<UUID, LandingSearchSession>> iterator =
+                landingSearchSessions.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<UUID, LandingSearchSession> entry = iterator.next();
+            LandingSearchSession pending = entry.getValue();
+            TeleportSession session = pending.teleport();
+            ServerPlayer player = server.getPlayerList().getPlayer(session.playerId());
+            if (player == null) {
+                iterator.remove();
+                pending.search().close();
+                continue;
+            }
+
+            Component cancelReason = teleportCancelReason(player, session);
+            if (cancelReason != null) {
+                iterator.remove();
+                pending.search().close();
+                notify(player, cancelReason);
+                continue;
+            }
+
+            Optional<MapSource> source =
+                    resolveMapSource(player, session.sourceType(), session.sourceUnitId(), false);
+            if (source.isEmpty()) {
+                iterator.remove();
+                pending.search().close();
+                notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.source"));
+                continue;
+            }
+
+            Optional<TeleportTarget> target =
+                    resolveTeleportTarget(player, session.targetUnitId(), false);
+            if (target.isEmpty()) {
+                iterator.remove();
+                pending.search().close();
+                notify(player, targetCancelReason(player, session.targetType(), session.targetUnitId()));
+                continue;
+            }
+
+            TeleportQuote quote = calculateTeleportQuote(
+                    player,
+                    source.get(),
+                    target.get(),
+                    session.interfaceType(),
+                    session.mapId()
+            );
+            if (filledMapSessionQuoteInvalid(session, quote)) {
+                iterator.remove();
+                pending.search().close();
+                notify(player, Component.translatable(
+                        "message.deadrecall.space_unit.teleport_cancelled.interface_quote_changed"));
+                continue;
+            }
+            if (!quote.canTeleport()) {
+                iterator.remove();
+                pending.search().close();
+                notify(player, Component.translatable(quote.blockedReason()));
+                continue;
+            }
+
+            ServerLevel targetLevel = server.getLevel(target.get().dimension());
+            if (targetLevel == null) {
+                iterator.remove();
+                pending.search().close();
+                notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.target"));
+                continue;
+            }
+
+            BlockPos currentAnchor = landingAnchor(target.get());
+            int currentRadius = clamp(
+                    quote.maxHorizontalDeviation(),
+                    0,
+                    NexusSafeLanding.MAX_HORIZONTAL_RADIUS
+            );
+            if (pending.search().level() != targetLevel
+                    || !pending.search().anchor().equals(currentAnchor)
+                    || pending.search().radius() != currentRadius) {
+                pending.search().close();
+                entry.setValue(new LandingSearchSession(
+                        session,
+                        NexusSafeLanding.begin(
+                                targetLevel,
+                                target.get().pos(),
+                                target.get().lodestoneAnchor(),
+                                currentRadius,
+                                targetLevel.getRandom(),
+                                target.get().type() == SpaceUnitType.PLAYER
+                        )
+                ));
+                continue;
+            }
+
+            NexusSafeLanding.Progress progress = pending.search().advance();
+            if (progress.state() == NexusSafeLanding.State.SEARCHING) {
+                continue;
+            }
+
+            iterator.remove();
+            pending.search().close();
+            if (progress.state() == NexusSafeLanding.State.EXHAUSTED) {
+                notify(player, Component.translatable(
+                        "message.deadrecall.space_unit.teleport_cancelled.no_landing"));
+                continue;
+            }
+            finishTeleport(player, session, progress.landing().orElseThrow());
+        }
+    }
+
+    private static void finishTeleport(
+            ServerPlayer player,
+            TeleportSession session,
+            BlockPos landingPos) {
+        Component interfaceCancelReason = teleportInterfaceCancelReason(player, session);
+        if (interfaceCancelReason != null) {
+            notify(player, interfaceCancelReason);
+            return;
+        }
+
+        Optional<MapSource> finalSource =
+                resolveMapSource(player, session.sourceType(), session.sourceUnitId(), false, true);
+        if (finalSource.isEmpty()) {
+            notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.source"));
+            return;
+        }
+        Optional<TeleportTarget> finalTarget =
+                resolveTeleportTarget(player, session.targetUnitId(), false, true);
+        if (finalTarget.isEmpty()) {
+            notify(player, targetCancelReason(player, session.targetType(), session.targetUnitId()));
+            return;
+        }
+
+        TeleportQuote finalQuote = calculateTeleportQuote(
+                player,
+                finalSource.get(),
+                finalTarget.get(),
+                session.interfaceType(),
+                session.mapId()
+        );
+        if (filledMapSessionQuoteInvalid(session, finalQuote)) {
+            notify(player, Component.translatable(
+                    "message.deadrecall.space_unit.teleport_cancelled.interface_quote_changed"));
+            return;
+        }
+        if (!finalQuote.canTeleport()) {
+            notify(player, Component.translatable(finalQuote.blockedReason()));
+            return;
+        }
+
+        ServerLevel targetLevel = player.level().getServer().getLevel(finalTarget.get().dimension());
+        BlockPos finalAnchor = landingAnchor(finalTarget.get());
+        int radius = clamp(
+                finalQuote.maxHorizontalDeviation(),
+                0,
+                NexusSafeLanding.MAX_HORIZONTAL_RADIUS
+        );
+        if (targetLevel == null
+                || Math.max(
+                        Math.abs(landingPos.getX() - finalAnchor.getX()),
+                        Math.abs(landingPos.getZ() - finalAnchor.getZ())
+                ) > radius
+                || !NexusSafeLanding.isSafeLoaded(targetLevel, landingPos)) {
             notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.no_landing"));
             return;
         }
@@ -1329,14 +1526,13 @@ public final class NexusSpaceUnitAuthority {
             return;
         }
 
-        BlockPos landingPos = landing.get().pos();
         player.teleportTo(
                 targetLevel,
                 landingPos.getX() + 0.5D,
                 landingPos.getY(),
                 landingPos.getZ() + 0.5D,
                 Relative.DELTA,
-                landing.get().yaw(),
+                randomizedYaw(player, finalQuote, targetLevel.getRandom()),
                 player.getXRot(),
                 false
         );
@@ -1605,43 +1801,6 @@ public final class NexusSpaceUnitAuthority {
         return remaining <= 0;
     }
 
-    private static Optional<LandingPlan> selectLanding(
-            ServerLevel level,
-            TeleportTarget target,
-            TeleportQuote quote,
-            ServerPlayer player,
-            RandomSource random) {
-        BlockPos anchor = landingAnchor(target);
-        if (target.type() == SpaceUnitType.PLAYER) {
-            Optional<BlockPos> exactPlayerLanding = findSafeLandingInColumn(level, anchor);
-            if (exactPlayerLanding.isPresent()) {
-                return Optional.of(new LandingPlan(
-                        exactPlayerLanding.get(),
-                        randomizedYaw(player, quote, random)
-                ));
-            }
-        }
-
-        int radius = clamp(quote.maxHorizontalDeviation(), 0, 96);
-        if (radius > 0) {
-            for (int attempt = 0; attempt < RANDOM_LANDING_ATTEMPTS; attempt++) {
-                int dx = random.nextInt(radius * 2 + 1) - radius;
-                int dz = random.nextInt(radius * 2 + 1) - radius;
-                Optional<BlockPos> landing = findSafeLandingInColumn(level, anchor.offset(dx, 0, dz));
-                if (landing.isPresent()) {
-                    return Optional.of(new LandingPlan(landing.get(), randomizedYaw(player, quote, random)));
-                }
-            }
-        }
-
-        return findNearestSafeLanding(level, target, radius)
-                .map(pos -> new LandingPlan(pos, randomizedYaw(player, quote, random)));
-    }
-
-    private static Optional<BlockPos> findNearestSafeLanding(ServerLevel level, TeleportTarget target, int maxHorizontalDeviation) {
-        return findSafeLandingNear(level, landingAnchor(target), maxHorizontalDeviation);
-    }
-
     /**
      * Finds the nearest safe feet position around an explicit server-owned
      * anchor. Administrative tools use this rather than teleporting directly
@@ -1651,22 +1810,7 @@ public final class NexusSpaceUnitAuthority {
         if (level == null || anchor == null) {
             return Optional.empty();
         }
-        int radius = clamp(maxHorizontalDeviation, 0, 96);
-        for (int horizontal = 0; horizontal <= radius; horizontal++) {
-            for (int dx = -horizontal; dx <= horizontal; dx++) {
-                for (int dz = -horizontal; dz <= horizontal; dz++) {
-                    if (Math.max(Math.abs(dx), Math.abs(dz)) != horizontal) {
-                        continue;
-                    }
-
-                    Optional<BlockPos> landing = findSafeLandingInColumn(level, anchor.offset(dx, 0, dz));
-                    if (landing.isPresent()) {
-                        return landing;
-                    }
-                }
-            }
-        }
-        return Optional.empty();
+        return NexusSafeLanding.findLoaded(level, anchor, false, maxHorizontalDeviation);
     }
 
     private static float randomizedYaw(ServerPlayer player, TeleportQuote quote, RandomSource random) {
@@ -1726,62 +1870,6 @@ public final class NexusSpaceUnitAuthority {
         if (worn) {
             notify(player, Component.translatable("message.deadrecall.space_unit.teleport_structure_worn"));
         }
-    }
-
-    private static Optional<BlockPos> findSafeLandingInColumn(ServerLevel level, BlockPos anchor) {
-        if (isSafeLanding(level, anchor)) {
-            return Optional.of(anchor.immutable());
-        }
-
-        for (int offset = 1; offset <= SAFE_LANDING_VERTICAL_SEARCH; offset++) {
-            BlockPos above = anchor.above(offset);
-            if (isSafeLanding(level, above)) {
-                return Optional.of(above.immutable());
-            }
-
-            BlockPos below = anchor.below(offset);
-            if (isSafeLanding(level, below)) {
-                return Optional.of(below.immutable());
-            }
-        }
-        return Optional.empty();
-    }
-
-    private static boolean isSafeLanding(ServerLevel level, BlockPos feetPos) {
-        if (feetPos.getY() <= level.getMinY() || feetPos.getY() >= level.getMaxY()) {
-            return false;
-        }
-        if (!level.getWorldBorder().isWithinBounds(feetPos.getX() + 0.5D, feetPos.getZ() + 0.5D)) {
-            return false;
-        }
-
-        BlockPos headPos = feetPos.above();
-        BlockPos floorPos = feetPos.below();
-        BlockState feet = level.getBlockState(feetPos);
-        BlockState head = level.getBlockState(headPos);
-        BlockState floor = level.getBlockState(floorPos);
-        if (!isOpenForPlayer(feet) || !isOpenForPlayer(head)) {
-            return false;
-        }
-        if (floor.isAir() || !floor.getFluidState().isEmpty() || !floor.blocksMotion()) {
-            return false;
-        }
-        return !isUnsafeBlock(feet) && !isUnsafeBlock(head) && !isUnsafeBlock(floor);
-    }
-
-    private static boolean isOpenForPlayer(BlockState state) {
-        return state.isAir() && state.getFluidState().isEmpty();
-    }
-
-    private static boolean isUnsafeBlock(BlockState state) {
-        return state.is(Blocks.LAVA)
-                || state.is(Blocks.FIRE)
-                || state.is(Blocks.SOUL_FIRE)
-                || state.is(Blocks.CAMPFIRE)
-                || state.is(Blocks.SOUL_CAMPFIRE)
-                || state.is(Blocks.CACTUS)
-                || state.is(Blocks.MAGMA_BLOCK)
-                || state.is(Blocks.POWDER_SNOW);
     }
 
     private static BlockPos landingAnchor(TeleportTarget target) {
@@ -2550,9 +2638,9 @@ public final class NexusSpaceUnitAuthority {
         }
     }
 
-    private record LandingPlan(
-            BlockPos pos,
-            float yaw) {
+    private record LandingSearchSession(
+            TeleportSession teleport,
+            NexusSafeLanding.Search search) {
     }
 
     private record ManageableLodestone(

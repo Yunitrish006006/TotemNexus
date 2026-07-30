@@ -4,6 +4,12 @@ Optional Space Unit, teleport, friend, death-node and distributed-spawn module
 for Totem. It depends on TotemCore only and can subscribe to Remnant's optional
 death-backpack lifecycle contract when both modules are installed.
 
+`0.2.0` is the current candidate built against TotemCore `0.2.0`. It adds the
+optional persisted reverse death-backpack binding, duplicate-binding
+diagnostics and external-authority authorization coverage. The immutable
+`0.1.4` graph remains the rollback baseline until a new graph is committed and
+verified.
+
 ## Migration baseline
 
 The repository now builds as a standalone Fabric 26.2 module with TotemCore as
