@@ -1,0 +1,24 @@
+{
+  "required": true,
+  "package": "dev.totem.nexus.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "NexusSpaceDiscoverySavedDataAccessor",
+    "NexusSpaceUnitCatalystMixin",
+    "NexusSpaceUnitSavedDataAccessor",
+    "NexusServerPlayerDistributedSpawnMixin",
+    "NexusSpaceUnitAuthorityCatalystMixin",
+    "NexusSpaceUnitAuthorityRefreshMixin",
+    "NexusSpaceUnitMapCatalystBreakdownMixin",
+    "NexusSpaceUnitMapSourceAccessor",
+    "NexusSpaceUnitOfflinePlayerNameMixin",
+    "NexusSpaceUnitTeleportSessionAccessor",
+    "NexusSpaceUnitTeleportTargetAccessor"
+  ],
+  "client": [
+    "client.NexusSpaceUnitMapScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

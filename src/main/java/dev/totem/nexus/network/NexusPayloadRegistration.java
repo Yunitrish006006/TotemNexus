@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class NexusPayloadRegistration {
     private static final AtomicBoolean REGISTERED = new AtomicBoolean();
+    private static final AtomicBoolean CLIENTBOUND_TYPES_REGISTERED = new AtomicBoolean();
     private static final AtomicBoolean RECEIVERS_REGISTERED = new AtomicBoolean();
     private static final AtomicBoolean DEATH_NODE_RECEIVERS_REGISTERED = new AtomicBoolean();
 
@@ -36,6 +37,20 @@ public final class NexusPayloadRegistration {
         PayloadTypeRegistry.serverboundPlay().register(ConfirmSpaceUnitRegistrationPayload.TYPE, ConfirmSpaceUnitRegistrationPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RequestDeathNodeAdminPayload.TYPE, RequestDeathNodeAdminPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(ManageDeathNodeAdminPayload.TYPE, ManageDeathNodeAdminPayload.CODEC);
+    }
+
+    /** Registers every Nexus-owned clientbound codec before a server may send it. */
+    public static void registerClientboundTypes() {
+        if (!CLIENTBOUND_TYPES_REGISTERED.compareAndSet(false, true)) {
+            return;
+        }
+        PayloadTypeRegistry.clientboundPlay().register(SpaceUnitMapPayload.TYPE, SpaceUnitMapPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(SpaceUnitFriendsPayload.TYPE, SpaceUnitFriendsPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(
+                SpaceUnitRegistrationPreviewPayload.TYPE,
+                SpaceUnitRegistrationPreviewPayload.CODEC
+        );
+        PayloadTypeRegistry.clientboundPlay().register(DeathNodeAdminPayload.TYPE, DeathNodeAdminPayload.CODEC);
     }
 
     /** Activates receivers only when the complete server authority layer is cut over. */

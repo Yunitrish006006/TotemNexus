@@ -8,17 +8,33 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-/** Immutable record preserving the legacy Space Unit codec field names. */
-public record NexusSpaceUnitRecord(UUID id, SpaceUnitType type, ResourceKey<Level> dimension, BlockPos pos, UUID owner,
-                                   String name, SpaceUnitVisibility visibility, SpaceUnitStatus status,
-                                   Set<UUID> administrators, Set<UUID> allowedPlayers, SpaceStructureSnapshot structure,
-                                   long createdGameTime, long updatedGameTime) {
-    private static final Codec<SpaceUnitType> TYPE_CODEC = Codec.STRING.xmap(SpaceUnitType::fromId, SpaceUnitType::id);
-    private static final Codec<SpaceUnitVisibility> VISIBILITY_CODEC = Codec.STRING.xmap(SpaceUnitVisibility::fromId, SpaceUnitVisibility::id);
-    private static final Codec<SpaceUnitStatus> STATUS_CODEC = Codec.STRING.xmap(SpaceUnitStatus::fromId, SpaceUnitStatus::id);
+public record NexusSpaceUnitRecord(
+        UUID id,
+        SpaceUnitType type,
+        ResourceKey<Level> dimension,
+        BlockPos pos,
+        UUID owner,
+        String name,
+        SpaceUnitVisibility visibility,
+        SpaceUnitStatus status,
+        Set<UUID> administrators,
+        Set<UUID> allowedPlayers,
+        SpaceStructureSnapshot structure,
+        long createdGameTime,
+        long updatedGameTime,
+        Optional<UUID> backpackId) {
+
+    private static final Codec<SpaceUnitType> TYPE_CODEC =
+            Codec.STRING.xmap(SpaceUnitType::fromId, SpaceUnitType::id);
+    private static final Codec<SpaceUnitVisibility> VISIBILITY_CODEC =
+            Codec.STRING.xmap(SpaceUnitVisibility::fromId, SpaceUnitVisibility::id);
+    private static final Codec<SpaceUnitStatus> STATUS_CODEC =
+            Codec.STRING.xmap(SpaceUnitStatus::fromId, SpaceUnitStatus::id);
+
     public static final Codec<NexusSpaceUnitRecord> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             UUIDUtil.CODEC.fieldOf("id").forGetter(NexusSpaceUnitRecord::id),
             TYPE_CODEC.optionalFieldOf("type", SpaceUnitType.LODESTONE).forGetter(NexusSpaceUnitRecord::type),
@@ -32,36 +48,213 @@ public record NexusSpaceUnitRecord(UUID id, SpaceUnitType type, ResourceKey<Leve
             UUIDUtil.CODEC_SET.optionalFieldOf("allowed_players", Set.of()).forGetter(NexusSpaceUnitRecord::allowedPlayers),
             SpaceStructureSnapshot.CODEC.optionalFieldOf("structure", SpaceStructureSnapshot.EMPTY).forGetter(NexusSpaceUnitRecord::structure),
             Codec.LONG.optionalFieldOf("created_game_time", 0L).forGetter(NexusSpaceUnitRecord::createdGameTime),
-            Codec.LONG.optionalFieldOf("updated_game_time", 0L).forGetter(NexusSpaceUnitRecord::updatedGameTime)
+            Codec.LONG.optionalFieldOf("updated_game_time", 0L).forGetter(NexusSpaceUnitRecord::updatedGameTime),
+            UUIDUtil.CODEC.optionalFieldOf("backpack_id").forGetter(NexusSpaceUnitRecord::backpackId)
     ).apply(instance, NexusSpaceUnitRecord::new));
+
     public NexusSpaceUnitRecord {
-        pos = pos.immutable(); name = name == null || name.isBlank() ? defaultName(type, pos) : name;
-        administrators = Set.copyOf(administrators); allowedPlayers = Set.copyOf(allowedPlayers);
+        name = name == null || name.isBlank() ? defaultName(type, pos) : name;
+        administrators = Set.copyOf(administrators);
+        allowedPlayers = Set.copyOf(allowedPlayers);
         structure = structure == null ? SpaceStructureSnapshot.EMPTY : structure;
+        backpackId = backpackId == null ? Optional.empty() : backpackId;
     }
-    public boolean isLodestoneAnchor() { return type == SpaceUnitType.LODESTONE; }
-    public boolean canView(UUID player, boolean friendsWithOwner) {
-        return player != null && visibility != SpaceUnitVisibility.HIDDEN && (owner.equals(player)
-                || administrators.contains(player) || allowedPlayers.contains(player) || visibility == SpaceUnitVisibility.PUBLIC
-                || (visibility == SpaceUnitVisibility.FRIENDS && friendsWithOwner));
+
+    /** Backwards-compatible constructor for records created before reverse backpack binding existed. */
+    public NexusSpaceUnitRecord(
+            UUID id,
+            SpaceUnitType type,
+            ResourceKey<Level> dimension,
+            BlockPos pos,
+            UUID owner,
+            String name,
+            SpaceUnitVisibility visibility,
+            SpaceUnitStatus status,
+            Set<UUID> administrators,
+            Set<UUID> allowedPlayers,
+            SpaceStructureSnapshot structure,
+            long createdGameTime,
+            long updatedGameTime) {
+        this(id, type, dimension, pos, owner, name, visibility, status, administrators,
+                allowedPlayers, structure, createdGameTime, updatedGameTime, Optional.empty());
     }
-    public boolean canManage(UUID player) { return player != null && (owner.equals(player) || administrators.contains(player)); }
-    public NexusSpaceUnitRecord withVisibility(SpaceUnitVisibility next, long time) {
-        return new NexusSpaceUnitRecord(id, type, dimension, pos, owner, name, next, status, administrators, allowedPlayers, structure, createdGameTime, time);
+
+    public boolean isLodestoneAnchor() {
+        return this.type == SpaceUnitType.LODESTONE;
     }
-    public NexusSpaceUnitRecord withName(String next, long time) {
-        return new NexusSpaceUnitRecord(id, type, dimension, pos, owner, next, visibility, status, administrators, allowedPlayers, structure, createdGameTime, time);
+
+    public boolean canView(UUID playerId) {
+        return canView(playerId, false);
     }
-    public NexusSpaceUnitRecord withAllowedPlayer(UUID player, boolean enabled, long time) {
-        Set<UUID> next = new HashSet<>(allowedPlayers); if (enabled) next.add(player); else next.remove(player);
-        return new NexusSpaceUnitRecord(id, type, dimension, pos, owner, name, visibility, status, administrators, next, structure, createdGameTime, time);
+
+    public boolean canView(UUID playerId, boolean friendsWithOwner) {
+        if (playerId == null || this.visibility == SpaceUnitVisibility.HIDDEN) {
+            return false;
+        }
+
+        return this.owner.equals(playerId)
+                || this.administrators.contains(playerId)
+                || this.allowedPlayers.contains(playerId)
+                || this.visibility == SpaceUnitVisibility.PUBLIC
+                || (this.visibility == SpaceUnitVisibility.FRIENDS && friendsWithOwner);
     }
-    public NexusSpaceUnitRecord withAdministrator(UUID player, boolean enabled, long time) {
-        Set<UUID> next = new HashSet<>(administrators); if (enabled) next.add(player); else next.remove(player);
-        return new NexusSpaceUnitRecord(id, type, dimension, pos, owner, name, visibility, status, next, allowedPlayers, structure, createdGameTime, time);
+
+    public boolean canManage(UUID playerId) {
+        return playerId != null && (this.owner.equals(playerId) || this.administrators.contains(playerId));
     }
-    private static String defaultName(SpaceUnitType type, BlockPos pos) { return switch (type) {
-        case DEATH -> "Death Echo " + pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
-        case PLAYER -> "Player Anchor"; case TEMPORARY -> "Temporary Anchor"; case SYSTEM -> "System Anchor";
-        case LODESTONE -> "Lodestone " + pos.getX() + ", " + pos.getY() + ", " + pos.getZ(); }; }
+
+    public NexusSpaceUnitRecord withStructure(SpaceStructureSnapshot nextStructure, long gameTime) {
+        return new NexusSpaceUnitRecord(
+                this.id,
+                this.type,
+                this.dimension,
+                this.pos,
+                this.owner,
+                this.name,
+                this.visibility,
+                this.status,
+                this.administrators,
+                this.allowedPlayers,
+                nextStructure,
+                this.createdGameTime,
+                gameTime,
+                this.backpackId
+        );
+    }
+
+    public NexusSpaceUnitRecord withStatus(SpaceUnitStatus nextStatus, long gameTime) {
+        return new NexusSpaceUnitRecord(
+                this.id,
+                this.type,
+                this.dimension,
+                this.pos,
+                this.owner,
+                this.name,
+                this.visibility,
+                nextStatus,
+                this.administrators,
+                this.allowedPlayers,
+                this.structure,
+                this.createdGameTime,
+                gameTime,
+                this.backpackId
+        );
+    }
+
+    public NexusSpaceUnitRecord withVisibility(SpaceUnitVisibility nextVisibility, long gameTime) {
+        return new NexusSpaceUnitRecord(
+                this.id,
+                this.type,
+                this.dimension,
+                this.pos,
+                this.owner,
+                this.name,
+                nextVisibility,
+                this.status,
+                this.administrators,
+                this.allowedPlayers,
+                this.structure,
+                this.createdGameTime,
+                gameTime,
+                this.backpackId
+        );
+    }
+
+    public NexusSpaceUnitRecord withName(String nextName, long gameTime) {
+        return new NexusSpaceUnitRecord(
+                this.id,
+                this.type,
+                this.dimension,
+                this.pos,
+                this.owner,
+                nextName,
+                this.visibility,
+                this.status,
+                this.administrators,
+                this.allowedPlayers,
+                this.structure,
+                this.createdGameTime,
+                gameTime,
+                this.backpackId
+        );
+    }
+
+    public NexusSpaceUnitRecord withAdministrator(UUID playerId, boolean enabled, long gameTime) {
+        Set<UUID> nextAdministrators = new HashSet<>(this.administrators);
+        if (enabled) {
+            nextAdministrators.add(playerId);
+        } else {
+            nextAdministrators.remove(playerId);
+        }
+        return new NexusSpaceUnitRecord(
+                this.id,
+                this.type,
+                this.dimension,
+                this.pos,
+                this.owner,
+                this.name,
+                this.visibility,
+                this.status,
+                nextAdministrators,
+                this.allowedPlayers,
+                this.structure,
+                this.createdGameTime,
+                gameTime,
+                this.backpackId
+        );
+    }
+
+    public NexusSpaceUnitRecord withAllowedPlayer(UUID playerId, boolean enabled, long gameTime) {
+        Set<UUID> nextAllowedPlayers = new HashSet<>(this.allowedPlayers);
+        if (enabled) {
+            nextAllowedPlayers.add(playerId);
+        } else {
+            nextAllowedPlayers.remove(playerId);
+        }
+        return new NexusSpaceUnitRecord(
+                this.id,
+                this.type,
+                this.dimension,
+                this.pos,
+                this.owner,
+                this.name,
+                this.visibility,
+                this.status,
+                this.administrators,
+                nextAllowedPlayers,
+                this.structure,
+                this.createdGameTime,
+                gameTime,
+                this.backpackId
+        );
+    }
+
+    public NexusSpaceUnitRecord withBackpackId(UUID nextBackpackId, long gameTime) {
+        return new NexusSpaceUnitRecord(
+                this.id,
+                this.type,
+                this.dimension,
+                this.pos,
+                this.owner,
+                this.name,
+                this.visibility,
+                this.status,
+                this.administrators,
+                this.allowedPlayers,
+                this.structure,
+                this.createdGameTime,
+                gameTime,
+                Optional.ofNullable(nextBackpackId)
+        );
+    }
+
+    private static String defaultName(SpaceUnitType type, BlockPos pos) {
+        return switch (type) {
+            case DEATH -> "Death Echo " + pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
+            case PLAYER -> "Player Anchor";
+            case TEMPORARY -> "Temporary Anchor";
+            case SYSTEM -> "System Anchor";
+            case LODESTONE -> "Lodestone " + pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
+        };
+    }
 }

@@ -1,0 +1,144 @@
+{
+  "rules": [
+    {
+      "from": "minecraft:stone_bricks",
+      "to": "minecraft:cracked_stone_bricks"
+    },
+    {
+      "from": "minecraft:deepslate_bricks",
+      "to": "minecraft:cracked_deepslate_bricks"
+    },
+    {
+      "from": "minecraft:deepslate_tiles",
+      "to": "minecraft:cracked_deepslate_tiles"
+    },
+    {
+      "from": "minecraft:nether_bricks",
+      "to": "minecraft:cracked_nether_bricks"
+    },
+    {
+      "from": "minecraft:polished_blackstone_bricks",
+      "to": "minecraft:cracked_polished_blackstone_bricks"
+    },
+    {
+      "from": "minecraft:copper_block",
+      "to": "minecraft:exposed_copper"
+    },
+    {
+      "from": "minecraft:exposed_copper",
+      "to": "minecraft:weathered_copper"
+    },
+    {
+      "from": "minecraft:weathered_copper",
+      "to": "minecraft:oxidized_copper"
+    },
+    {
+      "from": "minecraft:waxed_copper_block",
+      "to": "minecraft:waxed_exposed_copper"
+    },
+    {
+      "from": "minecraft:waxed_exposed_copper",
+      "to": "minecraft:waxed_weathered_copper"
+    },
+    {
+      "from": "minecraft:waxed_weathered_copper",
+      "to": "minecraft:waxed_oxidized_copper"
+    },
+    {
+      "from": "minecraft:cut_copper",
+      "to": "minecraft:exposed_cut_copper"
+    },
+    {
+      "from": "minecraft:exposed_cut_copper",
+      "to": "minecraft:weathered_cut_copper"
+    },
+    {
+      "from": "minecraft:weathered_cut_copper",
+      "to": "minecraft:oxidized_cut_copper"
+    },
+    {
+      "from": "minecraft:waxed_cut_copper",
+      "to": "minecraft:waxed_exposed_cut_copper"
+    },
+    {
+      "from": "minecraft:waxed_exposed_cut_copper",
+      "to": "minecraft:waxed_weathered_cut_copper"
+    },
+    {
+      "from": "minecraft:waxed_weathered_cut_copper",
+      "to": "minecraft:waxed_oxidized_cut_copper"
+    },
+    {
+      "from": "minecraft:chiseled_copper",
+      "to": "minecraft:exposed_chiseled_copper"
+    },
+    {
+      "from": "minecraft:exposed_chiseled_copper",
+      "to": "minecraft:weathered_chiseled_copper"
+    },
+    {
+      "from": "minecraft:weathered_chiseled_copper",
+      "to": "minecraft:oxidized_chiseled_copper"
+    },
+    {
+      "from": "minecraft:waxed_chiseled_copper",
+      "to": "minecraft:waxed_exposed_chiseled_copper"
+    },
+    {
+      "from": "minecraft:waxed_exposed_chiseled_copper",
+      "to": "minecraft:waxed_weathered_chiseled_copper"
+    },
+    {
+      "from": "minecraft:waxed_weathered_chiseled_copper",
+      "to": "minecraft:waxed_oxidized_chiseled_copper"
+    },
+    {
+      "from": "minecraft:copper_grate",
+      "to": "minecraft:exposed_copper_grate"
+    },
+    {
+      "from": "minecraft:exposed_copper_grate",
+      "to": "minecraft:weathered_copper_grate"
+    },
+    {
+      "from": "minecraft:weathered_copper_grate",
+      "to": "minecraft:oxidized_copper_grate"
+    },
+    {
+      "from": "minecraft:waxed_copper_grate",
+      "to": "minecraft:waxed_exposed_copper_grate"
+    },
+    {
+      "from": "minecraft:waxed_exposed_copper_grate",
+      "to": "minecraft:waxed_weathered_copper_grate"
+    },
+    {
+      "from": "minecraft:waxed_weathered_copper_grate",
+      "to": "minecraft:waxed_oxidized_copper_grate"
+    },
+    {
+      "from": "minecraft:copper_bulb",
+      "to": "minecraft:exposed_copper_bulb"
+    },
+    {
+      "from": "minecraft:exposed_copper_bulb",
+      "to": "minecraft:weathered_copper_bulb"
+    },
+    {
+      "from": "minecraft:weathered_copper_bulb",
+      "to": "minecraft:oxidized_copper_bulb"
+    },
+    {
+      "from": "minecraft:waxed_copper_bulb",
+      "to": "minecraft:waxed_exposed_copper_bulb"
+    },
+    {
+      "from": "minecraft:waxed_exposed_copper_bulb",
+      "to": "minecraft:waxed_weathered_copper_bulb"
+    },
+    {
+      "from": "minecraft:waxed_weathered_copper_bulb",
+      "to": "minecraft:waxed_oxidized_copper_bulb"
+    }
+  ]
+}

@@ -9,7 +9,7 @@ public final class NexusTeleportCompletion {
     private NexusTeleportCompletion() { }
     public static boolean execute(ServerPlayer player, ServerLevel targetLevel, NexusTeleportQuoteCalculator.Target target, NexusMapQuote quote) {
         if (!quote.canTeleport()) return false;
-        return NexusSafeLanding.find(targetLevel, target.pos(), target.lodestone(), quote.maxHorizontalDeviation()).map(landing -> {
+        return NexusSafeLanding.findLoaded(targetLevel, target.pos(), target.lodestone(), quote.maxHorizontalDeviation()).map(landing -> {
             if (!NexusTeleportCost.deduct(player, quote)) return false;
             player.teleportTo(targetLevel, landing.getX()+.5D, landing.getY(), landing.getZ()+.5D, Relative.DELTA, player.getYRot(), player.getXRot(), false);
             return true;

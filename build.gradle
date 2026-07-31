@@ -9,7 +9,7 @@ group = project.maven_group
 base { archivesName = project.archives_base_name }
 
 def totemCoreJar = file(providers.gradleProperty('totemCoreJar')
-        .getOrElse('../TotemCore/build/libs/totem-core-0.1.1.jar'))
+        .getOrElse('../TotemCore/build/libs/totem-core-0.4.0.jar'))
 
 loom {
     splitEnvironmentSourceSets()
@@ -26,7 +26,7 @@ fabricApi {
         createSourceSet = true
         modId = "totem-nexus-gametest"
         enableGameTests = true
-        enableClientGameTests = false
+        enableClientGameTests = true
         eula = true
     }
 }
@@ -50,7 +50,91 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+def totemVisualModuleJars = providers.gradleProperty('totemVisualModuleJars').orNull
+if (totemVisualModuleJars != null && !totemVisualModuleJars.isBlank()) {
+    dependencies {
+        totemVisualModuleJars.split(',').each { moduleJar ->
+            modRuntimeOnly files(file(moduleJar.trim()))
+        }
+    }
+}
+
 tasks.withType(Test).configureEach { useJUnitPlatform() }
+
+tasks.register("normalizeFabricApiTweakersForNamedDevRuntime") {
+    group = "fabric"
+    description = "Normalizes Fabric API tweaker namespaces for the named development runtime."
+
+    doLast {
+        def jarFiles = new LinkedHashSet<File>()
+        jarFiles.addAll(configurations.runtimeClasspath.resolve().findAll { file ->
+            file.name.endsWith(".jar") && file.absolutePath.contains("${File.separator}net.fabricmc.fabric-api${File.separator}")
+        })
+
+        [gradle.gradleUserHomeDir, new File(System.getProperty("user.home"), ".gradle")].each { File cacheRoot ->
+            File fabricApiCache = new File(cacheRoot, "caches/modules-2/files-2.1/net.fabricmc.fabric-api")
+            if (fabricApiCache.isDirectory()) {
+                jarFiles.addAll(fileTree(dir: fabricApiCache, include: "**/*.jar").files.findAll { file ->
+                    !file.name.endsWith("-sources.jar")
+                })
+            }
+        }
+
+        int patchedFiles = 0
+        int patchedEntries = 0
+        jarFiles.each { File jarFile ->
+            File tempFile = new File(buildDir, "tmp/tweaker-normalized/${jarFile.name}.tmp")
+            tempFile.parentFile.mkdirs()
+            boolean fileChanged = false
+            def zipFile = new java.util.zip.ZipFile(jarFile)
+            def zipOut = new java.util.zip.ZipOutputStream(new java.io.BufferedOutputStream(new java.io.FileOutputStream(tempFile)))
+            try {
+                def entries = zipFile.entries()
+                while (entries.hasMoreElements()) {
+                    def entry = entries.nextElement()
+                    def outEntry = new java.util.zip.ZipEntry(entry.name)
+                    zipOut.putNextEntry(outEntry)
+                    byte[] bytes = entry.isDirectory() ? new byte[0] : zipFile.getInputStream(entry).bytes
+                    if (!entry.directory && (entry.name.endsWith(".classtweaker") || entry.name.endsWith(".accesswidener"))) {
+                        String text = new String(bytes, java.nio.charset.StandardCharsets.UTF_8)
+                        String normalized = text
+                                .replaceFirst(/(?m)^(classTweaker\s+v\d+\s+)official(\s*)$/, '$1named$2')
+                                .replaceFirst(/(?m)^(accessWidener\s+v\d+\s+)official(\s*)$/, '$1named$2')
+                        if (normalized != text) {
+                            bytes = normalized.getBytes(java.nio.charset.StandardCharsets.UTF_8)
+                            fileChanged = true
+                            patchedEntries++
+                        }
+                    }
+                    zipOut.write(bytes)
+                    zipOut.closeEntry()
+                }
+            } finally {
+                zipOut.close()
+                zipFile.close()
+            }
+            if (fileChanged) {
+                java.nio.file.Files.move(tempFile.toPath(), jarFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+                patchedFiles++
+            } else {
+                tempFile.delete()
+            }
+        }
+        logger.lifecycle("Normalized ${patchedEntries} Fabric API tweaker entries in ${patchedFiles} jars for named dev runtime.")
+    }
+}
+
+tasks.matching { task -> task.name in ["runClientGameTest"] }.configureEach {
+    dependsOn("normalizeFabricApiTweakersForNamedDevRuntime")
+    doLast {
+        copy {
+            from(file("${buildDir}/run/clientGameTest/screenshots"))
+            include("*_totem-standalone-*-before.png", "*_totem-standalone-*-after.png")
+            rename { name -> name.replaceFirst(/^\d+_/, "") }
+            into(file("test-artifacts/screenshots/safe-multi-repo-modularization"))
+        }
+    }
+}
 
 java {
     withSourcesJar()
@@ -61,4 +145,95 @@ java {
 tasks.named('processResources', ProcessResources) {
     inputs.property 'version', project.version
     filesMatching('fabric.mod.json') { expand(version: project.version) }
+    // zh_cn intentionally reuses zh_tw; maintain only the Traditional Chinese source.
+    doLast {
+        copy {
+            from(file('src/main/resources/assets/deadrecall/lang/zh_tw.json'))
+            into(file("${destinationDir}/assets/deadrecall/lang"))
+            rename { 'zh_cn.json' }
+        }
+    }
+}
+
+// Loom derives this manifest attribute from a set of client classes.  Its
+// iteration order is otherwise host-dependent, which makes the published JAR
+// checksum vary despite identical bytecode and resources.  Canonicalize the
+// manifest and archive entry order after Loom has assembled the development
+// JAR so the lockstep manifest can pin a reproducible artifact.
+tasks.named('jar', Jar) {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+
+    doLast {
+        def archive = archiveFile.get().asFile
+        def replacement = new File(archive.parentFile, "${archive.name}.normalized")
+        def source = new java.util.jar.JarFile(archive)
+
+        try {
+            def sourceManifest = source.manifest
+            def normalizedManifest = new java.util.jar.Manifest()
+            def attributes = sourceManifest.mainAttributes
+            normalizedManifest.mainAttributes.putValue(
+                    'Manifest-Version',
+                    attributes.getValue('Manifest-Version') ?: '1.0'
+            )
+
+            attributes.keySet()
+                    .collect { it.toString() }
+                    .findAll { it != 'Manifest-Version' }
+                    .sort()
+                    .each { name ->
+                        def value = attributes.getValue(name)
+                        if (name == 'Fabric-Loom-Client-Only-Entries') {
+                            value = value.split(';').findAll { it }.sort().join(';')
+                        }
+                        normalizedManifest.mainAttributes.putValue(name, value)
+                    }
+
+            def entries = []
+            def enumeration = source.entries()
+            while (enumeration.hasMoreElements()) {
+                entries << enumeration.nextElement()
+            }
+
+            def output = new java.util.jar.JarOutputStream(
+                    new java.io.FileOutputStream(replacement)
+            )
+            try {
+                // JarOutputStream's Manifest constructor stamps the generated
+                // manifest entry with the current time.  Write that entry
+                // explicitly so it receives the same fixed timestamp as the
+                // rest of this canonical archive.
+                def manifestEntry = new java.util.zip.ZipEntry('META-INF/MANIFEST.MF')
+                manifestEntry.setTime(0L)
+                output.putNextEntry(manifestEntry)
+                normalizedManifest.write(output)
+                output.closeEntry()
+
+                entries.findAll { it.name != 'META-INF/MANIFEST.MF' }
+                        .sort { it.name }
+                        .each { entry ->
+                            def normalizedEntry = new java.util.zip.ZipEntry(entry.name)
+                            normalizedEntry.setTime(0L)
+                            output.putNextEntry(normalizedEntry)
+                            if (!entry.directory) {
+                                source.getInputStream(entry).withCloseable { input ->
+                                    input.transferTo(output)
+                                }
+                            }
+                            output.closeEntry()
+                        }
+            } finally {
+                output.close()
+            }
+        } finally {
+            source.close()
+        }
+
+        java.nio.file.Files.move(
+                replacement.toPath(),
+                archive.toPath(),
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING
+        )
+    }
 }

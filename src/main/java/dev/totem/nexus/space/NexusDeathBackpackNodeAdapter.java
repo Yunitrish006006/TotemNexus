@@ -22,12 +22,17 @@ public final class NexusDeathBackpackNodeAdapter implements DeathBackpackNodeLif
     }
 
     @Override
+    public void bind(ServerLevel level, UUID nodeId, UUID backpackEntityId) {
+        authority.bind(level, nodeId, backpackEntityId);
+    }
+
+    @Override
     public void rollback(ServerPlayer owner, ServerLevel level, UUID nodeId) {
         authority.disable(owner, level, nodeId);
     }
 
     @Override
     public boolean recover(ServerPlayer recoveringPlayer, UUID nodeId) {
-        return authority.disable(recoveringPlayer, recoveringPlayer.level(), nodeId);
+        return authority.recover(recoveringPlayer, nodeId);
     }
 }

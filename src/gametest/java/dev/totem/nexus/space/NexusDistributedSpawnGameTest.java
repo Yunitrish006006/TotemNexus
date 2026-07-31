@@ -1,13 +1,89 @@
 package dev.totem.nexus.space;
 
+import dev.totem.core.api.v1.death.DeathRetainedItemPolicy;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.util.UUID;
 
 /** Exercises the stable distributed-spawn schema with a live server registry. */
 public final class NexusDistributedSpawnGameTest {
+    @SuppressWarnings("removal")
+    @GameTest(maxTicks = 20)
+    public void latestSuccessfulInterfaceTokenInvalidatesThePreviousItem(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ItemStack compass = new ItemStack(Items.COMPASS);
+        ItemStack book = new ItemStack(Items.BOOK);
+
+        try {
+            if (!NexusSoulboundTeleportItem.bindAfterSuccessfulTeleport(player, compass)) {
+                helper.fail("Nexus did not bind a valid compass interface");
+                return;
+            }
+            DeathRetainedItemPolicy policy = DeathRetainedItemPolicy.current()
+                    .orElseThrow(() -> helper.assertionException(
+                            "Nexus did not register its Core death-retained-item policy"));
+            if (!policy.shouldRetain(player, compass)) {
+                helper.fail("Freshly bound compass was not authorized for death retention");
+                return;
+            }
+
+            if (!NexusSoulboundTeleportItem.bindAfterSuccessfulTeleport(player, book)) {
+                helper.fail("Nexus did not bind a valid book interface");
+                return;
+            }
+            if (!policy.shouldRetain(player, book) || policy.shouldRetain(player, compass)) {
+                helper.fail("Latest interface token did not invalidate the previous item");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            player.discard();
+        }
+    }
+
+    @GameTest(maxTicks = 40)
+    public void safeLandingSearchAdvancesIncrementallyOnLoadedChunks(GameTestHelper helper) {
+        BlockPos feet = new BlockPos(2, 3, 2);
+        helper.setBlock(feet.below(), net.minecraft.world.level.block.Blocks.STONE);
+        helper.setBlock(feet, net.minecraft.world.level.block.Blocks.AIR);
+        helper.setBlock(feet.above(), net.minecraft.world.level.block.Blocks.AIR);
+
+        BlockPos expected = helper.absolutePos(feet);
+        NexusSafeLanding.Search search =
+                NexusSafeLanding.begin(
+                        helper.getLevel(),
+                        expected,
+                        false,
+                        48,
+                        net.minecraft.util.RandomSource.create(42L),
+                        true
+                );
+        java.util.concurrent.atomic.AtomicBoolean finished =
+                new java.util.concurrent.atomic.AtomicBoolean();
+        helper.onEachTick(() -> {
+            if (finished.get()) {
+                return;
+            }
+            NexusSafeLanding.Progress progress = search.advance();
+            if (progress.state() == NexusSafeLanding.State.SEARCHING) {
+                return;
+            }
+            finished.set(true);
+            search.close();
+            if (progress.state() != NexusSafeLanding.State.FOUND
+                    || !progress.landing().orElseThrow().equals(expected)) {
+                helper.fail("Incremental safe-landing search did not return the loaded exact column");
+                return;
+            }
+            helper.succeed();
+        });
+    }
+
     @GameTest(maxTicks = 20)
     public void savedDataKeysRemainInTheLegacyNamespace(GameTestHelper helper) {
         if (!NexusSpaceUnitSavedData.TYPE.id().toString().equals("deadrecall:space_units")
@@ -66,7 +142,7 @@ public final class NexusDistributedSpawnGameTest {
     }
 
     @GameTest(maxTicks = 20)
-    public void deathNodeCreateAndDisableRemainOwnerBound(GameTestHelper helper) {
+    public void deathNodeRollbackIsOwnerBoundButRecoveryIsIdempotent(GameTestHelper helper) {
         var owner = helper.makeMockServerPlayerInLevel();
         var other = helper.makeMockServerPlayerInLevel();
         NexusDeathBackpackNodeAdapter adapter = new NexusDeathBackpackNodeAdapter(new NexusDeathNodeAuthority());
@@ -79,13 +155,33 @@ public final class NexusDistributedSpawnGameTest {
             helper.fail("Created Death Node was not persisted and discovered for its owner");
             return;
         }
-        if (adapter.recover(other, nodeId)) {
-            helper.fail("Non-owner disabled a Death Node");
+        adapter.rollback(other, helper.getLevel(), nodeId);
+        if (units.get(nodeId).filter(unit -> unit.status() == SpaceUnitStatus.ACTIVE).isEmpty()) {
+            helper.fail("Non-owner rolled back a Death Node");
             return;
         }
-        if (!adapter.recover(owner, nodeId)
+        if (!adapter.recover(other, nodeId)
                 || units.get(nodeId).filter(unit -> unit.status() == SpaceUnitStatus.DISABLED).isEmpty()) {
-            helper.fail("Owner could not disable the active Death Node");
+            helper.fail("Recovery did not disable the active Death Node");
+            return;
+        }
+        if (!adapter.recover(owner, nodeId) || !adapter.recover(other, UUID.randomUUID())) {
+            helper.fail("Death Node recovery was not idempotent");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 20)
+    public void completeAuthorityFacadeUsesThePreservedDeathNodeSchema(GameTestHelper helper) {
+        var owner = helper.makeMockServerPlayerInLevel();
+        NexusGameplayAuthority authority = new NexusGameplayAuthority();
+        UUID nodeId = authority.createDeathNode(owner, helper.getLevel(), helper.absolutePos(new BlockPos(7, 2, 2)));
+        net.minecraft.world.item.ItemStack backpack = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.CHEST);
+        authority.bindDeathNode(backpack, nodeId);
+        if (!nodeId.equals(DeathNodeBackpackBinding.read(backpack))
+                || !authority.disableDeathNode(owner, helper.getLevel(), nodeId)) {
+            helper.fail("Complete Nexus authority did not preserve the Death Node lifecycle");
             return;
         }
         helper.succeed();
