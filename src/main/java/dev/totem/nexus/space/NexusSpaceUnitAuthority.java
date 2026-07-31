@@ -1,5 +1,8 @@
 package dev.totem.nexus.space;
 
+import dev.totem.core.api.v1.event.DeathBackpackRecoveredEvent;
+import dev.totem.core.api.v1.event.SpaceUnitPublicUpdateEvent;
+import dev.totem.core.api.v1.event.TotemEventBus;
 import dev.totem.nexus.network.SpaceUnitFriendsPayload;
 import dev.totem.nexus.network.SpaceUnitMapPayload;
 import dev.totem.nexus.network.SpaceUnitRegistrationPreviewPayload;
@@ -205,7 +208,7 @@ public final class NexusSpaceUnitAuthority {
                 .disableDeathUnit(player.getUUID(), unitId, player.level().getGameTime());
         if (disabled) {
             notify(player, Component.translatable("message.deadrecall.space_unit.death_node_recovered"));
-            NexusOptionalIntegrations.deathBackpackRecovered(player.getName().getString());
+            publishDeathBackpackRecovered(player.getName().getString());
         }
     }
 
@@ -526,7 +529,7 @@ public final class NexusSpaceUnitAuthority {
         notify(player, Component.translatable("message.deadrecall.space_unit.name_updated", updated.get().name()));
 
         if (isPublicLodestone(updated.get()) && !previous.name().equals(updated.get().name())) {
-            NexusOptionalIntegrations.publicSpaceUnitUpdate(
+            publishPublicSpaceUnitUpdate(
                     player.getName().getString(),
                     player.getName().getString() + " 將公開磁石重新命名為 " + updated.get().name()
             );
@@ -930,7 +933,7 @@ public final class NexusSpaceUnitAuthority {
         boolean disabled = units.disableLodestone(level.dimension(), pos, level.getGameTime());
         if (disabled) {
             previous.filter(NexusSpaceUnitAuthority::isPublicLodestone)
-                    .ifPresent(unit -> NexusOptionalIntegrations.publicSpaceUnitUpdate(
+                    .ifPresent(unit -> publishPublicSpaceUnitUpdate(
                             "server",
                             "公開磁石已被移除：" + unit.name()
                     ));
@@ -946,7 +949,7 @@ public final class NexusSpaceUnitAuthority {
         if (level != null && !level.getBlockState(unit.pos()).is(Blocks.LODESTONE)) {
             boolean disabled = units(server).disableLodestone(unit.dimension(), unit.pos(), level.getGameTime());
             if (disabled && isPublicLodestone(unit)) {
-                NexusOptionalIntegrations.publicSpaceUnitUpdate("server", "公開磁石已失效：" + unit.name());
+                publishPublicSpaceUnitUpdate("server", "公開磁石已失效：" + unit.name());
             }
         }
     }
@@ -958,12 +961,12 @@ public final class NexusSpaceUnitAuthority {
         boolean wasPublic = isPublicLodestone(previous);
         boolean isPublic = isPublicLodestone(updated);
         if (!wasPublic && isPublic) {
-            NexusOptionalIntegrations.publicSpaceUnitUpdate(
+            publishPublicSpaceUnitUpdate(
                     player.getName().getString(),
                     player.getName().getString() + " 公開了磁石：" + updated.name()
             );
         } else if (wasPublic && !isPublic) {
-            NexusOptionalIntegrations.publicSpaceUnitUpdate(
+            publishPublicSpaceUnitUpdate(
                     player.getName().getString(),
                     player.getName().getString() + " 取消公開磁石：" + updated.name()
             );
@@ -974,6 +977,14 @@ public final class NexusSpaceUnitAuthority {
         return unit.isLodestoneAnchor()
                 && unit.status() == SpaceUnitStatus.ACTIVE
                 && unit.visibility() == SpaceUnitVisibility.PUBLIC;
+    }
+
+    private static void publishDeathBackpackRecovered(String playerName) {
+        TotemEventBus.publish(new DeathBackpackRecoveredEvent(playerName));
+    }
+
+    private static void publishPublicSpaceUnitUpdate(String actor, String message) {
+        TotemEventBus.publish(new SpaceUnitPublicUpdateEvent(actor, message));
     }
 
     private static boolean confirmPendingLodestoneRegistration(
@@ -1526,7 +1537,7 @@ public final class NexusSpaceUnitAuthority {
             return;
         }
 
-        player.teleportTo(
+        boolean teleported = player.teleportTo(
                 targetLevel,
                 landingPos.getX() + 0.5D,
                 landingPos.getY(),
@@ -1536,6 +1547,18 @@ public final class NexusSpaceUnitAuthority {
                 player.getXRot(),
                 false
         );
+        if (!teleported) {
+            notify(player, Component.translatable(
+                    "message.deadrecall.space_unit.teleport_cancelled.generic"));
+            return;
+        }
+        ItemStack completedInterface = player.getItemInHand(session.interactionHand());
+        if (NexusSoulboundTeleportItem.bindAfterSuccessfulTeleport(player, completedInterface)) {
+            notify(player, Component.translatable(
+                    "message.deadrecall.space_unit.soulbound_updated",
+                    completedInterface.getHoverName()
+            ));
+        }
         targetLevel.playSound(null, landingPos, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.85F, 1.1F);
         applyArrivalDamage(player, targetLevel, finalQuote, targetLevel.getRandom());
         applyStructureWear(player, finalSource.get(), finalTarget.get(), finalQuote, targetLevel.getRandom());

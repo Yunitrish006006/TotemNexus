@@ -1,6 +1,7 @@
 package dev.totem.nexus.bootstrap;
 
 import dev.totem.core.api.v1.death.DeathBackpackNodeLifecycle;
+import dev.totem.core.api.v1.death.DeathRetainedItemPolicy;
 import dev.totem.nexus.network.NexusAuthorityPayloadHandler;
 import dev.totem.nexus.network.NexusPayloadRegistration;
 import dev.totem.nexus.space.NexusDeathBackpackNodeAdapter;
@@ -11,6 +12,7 @@ import dev.totem.nexus.space.NexusDistributedSpawnAuthority;
 import dev.totem.nexus.space.NexusGameplayAuthority;
 import dev.totem.nexus.space.NexusSpaceUnitAuthority;
 import dev.totem.nexus.space.NexusSpaceUnitRefreshNetworking;
+import dev.totem.nexus.space.NexusSoulboundTeleportItem;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -40,6 +42,7 @@ public final class NexusAuthorityBootstrap {
 
         NexusGameplayAuthority authority = new NexusGameplayAuthority();
         DeathBackpackNodeLifecycle.register(new NexusDeathBackpackNodeAdapter(new NexusDeathNodeAuthority()));
+        DeathRetainedItemPolicy.register(NexusSoulboundTeleportItem::isActiveFor);
         NexusDistributedSpawnAuthority.register();
         NexusSpaceUnitAuthority.register();
         NexusPayloadRegistration.registerServerboundTypes();

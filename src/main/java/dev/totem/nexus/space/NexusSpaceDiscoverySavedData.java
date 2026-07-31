@@ -15,14 +15,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Optional;
 
 public class NexusSpaceDiscoverySavedData extends SavedData {
-    public static final int DATA_VERSION = 2;
+    public static final int DATA_VERSION = 3;
 
     private static final Codec<PlayerDiscovery> PLAYER_DISCOVERY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
             UUIDUtil.CODEC.fieldOf("player").forGetter(PlayerDiscovery::player),
             UUIDUtil.CODEC_SET.optionalFieldOf("units", Set.of()).forGetter(PlayerDiscovery::units),
-            UUIDUtil.CODEC_SET.optionalFieldOf("favorites", Set.of()).forGetter(PlayerDiscovery::favorites)
+            UUIDUtil.CODEC_SET.optionalFieldOf("favorites", Set.of()).forGetter(PlayerDiscovery::favorites),
+            UUIDUtil.CODEC.optionalFieldOf("soulbound_teleport_token").forGetter(PlayerDiscovery::soulboundTeleportToken)
     ).apply(instance, PlayerDiscovery::new));
 
     public static final Codec<NexusSpaceDiscoverySavedData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -40,6 +42,7 @@ public class NexusSpaceDiscoverySavedData extends SavedData {
     private final int dataVersion;
     private final Map<UUID, Set<UUID>> discoveredByPlayer = new HashMap<>();
     private final Map<UUID, Set<UUID>> favoritesByPlayer = new HashMap<>();
+    private final Map<UUID, UUID> soulboundTeleportTokens = new HashMap<>();
 
     public NexusSpaceDiscoverySavedData() {
         this(DATA_VERSION, List.of());
@@ -50,6 +53,8 @@ public class NexusSpaceDiscoverySavedData extends SavedData {
         for (PlayerDiscovery player : players) {
             this.discoveredByPlayer.put(player.player(), new HashSet<>(player.units()));
             this.favoritesByPlayer.put(player.player(), new HashSet<>(player.favorites()));
+            player.soulboundTeleportToken().ifPresent(token ->
+                    this.soulboundTeleportTokens.put(player.player(), token));
         }
     }
 
@@ -138,6 +143,17 @@ public class NexusSpaceDiscoverySavedData extends SavedData {
         return changed;
     }
 
+    public Optional<UUID> soulboundTeleportToken(UUID playerId) {
+        return Optional.ofNullable(this.soulboundTeleportTokens.get(playerId));
+    }
+
+    public void setSoulboundTeleportToken(UUID playerId, UUID token) {
+        UUID previous = this.soulboundTeleportTokens.put(playerId, token);
+        if (!token.equals(previous)) {
+            setDirty();
+        }
+    }
+
     private int dataVersion() {
         return this.dataVersion;
     }
@@ -146,22 +162,31 @@ public class NexusSpaceDiscoverySavedData extends SavedData {
         Set<UUID> playerIds = new HashSet<>();
         playerIds.addAll(this.discoveredByPlayer.keySet());
         playerIds.addAll(this.favoritesByPlayer.keySet());
+        playerIds.addAll(this.soulboundTeleportTokens.keySet());
 
         List<PlayerDiscovery> players = new ArrayList<>(playerIds.size());
         for (UUID playerId : playerIds) {
             players.add(new PlayerDiscovery(
                     playerId,
                     Set.copyOf(this.discoveredByPlayer.getOrDefault(playerId, Set.of())),
-                    Set.copyOf(this.favoritesByPlayer.getOrDefault(playerId, Set.of()))
+                    Set.copyOf(this.favoritesByPlayer.getOrDefault(playerId, Set.of())),
+                    Optional.ofNullable(this.soulboundTeleportTokens.get(playerId))
             ));
         }
         return players;
     }
 
-    private record PlayerDiscovery(UUID player, Set<UUID> units, Set<UUID> favorites) {
+    private record PlayerDiscovery(
+            UUID player,
+            Set<UUID> units,
+            Set<UUID> favorites,
+            Optional<UUID> soulboundTeleportToken
+    ) {
         private PlayerDiscovery {
             units = Set.copyOf(units == null ? Set.of() : units);
             favorites = Set.copyOf(favorites == null ? Set.of() : favorites);
+            soulboundTeleportToken =
+                    soulboundTeleportToken == null ? Optional.empty() : soulboundTeleportToken;
         }
     }
 }

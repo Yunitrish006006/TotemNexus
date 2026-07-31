@@ -247,5 +247,6 @@
   "message.deadrecall.space_unit.visibility.private": "私人",
   "message.deadrecall.space_unit.visibility.public": "公開",
   "message.deadrecall.space_unit.visibility_invalid": "可見性調整失敗：不支援的可見性模式",
-  "message.deadrecall.space_unit.visibility_updated": "已更新 %s 可見性：%s"
+  "message.deadrecall.space_unit.visibility_updated": "已更新 %s 可見性：%s",
+  "message.deadrecall.space_unit.soulbound_updated": "%s 已成為靈魂綁定傳送物品，死亡後仍會留在身上"
 }

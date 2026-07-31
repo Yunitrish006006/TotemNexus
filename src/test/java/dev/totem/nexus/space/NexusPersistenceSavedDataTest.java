@@ -57,6 +57,24 @@ class NexusPersistenceSavedDataTest {
     }
 
     @Test
+    void soulboundTeleportTokenSurvivesCodecRoundTripAndReplacesThePreviousToken() {
+        UUID player = UUID.fromString("00000000-0000-0000-0000-000000000023");
+        UUID first = UUID.fromString("00000000-0000-0000-0000-000000000024");
+        UUID second = UUID.fromString("00000000-0000-0000-0000-000000000025");
+        NexusSpaceDiscoverySavedData data = new NexusSpaceDiscoverySavedData();
+
+        data.setSoulboundTeleportToken(player, first);
+        data.setSoulboundTeleportToken(player, second);
+
+        JsonObject encoded = NexusSpaceDiscoverySavedData.CODEC.encodeStart(JsonOps.INSTANCE, data)
+                .getOrThrow(IllegalArgumentException::new).getAsJsonObject();
+        NexusSpaceDiscoverySavedData restored = NexusSpaceDiscoverySavedData.CODEC.parse(JsonOps.INSTANCE, encoded)
+                .getOrThrow(IllegalArgumentException::new);
+
+        assertEquals(Optional.of(second), restored.soulboundTeleportToken(player));
+    }
+
+    @Test
     void reverseBackpackBindingSurvivesCodecRoundTripAndDrivesDuplicateDiagnostics() {
         UUID owner = UUID.fromString("00000000-0000-0000-0000-000000000031");
         UUID firstNode = UUID.fromString("00000000-0000-0000-0000-000000000032");

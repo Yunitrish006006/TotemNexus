@@ -247,5 +247,6 @@
   "message.deadrecall.space_unit.visibility.private": "Private",
   "message.deadrecall.space_unit.visibility.public": "Public",
   "message.deadrecall.space_unit.visibility_invalid": "Visibility change failed: unsupported visibility mode",
-  "message.deadrecall.space_unit.visibility_updated": "Updated %s visibility: %s"
+  "message.deadrecall.space_unit.visibility_updated": "Updated %s visibility: %s",
+  "message.deadrecall.space_unit.soulbound_updated": "%s is now your soulbound teleport item and will remain with you after death"
 }

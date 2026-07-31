@@ -1,13 +1,51 @@
 package dev.totem.nexus.space;
 
+import dev.totem.core.api.v1.death.DeathRetainedItemPolicy;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.util.UUID;
 
 /** Exercises the stable distributed-spawn schema with a live server registry. */
 public final class NexusDistributedSpawnGameTest {
+    @SuppressWarnings("removal")
+    @GameTest(maxTicks = 20)
+    public void latestSuccessfulInterfaceTokenInvalidatesThePreviousItem(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ItemStack compass = new ItemStack(Items.COMPASS);
+        ItemStack book = new ItemStack(Items.BOOK);
+
+        try {
+            if (!NexusSoulboundTeleportItem.bindAfterSuccessfulTeleport(player, compass)) {
+                helper.fail("Nexus did not bind a valid compass interface");
+                return;
+            }
+            DeathRetainedItemPolicy policy = DeathRetainedItemPolicy.current()
+                    .orElseThrow(() -> helper.assertionException(
+                            "Nexus did not register its Core death-retained-item policy"));
+            if (!policy.shouldRetain(player, compass)) {
+                helper.fail("Freshly bound compass was not authorized for death retention");
+                return;
+            }
+
+            if (!NexusSoulboundTeleportItem.bindAfterSuccessfulTeleport(player, book)) {
+                helper.fail("Nexus did not bind a valid book interface");
+                return;
+            }
+            if (!policy.shouldRetain(player, book) || policy.shouldRetain(player, compass)) {
+                helper.fail("Latest interface token did not invalidate the previous item");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            player.discard();
+        }
+    }
+
     @GameTest(maxTicks = 40)
     public void safeLandingSearchAdvancesIncrementallyOnLoadedChunks(GameTestHelper helper) {
         BlockPos feet = new BlockPos(2, 3, 2);

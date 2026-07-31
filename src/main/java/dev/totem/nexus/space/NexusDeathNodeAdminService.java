@@ -1,5 +1,7 @@
 package dev.totem.nexus.space;
 
+import dev.totem.core.api.v1.event.AdminAuditEvent;
+import dev.totem.core.api.v1.event.TotemEventBus;
 import dev.totem.nexus.mixin.NexusSpaceDiscoverySavedDataAccessor;
 import dev.totem.nexus.mixin.NexusSpaceUnitSavedDataAccessor;
 import dev.totem.nexus.network.DeathNodeAdminPayload;
@@ -964,7 +966,11 @@ public final class NexusDeathNodeAdminService {
                 unit.pos()
         );
         try {
-            NexusOptionalIntegrations.adminAction(actor, "death node " + action, target);
+            TotemEventBus.publish(new AdminAuditEvent(
+                    actor,
+                    "death node " + action,
+                    target
+            ));
         } catch (RuntimeException exception) {
             LOGGER.warn(
                     "Administrator {} {} death node {}, but Discord audit delivery failed",
@@ -991,8 +997,11 @@ public final class NexusDeathNodeAdminService {
                 summary
         );
         try {
-            NexusOptionalIntegrations.adminAction(actor, "death nodes " + action,
-                    affectedCount + " nodes; " + summary);
+            TotemEventBus.publish(new AdminAuditEvent(
+                    actor,
+                    "death nodes " + action,
+                    affectedCount + " nodes; " + summary
+            ));
         } catch (RuntimeException exception) {
             LOGGER.warn(
                     "Administrator {} {} {} death nodes, but Discord audit delivery failed",
