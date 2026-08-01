@@ -102,13 +102,22 @@ jobs:
           minecraft_version="$(sed -n 's/^minecraft_version=//p' gradle.properties)"
           artifact="build/libs/${archive_name}-${mod_version}.jar"
           test -n "$mod_version" && test -n "$archive_name" && test -n "$minecraft_version"
-          test -n "$MODRINTH_TOKEN" && test -n "$MODRINTH_PROJECT_ID"
-          test -f "$artifact"
+          test -n "$MODRINTH_TOKEN" || { echo 'MODRINTH_TOKEN is missing or empty.'; exit 1; }
+          test -n "$MODRINTH_PROJECT_ID" || { echo 'MODRINTH_PROJECT_ID is missing or empty.'; exit 1; }
+          if [[ ! -f "$artifact" ]]; then
+            echo "Expected release JAR is missing: ${artifact}"
+            find build/libs -maxdepth 1 -type f -name '*.jar' -printf 'Found: %f\\n' || true
+            exit 1
+          fi
 
           unzip -p "$artifact" fabric.mod.json > /tmp/fabric.mod.json
-          jq -e --arg id "$MODULE_ID" --arg version "$mod_version" --arg minecraft "~${minecraft_version}" '
-            .id == $id and .version == $version and .depends.minecraft == $minecraft
-          ' /tmp/fabric.mod.json > /dev/null
+          if ! jq -e --arg id "$MODULE_ID" --arg version "$mod_version" --arg minecraft "~${minecraft_version}" '
+              .id == $id and .version == $version and .depends.minecraft == $minecraft
+            ' /tmp/fabric.mod.json > /dev/null; then
+            echo 'fabric.mod.json does not match the release metadata.'
+            jq -c '{id, version, minecraft: .depends.minecraft}' /tmp/fabric.mod.json
+            exit 1
+          fi
 
           api_base='https://api.modrinth.com/v2'
           user_agent="Yunitrish006006/${MODULE_ID}-publisher/1.0"
