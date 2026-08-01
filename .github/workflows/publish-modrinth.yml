@@ -86,6 +86,18 @@ jobs:
           core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-0.4.0.jar"
           test -f "$core_jar"
           ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" -PtotemCoreJar="$core_jar" jar --no-daemon --stacktrace
+          mod_version="$(sed -n 's/^mod_version=//p' gradle.properties)"
+          archive_name="$(sed -n 's/^archives_base_name=//p' gradle.properties)"
+          artifact="build/libs/${archive_name}-${mod_version}.jar"
+          if [[ ! -f "$artifact" ]]; then
+            if ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" -PtotemCoreJar="$core_jar" tasks --all --no-daemon --console=plain | grep -q '^remapJar '; then
+              ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" -PtotemCoreJar="$core_jar" remapJar --no-daemon --stacktrace
+            else
+              echo "No release JAR or remapJar task is available for ${archive_name}."
+              exit 1
+            fi
+          fi
+          test -f "$artifact"
 
       - name: Validate or publish to Modrinth
         if: steps.release.outputs.should_publish == 'true'
