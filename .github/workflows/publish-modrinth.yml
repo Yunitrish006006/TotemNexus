@@ -115,8 +115,8 @@ jobs:
           curl_args=(--fail --silent --show-error --retry 3 -H "Authorization: ${MODRINTH_TOKEN}" -H "User-Agent: ${user_agent}")
           curl "${curl_args[@]}" "${api_base}/user" > /tmp/modrinth-user.json
           curl "${curl_args[@]}" "${api_base}/project/${MODRINTH_PROJECT_ID}" > /tmp/modrinth-project.json
-          actual_project_id="$(jq -er '.id' /tmp/modrinth-project.json)"
-          [[ "$actual_project_id" == "$MODRINTH_PROJECT_ID" ]]
+          project_id="$(jq -er '.id' /tmp/modrinth-project.json)"
+          echo 'Modrinth token and project access verified.'
 
           sha512="$(sha512sum "$artifact" | awk '{print $1}')"
           if [[ "$DRY_RUN" == 'true' ]]; then
@@ -124,7 +124,7 @@ jobs:
             exit 0
           fi
 
-          curl "${curl_args[@]}" "${api_base}/project/${MODRINTH_PROJECT_ID}/version?include_changelog=false" > /tmp/modrinth-versions.json
+          curl "${curl_args[@]}" "${api_base}/project/${project_id}/version?include_changelog=false" > /tmp/modrinth-versions.json
           existing_count="$(jq --arg version "$mod_version" '[.[] | select(.version_number == $version)] | length' /tmp/modrinth-versions.json)"
           if [[ "$existing_count" != '0' ]]; then
             echo "Modrinth already has version ${mod_version}; skipping upload."
@@ -136,7 +136,7 @@ jobs:
             --arg name "${MODULE_ID} ${mod_version}" \
             --arg version "$mod_version" \
             --arg changelog "$changelog" \
-            --arg project_id "$MODRINTH_PROJECT_ID" \
+            --arg project_id "$project_id" \
             --arg file_name "$(basename "$artifact")" \
             --arg minecraft "$minecraft_version" \
             '{name: $name, version_number: $version, changelog: $changelog, dependencies: [], game_versions: [$minecraft], version_type: "release", loaders: ["fabric"], featured: false, status: "listed", project_id: $project_id, file_parts: [$file_name], primary_file: $file_name}')"
