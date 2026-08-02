@@ -18,4 +18,12 @@ class AmethystCatalystDiscountTest {
         assertEquals(2, AmethystCatalystDiscount.quoteForEndpoints(8, true, 8, false, 100).availableDiscount());
         assertEquals(0, AmethystCatalystDiscount.quoteForEndpoints(0, true, 8, true, 8).finalCost());
     }
+
+    @Test
+    void negativeUnitsAddShardsWithTruncationTowardZero() {
+        AmethystCatalystDiscount.Quote quote = AmethystCatalystDiscount.quote(4, -3, -2);
+        assertEquals(-1, quote.availableDiscount());
+        assertEquals(5, quote.finalCost());
+        assertEquals(0, AmethystCatalystDiscount.catalystChange(-3, 2));
+    }
 }

@@ -48,7 +48,8 @@ public final class NexusMapPayloadFactory {
             entries.add(friendEntry(friend, quote));
         }
         return new SpaceUnitMapPayload(source.id(), source.type().id(), source.name(), source.dimension().identifier().toString(),
-                source.pos().getX(), source.pos().getY(), source.pos().getZ(), interfaceType, entries);
+                source.pos().getX(), source.pos().getY(), source.pos().getZ(), interfaceType, entries,
+                SpaceUnitMapPayload.MaterialSummary.from(source.structure()));
     }
 
     private static SpaceUnitMapPayload.Entry entry(UUID viewer, NexusSpaceUnitRecord unit, NexusSpaceDiscoverySavedData discovery,
@@ -61,7 +62,8 @@ public final class NexusMapPayloadFactory {
                 quote.sourceCatalysts(), quote.targetCatalysts(), quote.catalystDiscount(), quote.basePrepareTicks(), quote.prepareTicks(),
                 quote.baseMaxHorizontalDeviation(), quote.maxHorizontalDeviation(), quote.damageChancePercent(), quote.baseStructureWearChancePercent(),
                 quote.structureWearChancePercent(), quote.interfaceBonusActive(), quote.interfaceBonusMessageKey(), discovery.isFavorite(viewer, unit.id()),
-                unit.canManage(viewer), owned, unit.administrators().size(), unit.allowedPlayers().size(), quote.canTeleport(), quote.blockedReason());
+                unit.canManage(viewer), owned, unit.administrators().size(), unit.allowedPlayers().size(), quote.canTeleport(), quote.blockedReason())
+                .withMaterial(SpaceUnitMapPayload.MaterialSummary.from(unit.structure()));
     }
     private static SpaceUnitMapPayload.Entry friendEntry(NexusOnlineFriendTarget friend, NexusMapQuote quote) {
         return new SpaceUnitMapPayload.Entry(friend.playerId(), SpaceUnitType.PLAYER.id(), friend.name(), SpaceUnitVisibility.FRIENDS.id(), true,

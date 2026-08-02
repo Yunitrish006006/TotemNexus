@@ -44,6 +44,10 @@ public final class NexusAuthorityPayloadHandler implements NexusPayloadHandler {
         authority.setAccess(player, payload.sourceType(), payload.sourceUnitId(), payload.targetUnitId(),
                 payload.role(), payload.playerName(), payload.enabled());
     }
+    @Override public void repair(ServerPlayer player, RepairSpaceUnitPayload payload) {
+        authority.repair(player, payload.sourceType(), payload.sourceUnitId(), payload.targetUnitId(),
+                payload.x(), payload.y(), payload.z());
+    }
     @Override public void confirmRegistration(ServerPlayer player, ConfirmSpaceUnitRegistrationPayload payload) {
         authority.confirmRegistration(player, payload.dimension(), payload.x(), payload.y(), payload.z());
     }

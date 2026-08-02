@@ -27,9 +27,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.LinkedHashMap;
 
 public class NexusSpaceUnitSavedData extends SavedData {
-    public static final int DATA_VERSION = 1;
+    public static final int DATA_VERSION = 2;
 
     public static final Codec<NexusSpaceUnitSavedData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.INT.optionalFieldOf("data_version", DATA_VERSION).forGetter(NexusSpaceUnitSavedData::dataVersion),
@@ -468,6 +469,44 @@ public class NexusSpaceUnitSavedData extends SavedData {
         return changed;
     }
 
+    /** Returns only loaded, currently-scanned worn positions for one active lodestone. */
+    public List<BlockPos> wornLodestoneStructureBlocks(ServerLevel level, UUID unitId) {
+        Optional<NexusSpaceUnitRecord> unit = get(unitId);
+        if (unit.isEmpty()
+                || !unit.get().isLodestoneAnchor()
+                || unit.get().status() != SpaceUnitStatus.ACTIVE
+                || !unit.get().dimension().equals(level.dimension())
+                || !level.getBlockState(unit.get().pos()).is(Blocks.LODESTONE)) {
+            return List.of();
+        }
+        return wornStructureBlocks(level, unit.get().pos());
+    }
+
+    /** Replaces one verified worn position and immediately refreshes its structure snapshot. */
+    public boolean repairLodestoneStructureBlock(
+            ServerLevel level,
+            UUID unitId,
+            BlockPos wornPos,
+            BlockState replacement) {
+        if (wornPos == null || replacement == null || !level.isLoaded(wornPos)) {
+            return false;
+        }
+        Optional<NexusSpaceUnitRecord> unit = get(unitId);
+        if (unit.isEmpty()
+                || !unit.get().isLodestoneAnchor()
+                || unit.get().status() != SpaceUnitStatus.ACTIVE
+                || !unit.get().dimension().equals(level.dimension())
+                || !level.getBlockState(unit.get().pos()).is(Blocks.LODESTONE)
+                || !wornStructureBlocks(level, unit.get().pos()).contains(wornPos.immutable())) {
+            return false;
+        }
+        if (!level.setBlockAndUpdate(wornPos, replacement)) {
+            return false;
+        }
+        rescanLodestone(level, unitId);
+        return true;
+    }
+
     public void put(NexusSpaceUnitRecord unit) {
         this.unitsById.put(unit.id(), unit);
         indexIfLodestone(unit);
@@ -488,45 +527,68 @@ public class NexusSpaceUnitSavedData extends SavedData {
     }
 
     private static SpaceStructureSnapshot scanStructure(ServerLevel level, BlockPos lodestonePos) {
-        int structuralBlocks = 0;
-        int wornBlocks = 0;
-        int symmetricPairs = 0;
-        int checkedPairs = 0;
-
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
-                for (int dz = -2; dz <= 2; dz++) {
-                    if (dx == 0 && dy == 0 && dz == 0) {
-                        continue;
-                    }
-
-                    BlockPos scanPos = lodestonePos.offset(dx, dy, dz);
-                    BlockState state = level.getBlockState(scanPos);
-                    if (isStructureBlock(state)) {
-                        structuralBlocks++;
-                        if (isWornStructureBlock(state)) {
-                            wornBlocks++;
-                        }
-                    }
-
-                    if (dx > 0 || (dx == 0 && dz > 0)) {
-                        checkedPairs++;
-                        BlockPos mirrorPos = lodestonePos.offset(-dx, dy, -dz);
-                        if (level.getBlockState(scanPos).is(level.getBlockState(mirrorPos).getBlock())) {
-                            symmetricPairs++;
-                        }
-                    }
-                }
-            }
-        }
-
-        double completeness = Math.min(1.0D, structuralBlocks / 24.0D);
-        double symmetry = checkedPairs == 0 ? 0.0D : (double) symmetricPairs / checkedPairs;
-        double wear = structuralBlocks == 0 ? 0.0D : Math.min(1.0D, (double) wornBlocks / structuralBlocks);
-        double resonance = Math.min(1.0D, (completeness * 0.7D) + (symmetry * 0.3D));
+        TeleportArrayMaterialScan.Result scan = TeleportArrayMaterialScan.scan(
+                level,
+                lodestonePos,
+                NexusSpaceUnitSavedData::isStructureBlock,
+                NexusSpaceUnitSavedData::isWornStructureBlock
+        );
+        TeleportArrayMaterialAttributes totals = scan.totals();
+        int effectiveCapacity = TeleportArrayMaterialStructurePolicy.effectiveCapacity(totals);
+        double completeness = TeleportArrayMaterialStructurePolicy.completeness(effectiveCapacity);
+        double symmetry = scan.checkedPairs() == 0 ? 0.0D : (double) scan.symmetricPairs() / scan.checkedPairs();
+        double wear = scan.rawStructuralBlocks() == 0
+                ? 0.0D
+                : Math.min(1.0D, (double) scan.wornBlocks() / scan.rawStructuralBlocks());
+        int interferencePoints = TeleportArrayMaterialStructurePolicy.interference(
+                scan.familyCounts().size(), totals.interferenceResistance());
+        int stabilityPoints = TeleportArrayMaterialStructurePolicy.stability(
+                completeness, symmetry, totals.stability(), interferencePoints);
+        double resonance = stabilityPoints / 100.0D;
         resonance *= 1.0D - (wear * 0.35D);
-        int tier = structuralBlocks >= 24 ? 2 : structuralBlocks >= 8 ? 1 : 0;
-        return new SpaceStructureSnapshot(completeness, symmetry, resonance, 0.0D, 1.0D, wear, tier);
+        int tier = TeleportArrayMaterialStructurePolicy.tier(effectiveCapacity);
+        Map<String, Integer> materialTotals = new LinkedHashMap<>();
+        materialTotals.put("raw_structural_blocks", scan.rawStructuralBlocks());
+        materialTotals.put("effective_structure_capacity", effectiveCapacity);
+        materialTotals.put("maximum_reached_distance", scan.maximumReachedDistance());
+        materialTotals.put("profile_revision", (int) Math.min(Integer.MAX_VALUE, TeleportArrayMaterialProfiles.revision()));
+        materialTotals.put("stability", totals.stability());
+        materialTotals.put("arrival_accuracy", totals.arrivalAccuracy());
+        materialTotals.put("target_lock", totals.targetLock());
+        materialTotals.put("arrival_safety", totals.arrivalSafety());
+        materialTotals.put("wear_resistance", totals.wearResistance());
+        materialTotals.put("maintenance_efficiency", totals.maintenanceEfficiency());
+        materialTotals.put("interference_resistance", totals.interferenceResistance());
+        materialTotals.put("food_efficiency", totals.foodEfficiency());
+        materialTotals.put("phase_speed", totals.phaseSpeed());
+        materialTotals.put("cooldown_recovery", totals.cooldownRecovery());
+        materialTotals.put("route_load_capacity", totals.routeLoadCapacity());
+        materialTotals.put("cross_dimension_catalyst_units", totals.crossDimensionCatalystUnits());
+        return new SpaceStructureSnapshot(
+                completeness,
+                symmetry,
+                resonance,
+                interferencePoints / 100.0D,
+                stabilityPoints / 100.0D,
+                wear,
+                tier,
+                Math.max(0, totals.crossDimensionCatalystUnits()),
+                new SpaceStructureSnapshot.MaterialState(
+                        SpaceStructureSnapshot.MaterialState.CURRENT_SCHEMA_VERSION,
+                        materialTotals,
+                        scan.familyCounts(),
+                        materialFamilyContributions(scan.familyContributions()),
+                        totals.dimensionAffinity(),
+                        scan.localExpansionPathCounts(),
+                        false)
+        );
+    }
+
+    private static Map<String, Map<String, Integer>> materialFamilyContributions(
+            Map<String, TeleportArrayMaterialAttributes> contributions) {
+        Map<String, Map<String, Integer>> values = new LinkedHashMap<>();
+        contributions.forEach((family, attributes) -> values.put(family, attributes.scalarValues()));
+        return Map.copyOf(values);
     }
 
     private static boolean isStructureBlock(BlockState state) {
@@ -535,25 +597,40 @@ public class NexusSpaceUnitSavedData extends SavedData {
 
     private static List<BlockPos> degradableStructureBlocks(ServerLevel level, BlockPos lodestonePos) {
         List<BlockPos> candidates = new ArrayList<>();
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
-                for (int dz = -2; dz <= 2; dz++) {
-                    if (dx == 0 && dy == 0 && dz == 0) {
-                        continue;
-                    }
-
-                    BlockPos scanPos = lodestonePos.offset(dx, dy, dz);
-                    BlockState state = level.getBlockState(scanPos);
-                    if (isDegradableStructureBlock(state)) {
-                        candidates.add(scanPos.immutable());
-                    }
-                }
+        TeleportArrayMaterialScan.Result scan = TeleportArrayMaterialScan.scan(
+                level,
+                lodestonePos,
+                NexusSpaceUnitSavedData::isStructureBlock,
+                NexusSpaceUnitSavedData::isWornStructureBlock
+        );
+        for (BlockPos scanPos : scan.structuralPositions()) {
+            if (isDegradableStructureBlock(level.getBlockState(scanPos))) {
+                candidates.add(scanPos.immutable());
             }
         }
         return candidates;
     }
 
-    private static boolean isWornStructureBlock(BlockState state) {
+    private static List<BlockPos> wornStructureBlocks(ServerLevel level, BlockPos lodestonePos) {
+        List<BlockPos> candidates = new ArrayList<>();
+        TeleportArrayMaterialScan.Result scan = TeleportArrayMaterialScan.scan(
+                level,
+                lodestonePos,
+                NexusSpaceUnitSavedData::isStructureBlock,
+                NexusSpaceUnitSavedData::isWornStructureBlock
+        );
+        for (BlockPos scanPos : scan.structuralPositions()) {
+            if (isWornStructureBlock(level.getBlockState(scanPos))) {
+                candidates.add(scanPos.immutable());
+            }
+        }
+        candidates.sort(Comparator.<BlockPos>comparingInt(position -> position.getY())
+                .thenComparingInt(position -> position.getX())
+                .thenComparingInt(position -> position.getZ()));
+        return List.copyOf(candidates);
+    }
+
+    public static boolean isWornStructureBlock(BlockState state) {
         return state.is(SPACE_STRUCTURE_WORN_BLOCKS);
     }
 

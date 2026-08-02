@@ -34,6 +34,7 @@ public final class NexusPayloadRegistration {
         PayloadTypeRegistry.serverboundPlay().register(UpdateSpaceUnitVisibilityPayload.TYPE, UpdateSpaceUnitVisibilityPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RenameSpaceUnitPayload.TYPE, RenameSpaceUnitPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(UpdateSpaceUnitAccessPayload.TYPE, UpdateSpaceUnitAccessPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(RepairSpaceUnitPayload.TYPE, RepairSpaceUnitPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(ConfirmSpaceUnitRegistrationPayload.TYPE, ConfirmSpaceUnitRegistrationPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RequestDeathNodeAdminPayload.TYPE, RequestDeathNodeAdminPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(ManageDeathNodeAdminPayload.TYPE, ManageDeathNodeAdminPayload.CODEC);
@@ -75,6 +76,8 @@ public final class NexusPayloadRegistration {
                 (payload, context) -> context.server().execute(() -> handler.rename(context.player(), payload)));
         ServerPlayNetworking.registerGlobalReceiver(UpdateSpaceUnitAccessPayload.TYPE,
                 (payload, context) -> context.server().execute(() -> handler.updateAccess(context.player(), payload)));
+        ServerPlayNetworking.registerGlobalReceiver(RepairSpaceUnitPayload.TYPE,
+                (payload, context) -> context.server().execute(() -> handler.repair(context.player(), payload)));
         ServerPlayNetworking.registerGlobalReceiver(ConfirmSpaceUnitRegistrationPayload.TYPE,
                 (payload, context) -> context.server().execute(() -> handler.confirmRegistration(context.player(), payload)));
     }

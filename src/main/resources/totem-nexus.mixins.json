@@ -4,12 +4,9 @@
   "compatibilityLevel": "JAVA_25",
   "mixins": [
     "NexusSpaceDiscoverySavedDataAccessor",
-    "NexusSpaceUnitCatalystMixin",
     "NexusSpaceUnitSavedDataAccessor",
     "NexusServerPlayerDistributedSpawnMixin",
-    "NexusSpaceUnitAuthorityCatalystMixin",
     "NexusSpaceUnitAuthorityRefreshMixin",
-    "NexusSpaceUnitMapCatalystBreakdownMixin",
     "NexusSpaceUnitMapSourceAccessor",
     "NexusSpaceUnitOfflinePlayerNameMixin",
     "NexusSpaceUnitTeleportSessionAccessor",
