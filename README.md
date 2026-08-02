@@ -4,7 +4,7 @@ TotemNexus 是 Totem 系列的 Space Unit、好友、地圖、安全傳送、死
 與分散出生點模組。所有座標、權限、成本與安全落點都由 Server 重新
 驗證，Client 只顯示經過篩選的資訊。
 
-目前候選版本為 **0.2.2**，精確搭配 TotemCore **0.4.0**。
+目前候選版本為 **0.2.3**，精確搭配 TotemCore **0.4.0**。
 
 ## 安裝
 
@@ -12,7 +12,7 @@ Client 與 Server 都放入：
 
 1. Fabric API `0.154.2+26.2`
 2. TotemCore `0.4.0`
-3. TotemNexus `0.2.2`
+3. TotemNexus `0.2.3`
 
 | 項目 | 需求 |
 | --- | --- |
@@ -65,15 +65,20 @@ DeadRecall 2.4.7 整合 JAR 時不要再安裝獨立 TotemNexus。
 不會更換綁定。安裝 TotemRemnant 時，這一件物品會在死亡後保留，讓玩家
 重生後仍能透過正常 Nexus 成本與安全規則前往死亡節點或其他目標。
 
-## 石碑結構
+## 石碑結構與材料
 
-Nexus 會掃描磁石周圍 `5×3×5` 的有效結構方塊：
+Nexus 從磁石周圍一格、排除中心的 `3×3×3`（26 格）開始掃描。帶有正
+掃描擴張值的已掃描材料，會從**自身位置**繼續展開掃描；這會沿玩家擺放
+的材料路徑延伸，而不是解鎖整個外殼。掃描只讀取已載入區塊，且離磁石最遠
+不會超過 5 格。
+
+Tier 改由材料提供的有效容量決定：
 
 | 條件 | Tier |
 | --- | ---: |
-| 少於 8 個有效方塊 | 0 |
-| 至少 8 個 | 1 |
-| 至少 24 個 | 2 |
+| 少於 8 容量 | 0 |
+| 至少 8 容量 | 1 |
+| 至少 24 容量 | 2 |
 
 入門配置是在磁石同高度對稱放置一圈 8 個有效方塊：
 
@@ -83,20 +88,26 @@ S L S
 S S S
 ```
 
-`L` 是磁石；`S` 可使用石磚、深板岩磚／磚瓦、紫水晶方塊，以及支援的
-銅方塊系列。跨維度傳送要求兩端固定磁石至少 Tier 1。
+`L` 是磁石；`S` 是能提供容量的結構材料。石磚、深板岩、地獄磚、黑石、
+銅、金屬、礦物、原礦塊與礦石皆有不同的正負取捨；銅還會受形狀、氧化與
+上蠟狀態影響。Space Unit 地圖的「材料」頁才是目前資料包數值的權威來源；
+資料包作者可參考 [材料 profile 文件](docs/teleport-array-material-profiles.md)。
+
+跨維度傳送要求兩端固定磁石至少 Tier 1。
 
 ## 傳送成本與安全
 
 - 同維度基礎食物成本約每 384 格增加 1 點，最高 20。
 - 優先扣飽和度，再扣飢餓值，最後才消耗物品欄中的安全食物。
-- 跨維度另外消耗紫水晶碎片；兩端每 4 個有效紫水晶催化方塊折抵 1，
-  最終至少消耗 1。
+- 跨維度另外消耗紫水晶碎片；來源與目標的催化單位合計每 4 單位折抵 1，
+  最終至少消耗 1。紫水晶方塊預設提供 1 單位，資料包可調整或提供負值。
 - 創造模式不消耗資源。
 - 穩定度低於 0.2、權限失效或沒有安全落點時不會傳送。
 
 準備時間為 40–300 ticks。受傷、死亡、移動超過 4 格、切換維度、
 換掉介面物品、來源／目標失效、資源不足或好友解除都會在扣款前取消。
+材料還會由 Server 計入穩定、干擾、漂移、到達傷害、損耗、食物、準備時間、
+冷卻、路線負載與維護成本，所有最終數值皆有安全上下限。
 
 安全落點要求腳部與頭部無碰撞／流體、有可站立地板、位於世界邊界內，
 並避開岩漿、火、營火、仙人掌、岩漿塊與細雪。
@@ -135,23 +146,23 @@ subscriber 時，Nexus standalone 行為不受影響。
 ## 舊世界相容
 
 Nexus 保留既有的四組 `deadrecall` SavedData keys、payload IDs 與資源
-identifiers。0.2.2 保留 0.2.1 已通過的 root authority seed → external migrate → 第二
+identifiers。0.2.3 保留 0.2.1 已通過的 root authority seed → external migrate → 第二
 JVM verify，涵蓋 Space Unit、探索／最愛、好友、分散出生點與死亡背包
 反向綁定。
 
 ## 開發與驗證
 
 ```bash
-./gradlew build
+../TotemCore/gradlew build
 ```
 
 Client 視覺測試：
 
 ```bash
-./gradlew runClientGameTest
+../TotemCore/gradlew runClientGameTest
 ```
 
-候選版已通過 27/27 required Fabric GameTests、Dedicated Server、legacy
+候選版已通過 47/47 required Fabric GameTests、Dedicated Server、legacy
 SavedData migration 與 Client 視覺 gate。測試截圖在
 [`test-artifacts/screenshots/`](test-artifacts/screenshots/)；所有權契約見
 [EXTRACTION.md](EXTRACTION.md)，migration 設計見

@@ -28,6 +28,7 @@ public interface NexusTeleportAuthority {
     void rename(ServerPlayer player, String sourceType, UUID sourceUnitId, UUID targetUnitId, String name);
     void setAccess(ServerPlayer player, String sourceType, UUID sourceUnitId, UUID targetUnitId,
                    String role, String playerName, boolean enabled);
+    void repair(ServerPlayer player, String sourceType, UUID sourceUnitId, UUID targetUnitId, int x, int y, int z);
     void confirmRegistration(ServerPlayer player, String dimension, int x, int y, int z);
     void tickTeleportSessions(MinecraftServer server);
     void tickLodestoneIntegrity(MinecraftServer server);

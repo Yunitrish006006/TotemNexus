@@ -7,11 +7,15 @@
   "entrypoints": {
     "fabric-gametest": [
       "dev.totem.nexus.space.NexusDistributedSpawnGameTest",
-      "dev.totem.nexus.space.NexusDeathNodeAdminAuthorizationGameTest"
+      "dev.totem.nexus.space.NexusDeathNodeAdminAuthorizationGameTest",
+      "dev.totem.nexus.space.TeleportArrayMaterialScanGameTest",
+      "dev.totem.nexus.space.TeleportArrayMaterialCombinationGameTest",
+      "dev.totem.nexus.space.TeleportRouteReservationGameTest"
     ],
     "fabric-client-gametest": [
       "dev.totem.nexus.client.NexusFriendsVisualGameTest",
-      "dev.totem.nexus.client.TotemAdvancementsVisualGameTest"
+      "dev.totem.nexus.client.TotemAdvancementsVisualGameTest",
+      "dev.totem.nexus.client.NexusSpaceUnitMaterialVisualGameTest"
     ]
   },
   "depends": {

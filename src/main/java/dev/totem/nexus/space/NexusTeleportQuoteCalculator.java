@@ -15,13 +15,25 @@ public final class NexusTeleportQuoteCalculator {
                                           Resources resources, boolean filledMapCoversTarget) {
         boolean sameDimension = source.dimension.equals(target.dimension);
         boolean sameUnit = source.type.equals("lodestone") && source.id.equals(target.id);
+        TeleportArrayMaterialAttributes totals = source.materials.plus(target.materials);
+        int affinity = sameDimension ? 0
+                : source.materials.affinityFor(target.dimension.identifier().toString())
+                + target.materials.affinityFor(source.dimension.identifier().toString());
         int distance = sameDimension ? distance(source.pos, target.pos) : -1;
         double stability = sameUnit ? 1D : stability(source, target, sameDimension, distance);
-        int baseFood = sameUnit ? 0 : baseFood(target, sameDimension, distance);
-        int basePrepare = sameUnit ? 0 : prepare(target, sameDimension, distance, stability);
-        int baseDeviation = sameUnit ? 0 : deviation(stability);
-        int damage = sameUnit ? 0 : damage(source, target, sameDimension, distance, stability);
-        int baseAmethyst = sameUnit || sameDimension ? 0 : Math.max(2, 2 + (int) Math.ceil((1D - stability) * 4D));
+        stability = clamp(stability + affinity / 100D, 0D, 1D);
+        int baseFood = sameUnit ? 0 : materialFood(baseFood(target, sameDimension, distance), totals.foodEfficiency());
+        int basePrepare = sameUnit ? 0 : clamp(prepare(target, sameDimension, distance, stability) - totals.phaseSpeed(), 40, 300);
+        int baseDeviation = sameUnit ? 0 : clamp(deviation(stability) - totals.arrivalAccuracy()
+                - ((!sameDimension || distance > 0) ? totals.targetLock() : 0), 1, 96);
+        int damage = sameUnit ? 0 : clamp(damage(source, target, sameDimension, distance, stability)
+                - totals.arrivalSafety() - affinity, 0, 60);
+        int baseAmethyst = sameUnit || sameDimension ? 0 : catalystCost(
+                Math.max(2, 2 + (int) Math.ceil((1D - stability) * 4D)),
+                source.materials.crossDimensionCatalystUnits(), target.materials.crossDimensionCatalystUnits());
+        int catalystShardChange = sameUnit || sameDimension ? 0 : AmethystCatalystDiscount.catalystChange(
+                source.materials.crossDimensionCatalystUnits(),
+                target.materials.crossDimensionCatalystUnits());
         TeleportInterfaceQuotePolicy.Quote specialization = TeleportInterfaceQuotePolicy.specialize(interfaceType, target.type,
                 resources.playerId.equals(target.ownerId), filledMapCoversTarget, baseFood, basePrepare, baseDeviation, damage);
         int payableFood = resources.creative ? 0 : specialization.foodCost();
@@ -32,8 +44,13 @@ public final class NexusTeleportQuoteCalculator {
         int needed = resources.creative ? 0 : Math.max(0, remaining - hunger);
         String blocked = blocked(source, target, stability, needed, resources.safeFoodPoints, baseAmethyst, resources.amethyst, sameDimension, sameUnit);
         return new NexusMapQuote(stability, target.tier, distance, payableBaseFood, payableFood, saturation, hunger, needed, resources.safeFoodPoints,
-                baseAmethyst, resources.amethyst, baseAmethyst, source.catalysts, target.catalysts, 0, basePrepare, specialization.prepareTicks(),
-                baseDeviation, specialization.maxHorizontalDeviation(), damage, damage, specialization.structureWearChancePercent(),
+                baseAmethyst, resources.amethyst, sameUnit || sameDimension ? 0 : Math.max(2,
+                2 + (int) Math.ceil((1D - stability) * 4D)),
+                source.materials.crossDimensionCatalystUnits(), target.materials.crossDimensionCatalystUnits(), catalystShardChange,
+                basePrepare, specialization.prepareTicks(),
+                baseDeviation, specialization.maxHorizontalDeviation(), damage,
+                clamp(damage - totals.wearResistance(), 0, 100),
+                clamp(specialization.structureWearChancePercent() - totals.wearResistance(), 0, 100),
                 specialization.bonusActive(), specialization.bonusMessageKey(), blocked.isEmpty(), blocked);
     }
 
@@ -57,6 +74,12 @@ public final class NexusTeleportQuoteCalculator {
     private static double unitStability(SpaceUnitType type, double value) { return switch (type) { case LODESTONE -> clamp(value, 0D, 1D); case DEATH -> .55D; case PLAYER -> .6D; case TEMPORARY -> .5D; case SYSTEM -> .8D; }; }
     private static int baseFood(Target t, boolean same, int distance) { int value = same ? Math.max(1, (distance + FOOD_BLOCKS_PER_POINT - 1) / FOOD_BLOCKS_PER_POINT) : 6;
         value += switch (t.type) { case DEATH, PLAYER -> 4; case TEMPORARY -> 2; default -> 0; }; return clamp(value + (same ? 0 : 4), 1, 20); }
+    private static int materialFood(int base, int efficiency) { if (base <= 0) return 0;
+        return Math.max(1, (int) Math.ceil(base * clamp(100 - efficiency, 50, 200) / 100D)); }
+    private static int catalystCost(int base, int sourceUnits, int targetUnits) {
+        return clamp(base - ((sourceUnits + targetUnits) / AmethystCatalystDiscount.CATALYST_BLOCKS_PER_SHARD),
+                AmethystCatalystDiscount.MINIMUM_CROSS_DIMENSION_COST, 64);
+    }
     private static int prepare(Target t, boolean same, int distance, double stability) { int value = 60 + (int) Math.round((1D - stability) * 80D) + (same ? Math.min(120, Math.max(0, distance / 32)) : 100);
         return clamp(value + switch (t.type) { case DEATH -> 40; case PLAYER -> 50; case TEMPORARY -> 20; default -> 0; }, 40, 300); }
     private static int deviation(double stability) { return stability >= .95D ? 1 : stability >= .8D ? 3 : stability >= .6D ? 8 : stability >= .4D ? 20 : stability >= .2D ? 48 : 96; }
@@ -64,7 +87,20 @@ public final class NexusTeleportQuoteCalculator {
         value += switch(t.type) { case DEATH -> 8D; case PLAYER -> 10D; case TEMPORARY -> 4D; default -> 0D; }; if (s.type.equals("lodestone") && s.tier >= 2) value -= 3D; if (t.lodestone && t.tier >= 2) value -= 3D; return clamp((int)Math.round(value),0,60); }
     private static int distance(BlockPos a, BlockPos b) { long x=(long)a.getX()-b.getX(), y=(long)a.getY()-b.getY(), z=(long)a.getZ()-b.getZ(); return (int)Math.round(Math.sqrt(x*x+y*y+z*z)); }
     private static int clamp(int value,int min,int max){return Math.max(min,Math.min(max,value));} private static double clamp(double value,double min,double max){return Math.max(min,Math.min(max,value));}
-    public record Source(UUID id, String type, ResourceKey<Level> dimension, BlockPos pos, double stability, int tier, int catalysts) { }
-    public record Target(UUID id, SpaceUnitType type, ResourceKey<Level> dimension, BlockPos pos, double stability, int tier, double wear, boolean lodestone, UUID ownerId, int catalysts) { }
+    public record Source(UUID id, String type, ResourceKey<Level> dimension, BlockPos pos, double stability, int tier,
+                         int catalysts, TeleportArrayMaterialAttributes materials) {
+        public Source(UUID id, String type, ResourceKey<Level> dimension, BlockPos pos, double stability, int tier, int catalysts) {
+            this(id, type, dimension, pos, stability, tier, catalysts, TeleportArrayMaterialAttributes.ZERO);
+        }
+        public Source { materials = materials == null ? TeleportArrayMaterialAttributes.ZERO : materials; }
+    }
+    public record Target(UUID id, SpaceUnitType type, ResourceKey<Level> dimension, BlockPos pos, double stability, int tier,
+                         double wear, boolean lodestone, UUID ownerId, int catalysts, TeleportArrayMaterialAttributes materials) {
+        public Target(UUID id, SpaceUnitType type, ResourceKey<Level> dimension, BlockPos pos, double stability, int tier,
+                      double wear, boolean lodestone, UUID ownerId, int catalysts) {
+            this(id, type, dimension, pos, stability, tier, wear, lodestone, ownerId, catalysts, TeleportArrayMaterialAttributes.ZERO);
+        }
+        public Target { materials = materials == null ? TeleportArrayMaterialAttributes.ZERO : materials; }
+    }
     public record Resources(UUID playerId, boolean creative, int saturation, int foodLevel, int safeFoodPoints, int amethyst) { }
 }
