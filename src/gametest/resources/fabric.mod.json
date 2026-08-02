@@ -9,6 +9,7 @@
       "dev.totem.nexus.space.NexusDistributedSpawnGameTest",
       "dev.totem.nexus.space.NexusDeathNodeAdminAuthorizationGameTest",
       "dev.totem.nexus.space.TeleportArrayMaterialScanGameTest",
+      "dev.totem.nexus.space.TeleportArrayMaterialCombinationGameTest",
       "dev.totem.nexus.space.TeleportRouteReservationGameTest"
     ],
     "fabric-client-gametest": [
