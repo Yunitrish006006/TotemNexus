@@ -162,7 +162,7 @@ Client 視覺測試：
 ../TotemCore/gradlew runClientGameTest
 ```
 
-候選版已通過 46/46 required Fabric GameTests、Dedicated Server、legacy
+候選版已通過 47/47 required Fabric GameTests、Dedicated Server、legacy
 SavedData migration 與 Client 視覺 gate。測試截圖在
 [`test-artifacts/screenshots/`](test-artifacts/screenshots/)；所有權契約見
 [EXTRACTION.md](EXTRACTION.md)，migration 設計見

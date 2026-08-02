@@ -41,7 +41,7 @@ public final class TeleportArrayMaterialCombinationGameTest {
                         && snapshot.tier() == 1
                         && snapshot.materialStability() == 8
                         && snapshot.arrivalSafety() == 2
-                        && snapshot.wearResistance() == 6
+                        && snapshot.wearResistance() == 4
                         && snapshot.phaseSpeed() == -2
                         && snapshot.dimensionAffinity().getOrDefault("minecraft:overworld", 0) == 8,
                 "Stone/deepslate durable Tier 1 totals changed");
@@ -89,13 +89,13 @@ public final class TeleportArrayMaterialCombinationGameTest {
 
         require(helper, snapshot.effectiveStructureCapacity() == 8
                         && snapshot.tier() == 1
-                        && snapshot.arrivalAccuracy() == 4
-                        && snapshot.targetLock() == 4
+                        && snapshot.arrivalAccuracy() == 0
+                        && snapshot.targetLock() == 0
                         && snapshot.arrivalSafety() == -4
                         && snapshot.wearResistance() == -4
-                        && snapshot.foodEfficiency() == 8
-                        && snapshot.phaseSpeed() == 12
-                        && snapshot.cooldownRecovery() == 8
+                        && snapshot.foodEfficiency() == 4
+                        && snapshot.phaseSpeed() == 16
+                        && snapshot.cooldownRecovery() == 12
                         && snapshot.dimensionAffinity().getOrDefault("minecraft:the_nether", 0) == 12,
                 "Nether brick/gold fast-route totals changed");
     }

@@ -6,31 +6,53 @@
       "family": "stone_brick",
       "selector": { "blocks": ["minecraft:stone_bricks"] },
       "valid_structure_material": true,
-      "attributes": { "structure_capacity": 1, "stability": 1, "wear_resistance": 1, "maintenance_efficiency": 1, "interference_resistance": 1 },
+      "attributes": { "structure_capacity": 1, "stability": 1, "maintenance_efficiency": 1 },
       "dimension_affinity": { "minecraft:overworld": 1 }
     },
     {
-      "id": "deadrecall:stone_brick_detail",
+      "id": "deadrecall:mossy_stone_bricks",
       "family": "stone_brick",
-      "selector": { "blocks": ["minecraft:mossy_stone_bricks", "minecraft:chiseled_stone_bricks"] },
+      "selector": { "blocks": ["minecraft:mossy_stone_bricks"] },
       "valid_structure_material": true,
-      "attributes": { "structure_capacity": 1, "stability": 1, "arrival_accuracy": 1, "target_lock": 1, "maintenance_efficiency": 1 },
+      "attributes": { "structure_capacity": 1, "interference_resistance": 2, "maintenance_efficiency": 1, "arrival_accuracy": -1 },
       "dimension_affinity": { "minecraft:overworld": 1 }
+    },
+    {
+      "id": "deadrecall:chiseled_stone_bricks",
+      "family": "stone_brick",
+      "selector": { "blocks": ["minecraft:chiseled_stone_bricks"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 1, "arrival_accuracy": 2, "target_lock": 2, "arrival_safety": 1, "route_load_capacity": -1 }
     },
     {
       "id": "deadrecall:cracked_stone_bricks",
       "family": "stone_brick",
       "selector": { "blocks": ["minecraft:cracked_stone_bricks"] },
       "valid_structure_material": true,
-      "attributes": { "structure_capacity": 1, "stability": -2, "arrival_safety": -1, "wear_resistance": -3, "maintenance_efficiency": -2 },
-      "dimension_affinity": { "minecraft:overworld": 1 }
+      "attributes": { "structure_capacity": 1, "stability": -2, "wear_resistance": -3, "arrival_safety": -1, "maintenance_efficiency": -2 }
     },
     {
-      "id": "deadrecall:deepslate",
+      "id": "deadrecall:deepslate_bricks",
       "family": "deepslate",
-      "selector": { "blocks": ["minecraft:polished_deepslate", "minecraft:deepslate_bricks", "minecraft:deepslate_tiles", "minecraft:chiseled_deepslate"] },
+      "selector": { "blocks": ["minecraft:deepslate_bricks"] },
       "valid_structure_material": true,
-      "attributes": { "structure_capacity": 2, "stability": 2, "wear_resistance": 1, "arrival_safety": 1, "phase_speed": -1 },
+      "attributes": { "structure_capacity": 2, "stability": 2, "wear_resistance": 2, "arrival_safety": 1, "phase_speed": -1 },
+      "dimension_affinity": { "minecraft:overworld": 2 }
+    },
+    {
+      "id": "deadrecall:deepslate_tiles",
+      "family": "deepslate",
+      "selector": { "blocks": ["minecraft:deepslate_tiles"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 2, "stability": 1, "arrival_accuracy": 1, "target_lock": 1, "arrival_safety": 1, "phase_speed": -1 },
+      "dimension_affinity": { "minecraft:overworld": 2 }
+    },
+    {
+      "id": "deadrecall:polished_deepslate",
+      "family": "deepslate",
+      "selector": { "blocks": ["minecraft:polished_deepslate"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 2, "stability": 2, "food_efficiency": 1, "maintenance_efficiency": 2, "phase_speed": -2 },
       "dimension_affinity": { "minecraft:overworld": 2 }
     },
     {
@@ -38,15 +60,31 @@
       "family": "deepslate",
       "selector": { "blocks": ["minecraft:cracked_deepslate_bricks", "minecraft:cracked_deepslate_tiles"] },
       "valid_structure_material": true,
-      "attributes": { "structure_capacity": 1, "stability": -2, "arrival_safety": -1, "wear_resistance": -3, "maintenance_efficiency": -2 },
+      "attributes": { "structure_capacity": 1, "stability": -2, "wear_resistance": -3, "arrival_safety": -1, "maintenance_efficiency": -2 },
       "dimension_affinity": { "minecraft:overworld": 1 }
+    },
+    {
+      "id": "deadrecall:chiseled_deepslate",
+      "family": "deepslate",
+      "selector": { "blocks": ["minecraft:chiseled_deepslate"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 2, "arrival_accuracy": 2, "target_lock": 2, "arrival_safety": 1, "phase_speed": -1 },
+      "dimension_affinity": { "minecraft:overworld": 2 }
     },
     {
       "id": "deadrecall:nether_bricks",
       "family": "nether_brick",
-      "selector": { "blocks": ["minecraft:nether_bricks", "minecraft:red_nether_bricks", "minecraft:chiseled_nether_bricks"] },
+      "selector": { "blocks": ["minecraft:nether_bricks"] },
       "valid_structure_material": true,
-      "attributes": { "structure_capacity": 1, "phase_speed": 1, "arrival_accuracy": 1, "target_lock": 1, "interference_resistance": 1 },
+      "attributes": { "structure_capacity": 1, "phase_speed": 2, "cooldown_recovery": 1, "food_efficiency": -1, "interference_resistance": -1 },
+      "dimension_affinity": { "minecraft:the_nether": 2 }
+    },
+    {
+      "id": "deadrecall:red_nether_bricks",
+      "family": "nether_brick",
+      "selector": { "blocks": ["minecraft:red_nether_bricks"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 1, "phase_speed": 1, "arrival_accuracy": 1, "arrival_safety": 1, "food_efficiency": -1, "wear_resistance": -1 },
       "dimension_affinity": { "minecraft:the_nether": 2 }
     },
     {
@@ -54,24 +92,48 @@
       "family": "nether_brick",
       "selector": { "blocks": ["minecraft:cracked_nether_bricks"] },
       "valid_structure_material": true,
-      "attributes": { "structure_capacity": 1, "stability": -2, "arrival_safety": -1, "wear_resistance": -3, "maintenance_efficiency": -2 },
+      "attributes": { "structure_capacity": 1, "stability": -2, "wear_resistance": -3, "arrival_safety": -1, "maintenance_efficiency": -2 },
       "dimension_affinity": { "minecraft:the_nether": 1 }
     },
     {
-      "id": "deadrecall:blackstone",
-      "family": "blackstone",
-      "selector": { "blocks": ["minecraft:polished_blackstone", "minecraft:polished_blackstone_bricks", "minecraft:chiseled_polished_blackstone"] },
+      "id": "deadrecall:chiseled_nether_bricks",
+      "family": "nether_brick",
+      "selector": { "blocks": ["minecraft:chiseled_nether_bricks"] },
       "valid_structure_material": true,
-      "attributes": { "structure_capacity": 2, "stability": 2, "arrival_safety": 1, "wear_resistance": 1, "maintenance_efficiency": 2, "interference_resistance": 2, "phase_speed": -1 },
+      "attributes": { "structure_capacity": 1, "phase_speed": 1, "arrival_accuracy": 2, "target_lock": 2, "food_efficiency": -1 },
+      "dimension_affinity": { "minecraft:the_nether": 3 }
+    },
+    {
+      "id": "deadrecall:polished_blackstone",
+      "family": "blackstone",
+      "selector": { "blocks": ["minecraft:polished_blackstone"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 2, "stability": 1, "interference_resistance": 2, "maintenance_efficiency": 2, "arrival_safety": 1, "phase_speed": -1 },
       "dimension_affinity": { "minecraft:the_nether": 1 }
     },
     {
-      "id": "deadrecall:cracked_blackstone",
+      "id": "deadrecall:polished_blackstone_bricks",
+      "family": "blackstone",
+      "selector": { "blocks": ["minecraft:polished_blackstone_bricks"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 2, "stability": 2, "wear_resistance": 1, "arrival_safety": 2, "route_load_capacity": 1, "phase_speed": -1 },
+      "dimension_affinity": { "minecraft:the_nether": 1 }
+    },
+    {
+      "id": "deadrecall:cracked_polished_blackstone_bricks",
       "family": "blackstone",
       "selector": { "blocks": ["minecraft:cracked_polished_blackstone_bricks"] },
       "valid_structure_material": true,
-      "attributes": { "structure_capacity": 1, "stability": -2, "arrival_safety": -1, "wear_resistance": -3, "maintenance_efficiency": -2, "interference_resistance": -1 },
+      "attributes": { "structure_capacity": 1, "stability": -2, "wear_resistance": -3, "arrival_safety": -1, "maintenance_efficiency": -2, "interference_resistance": -1 },
       "dimension_affinity": { "minecraft:the_nether": 1 }
+    },
+    {
+      "id": "deadrecall:chiseled_polished_blackstone",
+      "family": "blackstone",
+      "selector": { "blocks": ["minecraft:chiseled_polished_blackstone"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 2, "arrival_accuracy": 1, "target_lock": 3, "interference_resistance": 1, "cooldown_recovery": 1, "phase_speed": -1 },
+      "dimension_affinity": { "minecraft:the_nether": 2 }
     },
     {
       "id": "deadrecall:copper_block",
@@ -109,13 +171,6 @@
       "attributes": { "structure_capacity": 1, "scan_expansion_radius": 1, "phase_speed": 1, "cooldown_recovery": 2, "route_load_capacity": 2, "stability": -1, "wear_resistance": -1 }
     },
     {
-      "id": "deadrecall:raw_metals",
-      "family": "metal",
-      "selector": { "blocks": ["minecraft:raw_iron_block", "minecraft:raw_gold_block", "minecraft:raw_copper_block"] },
-      "valid_structure_material": true,
-      "attributes": { "structure_capacity": 1, "phase_speed": 1, "stability": -1, "wear_resistance": -1, "maintenance_efficiency": -1, "interference_resistance": -1 }
-    },
-    {
       "id": "deadrecall:iron_block",
       "family": "iron",
       "selector": { "blocks": ["minecraft:iron_block"] },
@@ -139,11 +194,26 @@
       "dimension_affinity": { "minecraft:the_nether": 2 }
     },
     {
-      "id": "deadrecall:precision_minerals",
-      "family": "mineral",
-      "selector": { "blocks": ["minecraft:quartz_block", "minecraft:emerald_block", "minecraft:lapis_block", "minecraft:coal_block"] },
+      "id": "deadrecall:raw_iron_block",
+      "family": "metal",
+      "selector": { "blocks": ["minecraft:raw_iron_block"] },
       "valid_structure_material": true,
-      "attributes": { "structure_capacity": 1, "arrival_accuracy": 1, "target_lock": 1, "phase_speed": 1 }
+      "attributes": { "structure_capacity": 1, "stability": -1, "wear_resistance": -1, "interference_resistance": -1, "maintenance_efficiency": -1 }
+    },
+    {
+      "id": "deadrecall:raw_gold_block",
+      "family": "metal",
+      "selector": { "blocks": ["minecraft:raw_gold_block"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 1, "phase_speed": 1, "food_efficiency": 1, "stability": -1, "wear_resistance": -2, "arrival_safety": -1, "interference_resistance": -1 },
+      "dimension_affinity": { "minecraft:the_nether": 1 }
+    },
+    {
+      "id": "deadrecall:raw_copper_block",
+      "family": "metal",
+      "selector": { "blocks": ["minecraft:raw_copper_block"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 1, "phase_speed": 1, "cooldown_recovery": 1, "interference_resistance": -2, "wear_resistance": -1 }
     },
     {
       "id": "deadrecall:amethyst",
@@ -153,11 +223,35 @@
       "attributes": { "structure_capacity": 1, "scan_expansion_radius": 1, "arrival_accuracy": 2, "target_lock": 1, "arrival_safety": 1, "cross_dimension_catalyst_units": 1, "phase_speed": -1 }
     },
     {
+      "id": "deadrecall:quartz_block",
+      "family": "mineral",
+      "selector": { "blocks": ["minecraft:quartz_block"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 1, "arrival_accuracy": 1, "phase_speed": 1, "food_efficiency": 1, "interference_resistance": -1 },
+      "dimension_affinity": { "minecraft:the_nether": 1 }
+    },
+    {
       "id": "deadrecall:diamond_block",
       "family": "diamond",
       "selector": { "blocks": ["minecraft:diamond_block"] },
       "valid_structure_material": true,
       "attributes": { "structure_capacity": 2, "scan_expansion_radius": 2, "stability": 2, "arrival_accuracy": 2, "arrival_safety": 2, "wear_resistance": 2, "maintenance_efficiency": 1, "route_load_capacity": 1 }
+    },
+    {
+      "id": "deadrecall:emerald_block",
+      "family": "mineral",
+      "selector": { "blocks": ["minecraft:emerald_block"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 1, "food_efficiency": 2, "cooldown_recovery": 1, "maintenance_efficiency": 2, "stability": 1 },
+      "dimension_affinity": { "minecraft:overworld": 1 }
+    },
+    {
+      "id": "deadrecall:lapis_block",
+      "family": "mineral",
+      "selector": { "blocks": ["minecraft:lapis_block"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 1, "arrival_accuracy": 2, "target_lock": 2, "phase_speed": 1, "interference_resistance": -1, "arrival_safety": -1 },
+      "dimension_affinity": { "minecraft:overworld": 1 }
     },
     {
       "id": "deadrecall:redstone_block",
@@ -167,11 +261,126 @@
       "attributes": { "structure_capacity": 1, "scan_expansion_radius": 1, "phase_speed": 3, "cooldown_recovery": 2, "route_load_capacity": 1, "interference_resistance": -3, "arrival_safety": -1, "wear_resistance": -1 }
     },
     {
-      "id": "deadrecall:ores",
-      "family": "ore",
-      "selector": { "blocks": ["minecraft:coal_ore", "minecraft:deepslate_coal_ore", "minecraft:iron_ore", "minecraft:deepslate_iron_ore", "minecraft:copper_ore", "minecraft:deepslate_copper_ore", "minecraft:gold_ore", "minecraft:deepslate_gold_ore", "minecraft:redstone_ore", "minecraft:deepslate_redstone_ore", "minecraft:lapis_ore", "minecraft:deepslate_lapis_ore", "minecraft:diamond_ore", "minecraft:deepslate_diamond_ore", "minecraft:emerald_ore", "minecraft:deepslate_emerald_ore", "minecraft:nether_gold_ore", "minecraft:nether_quartz_ore", "minecraft:ancient_debris"] },
+      "id": "deadrecall:coal_block",
+      "family": "mineral",
+      "selector": { "blocks": ["minecraft:coal_block"] },
       "valid_structure_material": true,
-      "attributes": { "structure_capacity": 1, "stability": -1, "wear_resistance": -1, "maintenance_efficiency": -1, "interference_resistance": -2, "arrival_safety": -1 }
+      "attributes": { "structure_capacity": 1, "phase_speed": 1, "stability": -1, "interference_resistance": -1, "arrival_safety": -1, "maintenance_efficiency": -1 }
+    },
+    {
+      "id": "deadrecall:coal_ore",
+      "family": "ore",
+      "selector": { "blocks": ["minecraft:coal_ore"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 1, "scan_expansion_radius": -1, "phase_speed": 1, "stability": -1, "interference_resistance": -2, "arrival_safety": -1, "maintenance_efficiency": -1 }
+    },
+    {
+      "id": "deadrecall:deepslate_coal_ore",
+      "family": "ore",
+      "selector": { "blocks": ["minecraft:deepslate_coal_ore"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 2, "scan_expansion_radius": -1, "stability": -1, "interference_resistance": -2, "arrival_safety": -1, "maintenance_efficiency": -1 },
+      "dimension_affinity": { "minecraft:overworld": 1 }
+    },
+    {
+      "id": "deadrecall:base_metal_ore",
+      "family": "ore",
+      "selector": { "blocks": ["minecraft:iron_ore", "minecraft:copper_ore"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 1, "scan_expansion_radius": -1, "stability": -1, "wear_resistance": -1, "interference_resistance": -2, "arrival_safety": -1, "maintenance_efficiency": -1 }
+    },
+    {
+      "id": "deadrecall:gold_ore",
+      "family": "ore",
+      "selector": { "blocks": ["minecraft:gold_ore"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 1, "scan_expansion_radius": -1, "stability": -1, "wear_resistance": -1, "interference_resistance": -2, "arrival_safety": -1, "maintenance_efficiency": -1, "phase_speed": 1 },
+      "dimension_affinity": { "minecraft:the_nether": 1 }
+    },
+    {
+      "id": "deadrecall:deepslate_base_metal_ore",
+      "family": "ore",
+      "selector": { "blocks": ["minecraft:deepslate_iron_ore", "minecraft:deepslate_copper_ore"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 2, "scan_expansion_radius": -1, "stability": -1, "wear_resistance": -1, "interference_resistance": -2, "arrival_safety": -1, "maintenance_efficiency": -1, "phase_speed": -1 },
+      "dimension_affinity": { "minecraft:overworld": 1 }
+    },
+    {
+      "id": "deadrecall:deepslate_gold_ore",
+      "family": "ore",
+      "selector": { "blocks": ["minecraft:deepslate_gold_ore"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 2, "scan_expansion_radius": -1, "stability": -1, "wear_resistance": -1, "interference_resistance": -2, "arrival_safety": -1, "maintenance_efficiency": -1 },
+      "dimension_affinity": { "minecraft:overworld": 1, "minecraft:the_nether": 1 }
+    },
+    {
+      "id": "deadrecall:lapis_ore",
+      "family": "ore",
+      "selector": { "blocks": ["minecraft:lapis_ore"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 1, "scan_expansion_radius": -1, "arrival_accuracy": 1, "target_lock": 1, "stability": -1, "wear_resistance": -1, "interference_resistance": -2, "maintenance_efficiency": -1 }
+    },
+    {
+      "id": "deadrecall:redstone_ore",
+      "family": "ore",
+      "selector": { "blocks": ["minecraft:redstone_ore"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 1, "scan_expansion_radius": -1, "arrival_accuracy": 1, "target_lock": 1, "stability": -1, "wear_resistance": -1, "interference_resistance": -3, "maintenance_efficiency": -1, "phase_speed": 1, "cooldown_recovery": 1 }
+    },
+    {
+      "id": "deadrecall:valuable_ore",
+      "family": "ore",
+      "selector": { "blocks": ["minecraft:diamond_ore", "minecraft:emerald_ore"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 1, "scan_expansion_radius": -1, "arrival_accuracy": 1, "target_lock": 1, "stability": -1, "wear_resistance": -1, "interference_resistance": -2, "maintenance_efficiency": -1, "arrival_safety": 1 }
+    },
+    {
+      "id": "deadrecall:deepslate_lapis_ore",
+      "family": "ore",
+      "selector": { "blocks": ["minecraft:deepslate_lapis_ore"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 2, "scan_expansion_radius": -1, "arrival_accuracy": 1, "target_lock": 1, "stability": -1, "wear_resistance": -1, "interference_resistance": -2, "maintenance_efficiency": -1, "phase_speed": -1 },
+      "dimension_affinity": { "minecraft:overworld": 1 }
+    },
+    {
+      "id": "deadrecall:deepslate_redstone_ore",
+      "family": "ore",
+      "selector": { "blocks": ["minecraft:deepslate_redstone_ore"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 2, "scan_expansion_radius": -1, "arrival_accuracy": 1, "target_lock": 1, "stability": -1, "wear_resistance": -1, "interference_resistance": -3, "maintenance_efficiency": -1, "phase_speed": 0, "cooldown_recovery": 1 },
+      "dimension_affinity": { "minecraft:overworld": 1 }
+    },
+    {
+      "id": "deadrecall:deepslate_valuable_ore",
+      "family": "ore",
+      "selector": { "blocks": ["minecraft:deepslate_diamond_ore", "minecraft:deepslate_emerald_ore"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 2, "scan_expansion_radius": -1, "arrival_accuracy": 1, "target_lock": 1, "stability": -1, "wear_resistance": -1, "interference_resistance": -2, "maintenance_efficiency": -1, "arrival_safety": 1, "phase_speed": -1 },
+      "dimension_affinity": { "minecraft:overworld": 1 }
+    },
+    {
+      "id": "deadrecall:nether_gold_ore",
+      "family": "ore",
+      "selector": { "blocks": ["minecraft:nether_gold_ore"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 1, "scan_expansion_radius": -1, "phase_speed": 1, "stability": -1, "wear_resistance": -1, "interference_resistance": -2, "arrival_safety": -1, "maintenance_efficiency": -1 },
+      "dimension_affinity": { "minecraft:the_nether": 2 }
+    },
+    {
+      "id": "deadrecall:nether_quartz_ore",
+      "family": "ore",
+      "selector": { "blocks": ["minecraft:nether_quartz_ore"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 1, "scan_expansion_radius": -1, "phase_speed": 1, "stability": -1, "wear_resistance": -1, "interference_resistance": -2, "arrival_safety": -1, "maintenance_efficiency": -1, "arrival_accuracy": 1 },
+      "dimension_affinity": { "minecraft:the_nether": 2 }
+    },
+    {
+      "id": "deadrecall:ancient_debris",
+      "family": "ore",
+      "selector": { "blocks": ["minecraft:ancient_debris"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 2, "stability": 1, "wear_resistance": 2, "arrival_safety": 2, "interference_resistance": 1, "phase_speed": -2, "maintenance_efficiency": -1 },
+      "dimension_affinity": { "minecraft:the_nether": 2 }
     }
   ]
 }

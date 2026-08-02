@@ -173,6 +173,59 @@ public final class TeleportArrayMaterialScanGameTest {
     }
 
     @GameTest(maxTicks = 30)
+    public void approvedMaterialDetailsKeepTheirDistinctTradeOffs(GameTestHelper helper) {
+        TeleportArrayMaterialAttributes mossy = TeleportArrayMaterialProfiles.profileFor(
+                Blocks.MOSSY_STONE_BRICKS.defaultBlockState()).attributes();
+        TeleportArrayMaterialAttributes chiseledStone = TeleportArrayMaterialProfiles.profileFor(
+                Blocks.CHISELED_STONE_BRICKS.defaultBlockState()).attributes();
+        TeleportArrayMaterialAttributes tiles = TeleportArrayMaterialProfiles.profileFor(
+                Blocks.DEEPSLATE_TILES.defaultBlockState()).attributes();
+        TeleportArrayMaterialAttributes polishedDeepslate = TeleportArrayMaterialProfiles.profileFor(
+                Blocks.POLISHED_DEEPSLATE.defaultBlockState()).attributes();
+        TeleportArrayMaterialAttributes redNether = TeleportArrayMaterialProfiles.profileFor(
+                Blocks.RED_NETHER_BRICKS.defaultBlockState()).attributes();
+        TeleportArrayMaterialAttributes blackstoneBricks = TeleportArrayMaterialProfiles.profileFor(
+                Blocks.POLISHED_BLACKSTONE_BRICKS.defaultBlockState()).attributes();
+        TeleportArrayMaterialAttributes rawGold = TeleportArrayMaterialProfiles.profileFor(
+                Blocks.RAW_GOLD_BLOCK.defaultBlockState()).attributes();
+        TeleportArrayMaterialAttributes emerald = TeleportArrayMaterialProfiles.profileFor(
+                Blocks.EMERALD_BLOCK.defaultBlockState()).attributes();
+        TeleportArrayMaterialAttributes lapis = TeleportArrayMaterialProfiles.profileFor(
+                Blocks.LAPIS_BLOCK.defaultBlockState()).attributes();
+        TeleportArrayMaterialAttributes coal = TeleportArrayMaterialProfiles.profileFor(
+                Blocks.COAL_BLOCK.defaultBlockState()).attributes();
+        TeleportArrayMaterialAttributes deepslateRedstone = TeleportArrayMaterialProfiles.profileFor(
+                Blocks.DEEPSLATE_REDSTONE_ORE.defaultBlockState()).attributes();
+        TeleportArrayMaterialAttributes debris = TeleportArrayMaterialProfiles.profileFor(
+                Blocks.ANCIENT_DEBRIS.defaultBlockState()).attributes();
+
+        if (mossy.interferenceResistance() != 2 || mossy.arrivalAccuracy() != -1
+                || chiseledStone.arrivalAccuracy() != 2 || chiseledStone.targetLock() != 2
+                || chiseledStone.arrivalSafety() != 1 || chiseledStone.routeLoadCapacity() != -1
+                || tiles.stability() != 1 || tiles.arrivalAccuracy() != 1 || tiles.targetLock() != 1
+                || polishedDeepslate.foodEfficiency() != 1 || polishedDeepslate.maintenanceEfficiency() != 2
+                || polishedDeepslate.phaseSpeed() != -2
+                || redNether.phaseSpeed() != 1 || redNether.arrivalAccuracy() != 1
+                || redNether.arrivalSafety() != 1 || redNether.foodEfficiency() != -1
+                || blackstoneBricks.stability() != 2 || blackstoneBricks.arrivalSafety() != 2
+                || blackstoneBricks.routeLoadCapacity() != 1
+                || rawGold.foodEfficiency() != 1 || rawGold.wearResistance() != -2
+                || rawGold.affinityFor("minecraft:the_nether") != 1
+                || emerald.foodEfficiency() != 2 || emerald.cooldownRecovery() != 1
+                || emerald.maintenanceEfficiency() != 2
+                || lapis.arrivalAccuracy() != 2 || lapis.targetLock() != 2 || lapis.arrivalSafety() != -1
+                || coal.phaseSpeed() != 1 || coal.stability() != -1 || coal.maintenanceEfficiency() != -1
+                || deepslateRedstone.structureCapacity() != 2 || deepslateRedstone.phaseSpeed() != 0
+                || deepslateRedstone.cooldownRecovery() != 1 || deepslateRedstone.interferenceResistance() != -3
+                || debris.structureCapacity() != 2 || debris.stability() != 1 || debris.wearResistance() != 2
+                || debris.arrivalSafety() != 2 || debris.phaseSpeed() != -2) {
+            helper.fail("Approved material detail profiles were collapsed or changed");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
     public void everyInitialCatalogueFamilyIsAcceptedInOneArray(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos origin = helper.absolutePos(LODESTONE);
