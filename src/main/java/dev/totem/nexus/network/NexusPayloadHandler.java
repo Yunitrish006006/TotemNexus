@@ -13,5 +13,6 @@ public interface NexusPayloadHandler {
     void updateVisibility(ServerPlayer player, UpdateSpaceUnitVisibilityPayload payload);
     void rename(ServerPlayer player, RenameSpaceUnitPayload payload);
     void updateAccess(ServerPlayer player, UpdateSpaceUnitAccessPayload payload);
+    void repair(ServerPlayer player, RepairSpaceUnitPayload payload);
     void confirmRegistration(ServerPlayer player, ConfirmSpaceUnitRegistrationPayload payload);
 }

@@ -90,6 +90,11 @@ public final class NexusGameplayAuthority implements NexusTeleportAuthority {
     }
 
     @Override
+    public void repair(ServerPlayer player, String sourceType, UUID sourceUnitId, UUID targetUnitId, int x, int y, int z) {
+        NexusSpaceUnitAuthority.repairLodestoneStructure(player, sourceType, sourceUnitId, targetUnitId, new BlockPos(x, y, z));
+    }
+
+    @Override
     public void confirmRegistration(ServerPlayer player, String dimension, int x, int y, int z) {
         NexusSpaceUnitAuthority.confirmLodestoneRegistration(player, dimension, x, y, z);
     }

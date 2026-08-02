@@ -112,8 +112,10 @@ class NexusPersistenceSavedDataTest {
         NexusSpaceUnitSavedData restored = NexusSpaceUnitSavedData.CODEC.parse(JsonOps.INSTANCE, legacy)
                 .getOrThrow(IllegalArgumentException::new);
 
-        assertEquals(Optional.empty(), restored.get(
-                UUID.fromString("00000000-0000-0000-0000-000000000041")).orElseThrow().backpackId());
+        NexusSpaceUnitRecord restoredRecord = restored.get(
+                UUID.fromString("00000000-0000-0000-0000-000000000041")).orElseThrow();
+        assertEquals(Optional.empty(), restoredRecord.backpackId());
+        assertTrue(restoredRecord.structure().materialSnapshotStale());
     }
 
     private static NexusSpaceUnitRecord deathNode(UUID id, UUID owner, BlockPos pos, UUID backpackId) {

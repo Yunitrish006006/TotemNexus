@@ -3,6 +3,7 @@ package dev.totem.nexus.client;
 import dev.totem.nexus.network.CalibrateSpaceUnitPayload;
 import dev.totem.nexus.network.RenameSpaceUnitPayload;
 import dev.totem.nexus.network.RequestSpaceUnitMapPayload;
+import dev.totem.nexus.network.RepairSpaceUnitPayload;
 import dev.totem.nexus.network.SpaceUnitMapPayload;
 import dev.totem.nexus.network.StartSpaceUnitTeleportPayload;
 import dev.totem.nexus.network.ToggleSpaceUnitFavoritePayload;
@@ -75,8 +76,14 @@ public class NexusSpaceUnitMapScreen extends Screen {
     private Button calibrateButton;
     private Button teleportButton;
     private Button friendsButton;
+    private Button materialButton;
+    private Button repairButton;
     private Button refreshButton;
     private Button doneButton;
+    private boolean showMaterials;
+    private int selectedMaintenanceIndex;
+    private int maintenanceScrollIndex;
+    private String expandedMaterialFamily;
 
     public NexusSpaceUnitMapScreen(SpaceUnitMapPayload payload) {
         super(Component.translatable("container.deadrecall.space_unit.map"));
@@ -155,6 +162,17 @@ public class NexusSpaceUnitMapScreen extends Screen {
                 .build();
         this.addRenderableWidget(this.friendsButton);
 
+        this.materialButton = Button.builder(materialButtonText(), button -> toggleMaterialView())
+                .bounds(materialButtonX(), friendsButtonY(), materialButtonWidth(), 18)
+                .build();
+        this.addRenderableWidget(this.materialButton);
+
+        this.repairButton = Button.builder(Component.translatable("message.deadrecall.space_unit.maintenance_repair"),
+                        button -> requestSelectedMaintenance())
+                .bounds(maintenanceButtonX(), maintenanceButtonY(), 78, 18)
+                .build();
+        this.addRenderableWidget(this.repairButton);
+
         this.favoriteButton = Button.builder(favoriteButtonText(), button -> toggleSelectedFavorite())
                 .bounds(favoriteButtonX(), favoriteButtonY(), favoriteButtonWidth(), 18)
                 .build();
@@ -223,7 +241,7 @@ public class NexusSpaceUnitMapScreen extends Screen {
         extractor.outline(panelX, panelY, panelWidth, panelHeight, 0xFF657383);
         extractor.text(this.font, this.title, panelX + PANEL_PADDING, panelY + 9, 0xFFFFFFFF);
         int summaryX = panelX + PANEL_PADDING + 150;
-        int summaryWidth = Math.max(0, friendsButtonX() - summaryX - 8);
+        int summaryWidth = Math.max(0, materialButtonX() - summaryX - 8);
         if (summaryWidth > 26) {
             extractor.item(interfaceIcon(), summaryX, panelY + 1);
             if (isInside(mouseX, mouseY, summaryX, panelY + 1, 16, 16)) {
@@ -238,16 +256,29 @@ public class NexusSpaceUnitMapScreen extends Screen {
             );
         }
 
-        drawDimensionTabs(extractor, mouseX, mouseY);
-        drawMap(extractor, mouseX, mouseY);
-        drawNodeList(extractor, mouseX, mouseY);
-        drawFooter(extractor, mouseX, mouseY);
+        if (this.showMaterials) {
+            drawMaterialPanel(extractor, mouseX, mouseY);
+        } else {
+            drawDimensionTabs(extractor, mouseX, mouseY);
+            drawMap(extractor, mouseX, mouseY);
+            drawNodeList(extractor, mouseX, mouseY);
+            drawFooter(extractor, mouseX, mouseY);
+        }
 
         super.extractRenderState(extractor, mouseX, mouseY, partialTick);
     }
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (this.showMaterials) {
+            if (selectMaterialFamilyAt(event.x(), event.y())) {
+                return true;
+            }
+            if (selectMaintenanceTargetAt(event.x(), event.y())) {
+                return true;
+            }
+            return super.mouseClicked(event, doubleClick);
+        }
         if (selectDimensionAt(event.x(), event.y())) {
             return true;
         }
@@ -276,6 +307,18 @@ public class NexusSpaceUnitMapScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (this.showMaterials) {
+            List<SpaceUnitMapPayload.MaintenanceTarget> targets = selectedMaterial().maintenanceTargets();
+            if (isInside(mouseX, mouseY, panelX() + PANEL_PADDING + 8, maintenanceListY(),
+                    panelWidth() - PANEL_PADDING * 2 - 100, 80) && targets.size() > 5) {
+                int maxStart = targets.size() - 5;
+                this.maintenanceScrollIndex = verticalAmount < 0
+                        ? Math.min(maxStart, this.maintenanceScrollIndex + 1)
+                        : Math.max(0, this.maintenanceScrollIndex - 1);
+                return true;
+            }
+            return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        }
         if (isInside(mouseX, mouseY, mapX(), mapY(), mapWidth(), mapHeight())) {
             if (verticalAmount > 0) {
                 this.zoom = Math.min(MAX_ZOOM, this.zoom * 1.15D);
@@ -449,6 +492,282 @@ public class NexusSpaceUnitMapScreen extends Screen {
         this.listScrollIndex = 0;
         ensureSelectedVisible();
         updateControlMessages();
+    }
+
+    private void toggleMaterialView() {
+        this.showMaterials = !this.showMaterials;
+        updateButtonLayout();
+    }
+
+    /** Package-visible visual-test hook; production input still uses the Material button. */
+    void showMaterialDiagnosticsForVisualTest() {
+        this.showMaterials = true;
+    }
+
+    private Component materialButtonText() {
+        return Component.translatable(this.showMaterials
+                ? "message.deadrecall.space_unit.map_view"
+                : "message.deadrecall.space_unit.map_materials");
+    }
+
+    private void drawMaterialPanel(GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
+        SpaceUnitMapPayload.MaterialSummary material = selectedMaterial();
+        int x = panelX() + PANEL_PADDING;
+        int y = panelY() + HEADER_HEIGHT + 6;
+        int width = panelWidth() - PANEL_PADDING * 2;
+        int height = panelHeight() - HEADER_HEIGHT - FOOTER_HEIGHT + 2;
+        extractor.fill(x, y, x + width, y + height, 0xC0101419);
+        extractor.outline(x, y, width, height, 0xFF3F4A56);
+
+        String selectedName = selectedEntry() == null ? this.payload.sourceName() : selectedEntry().name();
+        extractor.text(this.font, Component.translatable(
+                "message.deadrecall.space_unit.material_title", selectedName), x + 10, y + 9, 0xFFFFFFFF);
+        extractor.text(this.font, Component.translatable(
+                "message.deadrecall.space_unit.material_subtitle", material.profileRevision()),
+                x + 10, y + 22, 0xFF9EAFBE);
+
+        SpaceUnitMapPayload.Entry selected = selectedEntry();
+        if (selected != null) {
+            extractor.text(this.font, trimToWidth(Component.translatable(
+                    "message.deadrecall.space_unit.material_route_summary",
+                    selected.finalFoodCost(), selected.amethystCost(), seconds(selected.prepareTicks()),
+                    selected.maxHorizontalDeviation(), selected.structureWearChancePercent()).getString(), width - 20),
+                    x + 10, y + 35, 0xFFB8D9F3);
+        }
+        List<MaterialMetric> metrics = List.of(
+                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_capacity",
+                        material.effectiveCapacity(), material.rawStructuralBlocks()), 0),
+                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_reach", material.maximumReachedDistance()), 0),
+                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_stability", signed(material.stability())), material.stability()),
+                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_accuracy", signed(material.arrivalAccuracy())), material.arrivalAccuracy()),
+                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_lock", signed(material.targetLock())), material.targetLock()),
+                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_safety", signed(material.arrivalSafety())), material.arrivalSafety()),
+                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_wear", signed(material.wearResistance())), material.wearResistance()),
+                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_maintenance", signed(material.maintenanceEfficiency())), material.maintenanceEfficiency()),
+                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_interference", signed(material.interferenceResistance())), material.interferenceResistance()),
+                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_food", signed(material.foodEfficiency())), material.foodEfficiency()),
+                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_phase", signed(material.phaseSpeed())), material.phaseSpeed()),
+                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_cooldown", signed(material.cooldownRecovery())), material.cooldownRecovery()),
+                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_load", signed(material.routeLoadCapacity())), material.routeLoadCapacity()),
+                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_catalyst", signed(material.crossDimensionCatalystUnits())), material.crossDimensionCatalystUnits())
+        );
+        int columnWidth = Math.max(100, (width - 24) / 2);
+        for (int index = 0; index < metrics.size(); index++) {
+            int column = index % 2;
+            int row = index / 2;
+            int metricX = x + 10 + column * columnWidth;
+            int metricY = y + 52 + row * 15;
+            MaterialMetric metric = metrics.get(index);
+            extractor.text(this.font, trimToWidth(metric.label().getString(), columnWidth - 8), metricX, metricY,
+                    material.rawStructuralBlocks() == 0 ? 0xFF8D98A4 : signedColor(metric.value()));
+        }
+
+        int mapsY = y + 166;
+        SpaceUnitMapPayload.FamilyContribution expandedFamily = expandedMaterialFamily(material);
+        String familyLabel = expandedFamily == null
+                ? materialMapText(material.familyCounts(), false)
+                : expandedFamily.family() + " ×" + expandedFamily.blockCount();
+        extractor.text(this.font, trimToWidth(Component.translatable(
+                "message.deadrecall.space_unit.material_families", familyLabel).getString(), width - 20),
+                x + 10, mapsY, expandedFamily == null ? 0xFFB8D9F3 : 0xFFFFD166);
+        if (!material.familyContributions().isEmpty()
+                && isInside(mouseX, mouseY, x + 8, mapsY - 2, width - 16, 14)) {
+            extractor.setTooltipForNextFrame(
+                    Component.translatable("message.deadrecall.space_unit.material_families_hint"), mouseX, mouseY);
+        }
+        int detailOffset = expandedFamily == null ? 0 : 16;
+        if (expandedFamily != null) {
+            extractor.text(this.font, trimToWidth(materialContributionText(expandedFamily), width - 20),
+                    x + 10, mapsY + 16, contributionColor(expandedFamily));
+        }
+        String affinityText = selected == null
+                ? Component.translatable("message.deadrecall.space_unit.material_affinity",
+                materialMapText(material.dimensionAffinity(), true)).getString()
+                : Component.translatable("message.deadrecall.space_unit.material_route_affinity",
+                materialMapText(this.payload.sourceMaterial().dimensionAffinity(), true),
+                materialMapText(material.dimensionAffinity(), true)).getString();
+        extractor.text(this.font, trimToWidth(affinityText, width - 20),
+                x + 10, mapsY + 16 + detailOffset, 0xFFD9C394);
+        if (material.rawStructuralBlocks() == 0) {
+            extractor.text(this.font, Component.translatable("message.deadrecall.space_unit.material_empty"),
+                    x + 10, mapsY + 42 + detailOffset, 0xFFFFD166);
+        }
+        drawMaintenanceTargets(extractor, material, x, mapsY + 42 + detailOffset, width, mouseX, mouseY);
+    }
+
+    private void drawMaintenanceTargets(
+            GuiGraphicsExtractor extractor,
+            SpaceUnitMapPayload.MaterialSummary material,
+            int x,
+            int y,
+            int width,
+            int mouseX,
+            int mouseY) {
+        List<SpaceUnitMapPayload.MaintenanceTarget> targets = material.maintenanceTargets();
+        if (targets.isEmpty()) {
+            return;
+        }
+        extractor.text(this.font, Component.translatable(
+                "message.deadrecall.space_unit.maintenance_targets", material.maintenanceItemCost()),
+                x + 10, y, 0xFFFFD166);
+        int rowY = y + 14;
+        int visible = Math.min(5, targets.size());
+        int start = Math.min(this.maintenanceScrollIndex, Math.max(0, targets.size() - visible));
+        for (int row = 0; row < visible; row++) {
+            int index = start + row;
+            SpaceUnitMapPayload.MaintenanceTarget target = targets.get(index);
+            boolean selected = index == selectedMaintenanceIndex();
+            boolean hovered = isInside(mouseX, mouseY, x + 8, rowY, width - 100, 14);
+            extractor.fill(x + 8, rowY, x + width - 92, rowY + 14,
+                    selected ? 0xFF4B3D24 : hovered ? 0xFF343029 : 0x8020252B);
+            extractor.outline(x + 8, rowY, width - 100, 14, selected ? 0xFFFFD166 : 0xFF4B5663);
+            String line = Component.translatable("message.deadrecall.space_unit.maintenance_target_row",
+                    target.x(), target.y(), target.z(), target.family()).getString();
+            extractor.text(this.font, trimToWidth(line, width - 112), x + 12, rowY + 3, 0xFFE8EDF2);
+            rowY += 16;
+        }
+    }
+
+    private SpaceUnitMapPayload.MaterialSummary selectedMaterial() {
+        SpaceUnitMapPayload.Entry selected = selectedEntry();
+        return selected == null ? this.payload.sourceMaterial() : selected.material();
+    }
+
+    private SpaceUnitMapPayload.FamilyContribution expandedMaterialFamily(SpaceUnitMapPayload.MaterialSummary material) {
+        if (this.expandedMaterialFamily == null) {
+            return null;
+        }
+        return material.familyContributions().stream()
+                .filter(contribution -> this.expandedMaterialFamily.equals(contribution.family()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private boolean selectMaterialFamilyAt(double mouseX, double mouseY) {
+        SpaceUnitMapPayload.MaterialSummary material = selectedMaterial();
+        if (material.familyContributions().isEmpty()) {
+            return false;
+        }
+        int x = panelX() + PANEL_PADDING;
+        int y = panelY() + HEADER_HEIGHT + 6 + 166;
+        int width = panelWidth() - PANEL_PADDING * 2;
+        if (!isInside(mouseX, mouseY, x + 8, y - 2, width - 16, 14)) {
+            return false;
+        }
+        List<SpaceUnitMapPayload.FamilyContribution> families = material.familyContributions();
+        int current = -1;
+        for (int index = 0; index < families.size(); index++) {
+            if (families.get(index).family().equals(this.expandedMaterialFamily)) {
+                current = index;
+                break;
+            }
+        }
+        this.expandedMaterialFamily = families.get((current + 1) % families.size()).family();
+        return true;
+    }
+
+    private String materialContributionText(SpaceUnitMapPayload.FamilyContribution contribution) {
+        if (contribution.attributes().isEmpty()) {
+            return Component.translatable("message.deadrecall.space_unit.material_empty").getString();
+        }
+        return contribution.attributes().entrySet().stream()
+                .sorted(java.util.Map.Entry.comparingByKey())
+                .map(entry -> shortMaterialAttribute(entry.getKey()) + " " + signed(entry.getValue()))
+                .reduce((left, right) -> left + " · " + right)
+                .orElse("--");
+    }
+
+    private static String shortMaterialAttribute(String attribute) {
+        return switch (attribute) {
+            case "structure_capacity" -> "capacity";
+            case "scan_expansion_radius" -> "scan";
+            case "arrival_accuracy" -> "accuracy";
+            case "arrival_safety" -> "safety";
+            case "wear_resistance" -> "wear";
+            case "maintenance_efficiency" -> "maintenance";
+            case "interference_resistance" -> "interference";
+            case "food_efficiency" -> "food";
+            case "phase_speed" -> "phase";
+            case "cooldown_recovery" -> "recovery";
+            case "route_load_capacity" -> "load";
+            case "cross_dimension_catalyst_units" -> "catalyst";
+            default -> attribute;
+        };
+    }
+
+    private static int contributionColor(SpaceUnitMapPayload.FamilyContribution contribution) {
+        int total = contribution.attributes().values().stream().mapToInt(Integer::intValue).sum();
+        return signedColor(total);
+    }
+
+    private int selectedMaintenanceIndex() {
+        int size = selectedMaterial().maintenanceTargets().size();
+        if (size == 0) {
+            return -1;
+        }
+        this.selectedMaintenanceIndex = Math.max(0, Math.min(this.selectedMaintenanceIndex, size - 1));
+        return this.selectedMaintenanceIndex;
+    }
+
+    private boolean selectMaintenanceTargetAt(double mouseX, double mouseY) {
+        SpaceUnitMapPayload.MaterialSummary material = selectedMaterial();
+        if (material.maintenanceTargets().isEmpty()) {
+            return false;
+        }
+        int x = panelX() + PANEL_PADDING;
+        int y = maintenanceListY();
+        int width = panelWidth() - PANEL_PADDING * 2;
+        int visible = Math.min(5, material.maintenanceTargets().size());
+        int start = Math.min(this.maintenanceScrollIndex, Math.max(0, material.maintenanceTargets().size() - visible));
+        for (int row = 0; row < visible; row++) {
+            if (isInside(mouseX, mouseY, x + 8, y + row * 16, width - 100, 14)) {
+                this.selectedMaintenanceIndex = start + row;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void requestSelectedMaintenance() {
+        SpaceUnitMapPayload.MaintenanceTarget target = selectedMaintenanceTarget();
+        if (target == null || !ClientPlayNetworking.canSend(RepairSpaceUnitPayload.TYPE)) {
+            return;
+        }
+        SpaceUnitMapPayload.Entry selected = selectedEntry();
+        UUID targetUnitId = selected == null ? this.payload.sourceUnitId() : selected.id();
+        ClientPlayNetworking.send(new RepairSpaceUnitPayload(
+                this.payload.sourceType(), this.payload.sourceUnitId(), targetUnitId,
+                target.x(), target.y(), target.z()
+        ));
+    }
+
+    private SpaceUnitMapPayload.MaintenanceTarget selectedMaintenanceTarget() {
+        List<SpaceUnitMapPayload.MaintenanceTarget> targets = selectedMaterial().maintenanceTargets();
+        int index = selectedMaintenanceIndex();
+        return index < 0 || index >= targets.size() ? null : targets.get(index);
+    }
+
+    private static String signed(int value) {
+        return value > 0 ? "+" + value : Integer.toString(value);
+    }
+
+    private static int signedColor(int value) {
+        return value > 0 ? 0xFF8BD9A0 : value < 0 ? 0xFFE36A6A : 0xFFE0E6EC;
+    }
+
+    private record MaterialMetric(Component label, int value) {
+    }
+
+    private String materialMapText(java.util.Map<String, Integer> values, boolean showSign) {
+        if (values.isEmpty()) {
+            return "--";
+        }
+        return values.entrySet().stream()
+                .sorted(java.util.Map.Entry.comparingByKey())
+                .map(entry -> shortDimension(entry.getKey()) + " ×"
+                        + (showSign ? signed(entry.getValue()) : entry.getValue()))
+                .reduce((left, right) -> left + ", " + right)
+                .orElse("--");
     }
 
     private void drawDimensionTabs(GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
@@ -641,8 +960,10 @@ public class NexusSpaceUnitMapScreen extends Screen {
                 new QuoteMetric(
                         new ItemStack(Items.AMETHYST_SHARD),
                         entry.amethystCost() + "/" + entry.amethystAvailable(),
-                        Component.translatable("message.deadrecall.space_unit.metric.amethyst",
-                                entry.amethystCost(), entry.amethystAvailable())),
+                        Component.translatable("message.deadrecall.space_unit.metric.amethyst_breakdown",
+                                entry.baseAmethystCost(), signed(entry.sourceCatalysts()),
+                                signed(entry.targetCatalysts()), signed(entry.catalystDiscount()),
+                                entry.amethystCost() + "/" + entry.amethystAvailable())),
                 new QuoteMetric(
                         new ItemStack(Items.CLOCK),
                         comparisonValue(seconds(entry.basePrepareTicks()), seconds(entry.prepareTicks())),
@@ -1111,42 +1432,61 @@ public class NexusSpaceUnitMapScreen extends Screen {
             this.searchField.setX(searchX());
             this.searchField.setY(controlsY());
             this.searchField.setWidth(searchWidth());
+            this.searchField.visible = !this.showMaterials;
         }
         if (this.typeFilterButton != null) {
             this.typeFilterButton.setX(typeFilterX());
             this.typeFilterButton.setY(controlsY());
             this.typeFilterButton.setWidth(typeFilterWidth());
+            this.typeFilterButton.visible = !this.showMaterials;
         }
         if (this.friendFilterButton != null) {
             this.friendFilterButton.setX(friendFilterX());
             this.friendFilterButton.setY(controlsY());
             this.friendFilterButton.setWidth(friendFilterWidth());
+            this.friendFilterButton.visible = !this.showMaterials;
         }
         if (this.sortButton != null) {
             this.sortButton.setX(sortX());
             this.sortButton.setY(controlsY());
             this.sortButton.setWidth(sortWidth());
+            this.sortButton.visible = !this.showMaterials;
         }
         if (this.friendsButton != null) {
             this.friendsButton.setX(friendsButtonX());
             this.friendsButton.setY(friendsButtonY());
             this.friendsButton.setWidth(friendsButtonWidth());
-            this.friendsButton.visible = hasCompassCapabilities();
+            this.friendsButton.visible = !this.showMaterials && hasCompassCapabilities();
             this.friendsButton.active = this.friendsButton.visible;
+        }
+        if (this.materialButton != null) {
+            this.materialButton.setX(materialButtonX());
+            this.materialButton.setY(friendsButtonY());
+            this.materialButton.setWidth(materialButtonWidth());
+            this.materialButton.visible = true;
+            this.materialButton.active = true;
+        }
+        if (this.repairButton != null) {
+            this.repairButton.setX(maintenanceButtonX());
+            this.repairButton.setY(maintenanceButtonY());
+            this.repairButton.setWidth(78);
+            this.repairButton.visible = this.showMaterials && selectedMaintenanceTarget() != null;
+            this.repairButton.active = this.repairButton.visible;
         }
         if (this.favoriteButton != null) {
             this.favoriteButton.setX(favoriteButtonX());
             this.favoriteButton.setY(favoriteButtonY());
             this.favoriteButton.setWidth(favoriteButtonWidth());
             SpaceUnitMapPayload.Entry selected = selectedEntry();
-            this.favoriteButton.active = selected != null && canFavorite(selected);
+            this.favoriteButton.visible = !this.showMaterials;
+            this.favoriteButton.active = this.favoriteButton.visible && selected != null && canFavorite(selected);
         }
         if (this.visibilityButton != null) {
             this.visibilityButton.setX(visibilityButtonX());
             this.visibilityButton.setY(visibilityButtonY());
             this.visibilityButton.setWidth(visibilityButtonWidth());
             SpaceUnitMapPayload.Entry selected = selectedEntry();
-            this.visibilityButton.visible = hasCompassCapabilities();
+            this.visibilityButton.visible = !this.showMaterials && hasCompassCapabilities();
             this.visibilityButton.active = this.visibilityButton.visible
                     && selected != null
                     && canChangeVisibility(selected);
@@ -1157,7 +1497,7 @@ public class NexusSpaceUnitMapScreen extends Screen {
             this.adminButton.setY(y);
             this.adminButton.setWidth(FOOTER_BUTTON_WIDTH);
             SpaceUnitMapPayload.Entry selected = selectedEntry();
-            this.adminButton.visible = panelWidth() >= 540
+            this.adminButton.visible = !this.showMaterials && panelWidth() >= 540
                     && selected != null
                     && canManageAccess(selected, ACCESS_ROLE_ADMINISTRATOR);
             this.adminButton.active = this.adminButton.visible;
@@ -1167,7 +1507,7 @@ public class NexusSpaceUnitMapScreen extends Screen {
             this.accessButton.setY(y);
             this.accessButton.setWidth(FOOTER_BUTTON_WIDTH);
             SpaceUnitMapPayload.Entry selected = selectedEntry();
-            this.accessButton.visible = panelWidth() >= 500
+            this.accessButton.visible = !this.showMaterials && panelWidth() >= 500
                     && selected != null
                     && canManageAccess(selected, ACCESS_ROLE_ALLOWED);
             this.accessButton.active = this.accessButton.visible;
@@ -1177,7 +1517,7 @@ public class NexusSpaceUnitMapScreen extends Screen {
             this.renameButton.setY(y);
             this.renameButton.setWidth(FOOTER_BUTTON_WIDTH);
             SpaceUnitMapPayload.Entry selected = selectedEntry();
-            this.renameButton.visible = panelWidth() >= 380 && selected != null && canRename(selected);
+            this.renameButton.visible = !this.showMaterials && panelWidth() >= 380 && selected != null && canRename(selected);
             this.renameButton.active = this.renameButton.visible;
         }
         if (this.calibrateButton != null) {
@@ -1185,7 +1525,7 @@ public class NexusSpaceUnitMapScreen extends Screen {
             this.calibrateButton.setY(y);
             this.calibrateButton.setWidth(FOOTER_BUTTON_WIDTH);
             SpaceUnitMapPayload.Entry selected = selectedEntry();
-            this.calibrateButton.visible = hasCompassCapabilities();
+            this.calibrateButton.visible = !this.showMaterials && hasCompassCapabilities();
             this.calibrateButton.active = this.calibrateButton.visible
                     && selected != null
                     && canCalibrate(selected);
@@ -1195,7 +1535,8 @@ public class NexusSpaceUnitMapScreen extends Screen {
             this.teleportButton.setY(y);
             this.teleportButton.setWidth(FOOTER_BUTTON_WIDTH);
             SpaceUnitMapPayload.Entry selected = selectedEntry();
-            this.teleportButton.active = selected != null && selected.canTeleport();
+            this.teleportButton.visible = !this.showMaterials;
+            this.teleportButton.active = this.teleportButton.visible && selected != null && selected.canTeleport();
         }
         if (this.refreshButton != null) {
             this.refreshButton.setX(refreshButtonX());
@@ -1239,6 +1580,9 @@ public class NexusSpaceUnitMapScreen extends Screen {
         }
         if (this.friendsButton != null) {
             this.friendsButton.setMessage(Component.translatable("message.deadrecall.space_unit.map_friends"));
+        }
+        if (this.materialButton != null) {
+            this.materialButton.setMessage(materialButtonText());
         }
     }
 
@@ -1400,6 +1744,30 @@ public class NexusSpaceUnitMapScreen extends Screen {
 
     private int friendsButtonX() {
         return panelX() + panelWidth() - PANEL_PADDING - friendsButtonWidth();
+    }
+
+    private int materialButtonWidth() {
+        return 76;
+    }
+
+    private int materialButtonX() {
+        return friendsButtonX() - 4 - materialButtonWidth();
+    }
+
+    private int maintenanceButtonX() {
+        return panelX() + panelWidth() - PANEL_PADDING - 78;
+    }
+
+    private int maintenanceButtonY() {
+        return panelY() + HEADER_HEIGHT + 12;
+    }
+
+    private int maintenanceListY() {
+        return panelY() + HEADER_HEIGHT + 6 + 166 + 42 + materialFamilyDetailOffset() + 14;
+    }
+
+    private int materialFamilyDetailOffset() {
+        return expandedMaterialFamily(selectedMaterial()) == null ? 0 : 16;
     }
 
     private int friendsButtonY() {
