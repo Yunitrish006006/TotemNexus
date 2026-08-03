@@ -1,0 +1,68 @@
+name: Upload Modrinth Gallery
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Validate the configured project and gallery assets without uploading.
+        required: true
+        type: boolean
+        default: true
+      confirm_upload:
+        description: Confirm a non-dry-run gallery upload.
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    env:
+      MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+      MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate project and gallery assets
+        run: |
+          set -euo pipefail
+          : "${MODRINTH_TOKEN:?Missing MODRINTH_TOKEN secret}"
+          : "${MODRINTH_PROJECT_ID:?Missing MODRINTH_PROJECT_ID secret}"
+          for image in docs/modrinth-gallery/friends.png docs/modrinth-gallery/material-diagnostics.png; do
+            test -f "$image"
+            test "$(stat -c%s "$image")" -le 5242880
+          done
+          curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer ${MODRINTH_TOKEN}" \
+            -H "User-Agent: TotemModrinthGalleryUploader/1.0 (GitHub Actions)" \
+            "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT_ID}" > /dev/null
+
+      - name: Upload gallery images
+        if: ${{ inputs.dry_run == false && inputs.confirm_upload == true }}
+        run: |
+          set -euo pipefail
+          upload() {
+            local path="$1"
+            local title="$2"
+            local description="$3"
+            local encoded_title
+            local encoded_description
+            encoded_title="$(jq -rn --arg value "$title" '$value | @uri')"
+            encoded_description="$(jq -rn --arg value "$description" '$value | @uri')"
+            curl --fail-with-body --silent --show-error --retry 3 --retry-all-errors \
+              -X POST \
+              -H "Authorization: Bearer ${MODRINTH_TOKEN}" \
+              -H "Content-Type: image/png" \
+              -H "User-Agent: TotemModrinthGalleryUploader/1.0 (GitHub Actions)" \
+              --data-binary "@${path}" \
+              "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT_ID}/gallery?ext=png&featured=false&title=${encoded_title}&description=${encoded_description}"
+          }
+          upload docs/modrinth-gallery/friends.png \
+            'Trusted Space Unit friends' \
+            'Review trusted friends, incoming requests, and sent invitations before sharing access to a Space Unit teleport route.'
+          upload docs/modrinth-gallery/material-diagnostics.png \
+            'Teleport-array material diagnostics' \
+            'Inspect capacity, scan reach, stability, wear, routing, dimensional affinity, and maintenance targets for a lodestone teleport array.'
