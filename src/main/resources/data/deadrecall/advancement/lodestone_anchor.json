@@ -1,5 +1,5 @@
 {
-  "parent": "deadrecall:nexus_root",
+  "parent": "deadrecall:nexus_manual",
   "criteria": {
     "has_lodestone": {
       "conditions": {

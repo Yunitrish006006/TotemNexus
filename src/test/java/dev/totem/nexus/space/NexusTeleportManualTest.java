@@ -7,8 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class NexusTeleportManualTest {
     @Test
     void guidePageDefinitionCoversSetupMaterialsAndCatalysts() {
-        assertEquals(7, NexusTeleportManual.pageKeys().size());
+        assertEquals(12, NexusTeleportManual.pageKeys().size());
         assertEquals("book.deadrecall.nexus_teleport_manual.page.1", NexusTeleportManual.pageKeys().getFirst());
-        assertEquals("book.deadrecall.nexus_teleport_manual.page.7", NexusTeleportManual.pageKeys().getLast());
+        assertEquals("book.deadrecall.nexus_teleport_manual.page.12", NexusTeleportManual.pageKeys().getLast());
     }
 }

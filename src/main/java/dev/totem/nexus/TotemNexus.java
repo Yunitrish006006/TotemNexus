@@ -1,6 +1,7 @@
 package dev.totem.nexus;
 
 import dev.totem.nexus.bootstrap.NexusAuthorityBootstrap;
+import dev.totem.nexus.space.NexusTeleportManual;
 import net.fabricmc.api.ModInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +16,8 @@ public final class TotemNexus implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        NexusTeleportManual.register();
         NexusAuthorityBootstrap.register();
-        LOGGER.info("TotemNexus 0.1.1 cutover authority activated");
+        LOGGER.info("TotemNexus authority and shared manual section activated");
     }
 }

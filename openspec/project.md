@@ -10,7 +10,7 @@ the Space Unit map. It is released as an independent Fabric module.
 
 - Java 25, Minecraft 26.2, Fabric Loader 0.19.3, Fabric API 0.154.2 and
   Fabric Loom 1.17.12.
-- TotemCore 0.4.0 is the only required Totem dependency.
+- TotemCore 0.5.0 is the only required Totem dependency.
 - Persisted and resource identifiers retain the `deadrecall` namespace for
   compatibility with existing worlds and clients.
 
@@ -64,6 +64,6 @@ cross-dimension amethyst-shard cost by one, with a one-shard minimum.
 
 ## External Dependencies
 
-- Required: `totem-core =0.4.0`.
+- Required: `totem-core =0.5.0`.
 - Fabric's resource reload and tag systems provide the data-driven material
   configuration surface.

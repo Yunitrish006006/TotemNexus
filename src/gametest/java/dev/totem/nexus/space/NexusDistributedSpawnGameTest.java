@@ -14,21 +14,24 @@ import java.util.UUID;
 public final class NexusDistributedSpawnGameTest {
     @SuppressWarnings("removal")
     @GameTest(maxTicks = 20)
-    public void latestSuccessfulInterfaceTokenInvalidatesThePreviousItem(GameTestHelper helper) {
+    public void validInterfacesAreEligibleBeforeAndAfterSuccessfulTeleport(GameTestHelper helper) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         ItemStack compass = new ItemStack(Items.COMPASS);
         ItemStack book = new ItemStack(Items.BOOK);
+        ItemStack recoveryCompass = new ItemStack(Items.RECOVERY_COMPASS);
+        ItemStack invalidFilledMap = new ItemStack(Items.FILLED_MAP);
 
         try {
-            if (!NexusSoulboundTeleportItem.bindAfterSuccessfulTeleport(player, compass)) {
-                helper.fail("Nexus did not bind a valid compass interface");
-                return;
-            }
             DeathRetainedItemPolicy policy = DeathRetainedItemPolicy.current()
                     .orElseThrow(() -> helper.assertionException(
                             "Nexus did not register its Core death-retained-item policy"));
             if (!policy.shouldRetain(player, compass)) {
-                helper.fail("Freshly bound compass was not authorized for death retention");
+                helper.fail("A valid compass required a prior successful teleport");
+                return;
+            }
+            if (!policy.shouldRetain(player, recoveryCompass)
+                    || policy.shouldRetain(player, invalidFilledMap)) {
+                helper.fail("Death policy disagreed with the current interface resolver");
                 return;
             }
 
@@ -36,8 +39,8 @@ public final class NexusDistributedSpawnGameTest {
                 helper.fail("Nexus did not bind a valid book interface");
                 return;
             }
-            if (!policy.shouldRetain(player, book) || policy.shouldRetain(player, compass)) {
-                helper.fail("Latest interface token did not invalidate the previous item");
+            if (!policy.shouldRetain(player, book) || !policy.shouldRetain(player, compass)) {
+                helper.fail("Successful teleport tags incorrectly changed current interface eligibility");
                 return;
             }
             helper.succeed();
