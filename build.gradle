@@ -9,7 +9,7 @@ group = project.maven_group
 base { archivesName = project.archives_base_name }
 
 def totemCoreJar = file(providers.gradleProperty('totemCoreJar')
-        .getOrElse('../TotemCore/build/libs/totem-core-0.4.0.jar'))
+        .getOrElse('../TotemCore/build/libs/totem-core-0.6.0.jar'))
 
 loom {
     splitEnvironmentSourceSets()
@@ -124,14 +124,32 @@ tasks.register("normalizeFabricApiTweakersForNamedDevRuntime") {
     }
 }
 
-tasks.matching { task -> task.name in ["runClientGameTest"] }.configureEach {
+// Minecraft 26.x dev runtimes use named mappings while Fabric API may ship
+// official-namespace class tweakers/access wideners. Normalize every runtime
+// entrypoint, not just the visual client GameTest.
+tasks.matching { task -> task.name in [
+        "runClient",
+        "runServer",
+        "runDatagen",
+        "runGameTest",
+        "runClientGameTest"
+] }.configureEach {
     dependsOn("normalizeFabricApiTweakersForNamedDevRuntime")
+}
+
+tasks.named("runClientGameTest").configure {
     doLast {
         copy {
             from(file("${buildDir}/run/clientGameTest/screenshots"))
             include("*_totem-standalone-*-before.png", "*_totem-standalone-*-after.png")
             rename { name -> name.replaceFirst(/^\d+_/, "") }
             into(file("test-artifacts/screenshots/safe-multi-repo-modularization"))
+        }
+        copy {
+            from(file("${buildDir}/run/clientGameTest/screenshots"))
+            include("*_nexus-manual-spread-*.png")
+            rename { name -> name.replaceFirst(/^\d+_/, "") }
+            into(file("test-artifacts/screenshots/nexus-manual-zh_tw"))
         }
     }
 }

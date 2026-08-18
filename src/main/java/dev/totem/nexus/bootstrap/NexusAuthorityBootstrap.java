@@ -20,7 +20,6 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.permissions.Permissions;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -42,7 +41,7 @@ public final class NexusAuthorityBootstrap {
 
         NexusGameplayAuthority authority = new NexusGameplayAuthority();
         DeathBackpackNodeLifecycle.register(new NexusDeathBackpackNodeAdapter(new NexusDeathNodeAuthority()));
-        DeathRetainedItemPolicy.register(NexusSoulboundTeleportItem::isActiveFor);
+        DeathRetainedItemPolicy.register(NexusSoulboundTeleportItem::isEligibleForDeathRetention);
         NexusDistributedSpawnAuthority.register();
         NexusSpaceUnitAuthority.register();
         NexusPayloadRegistration.registerServerboundTypes();
@@ -65,7 +64,6 @@ public final class NexusAuthorityBootstrap {
                 NexusDeathNodeAdminService.clearSession(listener.getPlayer().getUUID()));
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
                 dispatcher.register(Commands.literal("deadrecall")
-                        .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_ADMIN))
                         .then(Commands.literal("deathnodes")
                                 .executes(context -> openDeathNodes(context.getSource().getPlayerOrException())))
                         .then(Commands.literal("deathpoints")

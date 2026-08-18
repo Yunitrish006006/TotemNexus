@@ -4,26 +4,34 @@ TotemNexus 是 Totem 系列的 Space Unit、好友、地圖、安全傳送、死
 與分散出生點模組。所有座標、權限、成本與安全落點都由 Server 重新
 驗證，Client 只顯示經過篩選的資訊。
 
-目前候選版本為 **0.2.3**，精確搭配 TotemCore **0.4.0**。
+目前候選版本為 **0.2.6**，精確搭配 TotemCore **0.6.0**。
 
 ## 安裝
 
 Client 與 Server 都放入：
 
 1. Fabric API `0.154.2+26.2`
-2. TotemCore `0.4.0`
-3. TotemNexus `0.2.3`
+2. TotemCore `0.6.0`
+3. TotemNexus `0.2.6`
 
 | 項目 | 需求 |
 | --- | --- |
 | Minecraft | 26.2 |
 | Fabric Loader | 0.19.3+ |
 | Java | 25+ |
-| 必要 Totem 模組 | `totem-core =0.4.0` |
+| 必要 Totem 模組 | `totem-core =0.6.0` |
 | 選配 | TotemRemnant（死亡背包 ↔ Death Node 整合） |
 
 Nexus standalone 不要求 DeadRecall、Remnant 或 Discord Bridge。使用
-DeadRecall 2.4.7 整合 JAR 時不要再安裝獨立 TotemNexus。
+DeadRecall 2.4.11 整合 JAR 時不要再安裝獨立 TotemNexus。
+
+## 遊戲內 Totem 手冊
+
+手持普通書對磁石按右鍵，可取得原版成書形式的 `Totem 手冊`。內容會
+整合所有已安裝 Totem 模組的教學章節；若另一手已有手冊，只刷新內容而
+不消耗普通書。兩手各持一本系統生成的手冊時，對磁石使用會保留主動手的
+一本並合併另一手。0.2.3 以前生成的 `Nexus Teleport Manual` 必須符合
+完整舊版簽章，並對磁石使用一次後才會升級，不會誤改玩家自行撰寫的書。
 
 ## 快速開始
 
@@ -60,10 +68,11 @@ DeadRecall 2.4.7 整合 JAR 時不要再安裝獨立 TotemNexus。
 空白地圖不是有效介面。倒數期間必須持續在原使用手持有相同介面物品；
 已繪製地圖還必須保持相同 map ID。
 
-每次成功完成傳送後，實際使用的介面物品會成為玩家唯一的靈魂綁定傳送
-物品；前一次使用的物品立即失效。只開啟地圖、查看報價、取消或失敗傳送
-不會更換綁定。安裝 TotemRemnant 時，這一件物品會在死亡後保留，讓玩家
-重生後仍能透過正常 Nexus 成本與安全規則前往死亡節點或其他目標。
+安裝 TotemRemnant 時，不必先成功傳送：死亡前會自動掃描玩家身上的有效
+傳送介面，依「主手 → 副手 → 其餘快捷列 → 主物品欄」保留第一件，讓玩家
+重生後仍能透過正常 Nexus 成本與安全規則前往死亡節點或其他目標。每次只
+保留一件，不掃描背包等巢狀容器；空白地圖與帶消失行為的物品不符合資格。
+舊版成功傳送標記會保留以維持相容，但不再是死亡保留的前置條件。
 
 ## 石碑結構與材料
 
@@ -126,15 +135,19 @@ S S S
 不需載入 chunk 搜尋實體。死亡背包完全回收後，對應節點會停用並從
 一般地圖隱藏。
 
-管理員指令：
+所有遊戲內玩家都可開啟：
 
 ```text
 /deadrecall deathnodes
 /deadrecall deathpoints
 ```
 
-GUI 支援 Owner／維度／狀態／時間篩選、安全傳送、先停用後永久刪除，
-以及需要二次確認的批次操作。Console 不能開啟 GUI。
+一般玩家只會收到自己擁有的死亡節點，可選取單一節點並在 30 秒內二次
+確認後永久刪除傳送點；即使 Client 偽造 Owner 或節點 UUID，Server 仍會
+以登入玩家 UUID 重新驗證。刪除不會移動或刪除留在世界中的死亡背包。
+
+管理員使用同一介面時仍可依 Owner／維度／狀態／時間篩選、安全傳送、
+先停用後永久刪除，以及執行需要二次確認的批次操作。Console 不能開啟 GUI。
 
 ## 跨模組事件
 
@@ -146,7 +159,7 @@ subscriber 時，Nexus standalone 行為不受影響。
 ## 舊世界相容
 
 Nexus 保留既有的四組 `deadrecall` SavedData keys、payload IDs 與資源
-identifiers。0.2.3 保留 0.2.1 已通過的 root authority seed → external migrate → 第二
+identifiers。0.2.5 保留 0.2.1 已通過的 root authority seed → external migrate → 第二
 JVM verify，涵蓋 Space Unit、探索／最愛、好友、分散出生點與死亡背包
 反向綁定。
 

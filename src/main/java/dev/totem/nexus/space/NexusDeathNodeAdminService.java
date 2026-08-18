@@ -38,6 +38,8 @@ public final class NexusDeathNodeAdminService {
     public static final String ACTION_DISABLE = "disable";
     public static final String ACTION_PURGE = "purge";
     public static final String ACTION_REQUEST_PURGE = "request_purge";
+    public static final String ACTION_OWNER_PURGE = "owner_purge";
+    public static final String ACTION_REQUEST_OWNER_PURGE = "request_owner_purge";
     public static final String ACTION_TELEPORT = "teleport";
     public static final String ACTION_BATCH_DISABLE = "batch_disable";
     public static final String ACTION_REQUEST_BATCH_DISABLE = "request_batch_disable";
@@ -273,6 +275,10 @@ public final class NexusDeathNodeAdminService {
                 this.byAdministrator.remove(administratorId);
             }
         }
+
+        DestructiveConfirmation get(UUID actorId) {
+            return actorId == null ? null : this.byAdministrator.get(actorId);
+        }
     }
 
     private NexusDeathNodeAdminService() {
@@ -290,28 +296,22 @@ public final class NexusDeathNodeAdminService {
         PENDING_DESTRUCTIVE_CONFIRMATIONS.clear(administratorId);
     }
 
-    /**
-     * Sends the current authorized administration snapshot.
-     *
-     * @return {@code true} only when a private snapshot was sent to an
-     * authorized administrator; {@code false} when the request was denied.
-     */
+    /** Sends the current server-authorized administrator or owner snapshot. */
     public static boolean sendSnapshot(ServerPlayer player) {
         return sendSnapshot(player, activeQuery(player), null);
     }
 
     /**
-     * Applies a client query only after permission is established so an
-     * unauthorized payload cannot resolve profile data or receive a snapshot.
+     * Applies a client query after replacing every owner filter that a normal
+     * player supplied with that player's persisted UUID.
      *
-     * @return {@code true} only when a private snapshot was sent.
+     * @return {@code true} only when a private snapshot was sent to a player.
      */
     public static boolean sendSnapshot(ServerPlayer player, RequestDeathNodeAdminPayload request) {
-        if (!canManage(player)) {
-            deny(player);
+        if (player == null) {
             return false;
         }
-        DeathNodeQuery query = resolveOwnerQuery(player.level().getServer(), DeathNodeQuery.from(request));
+        DeathNodeQuery query = authorizeQuery(player, DeathNodeQuery.from(request));
         ACTIVE_QUERIES.put(player.getUUID(), query);
         return sendSnapshot(player, query, null);
     }
@@ -320,22 +320,22 @@ public final class NexusDeathNodeAdminService {
             ServerPlayer player,
             DeathNodeQuery query,
             DestructiveConfirmation confirmation) {
-        if (!canManage(player)) {
-            deny(player);
+        if (player == null) {
             return false;
         }
 
         MinecraftServer server = player.level().getServer();
+        boolean administratorView = canManage(player);
+        DeathNodeQuery authorizedQuery = authorizeQuery(player, query);
+        ACTIVE_QUERIES.put(player.getUUID(), authorizedQuery);
         NexusSpaceUnitSavedData data = units(server);
-        Map<UUID, Set<UUID>> discoveredByPlayer = discoveredByPlayer(server);
-        Map<UUID, DeathNodeDiagnostics> diagnosticsByNode = diagnoseDeathNodes(
-                unitMap(data).values(),
-                discoveredByPlayer
-        );
+        Map<UUID, DeathNodeDiagnostics> diagnosticsByNode = administratorView
+                ? diagnoseDeathNodes(unitMap(data).values(), discoveredByPlayer(server))
+                : Map.of();
         Page<NexusSpaceUnitRecord> page = queryDeathNodes(
                 unitMap(data).values(),
                 ownerId -> ownerDisplayName(server, ownerId),
-                query
+                authorizedQuery
         );
         List<DeathNodeAdminPayload.Entry> entries = new ArrayList<>(page.entries().size());
         for (NexusSpaceUnitRecord unit : page.entries()) {
@@ -351,7 +351,9 @@ public final class NexusDeathNodeAdminService {
                     unit.pos().getZ(),
                     unit.createdGameTime(),
                     unit.updatedGameTime(),
-                    diagnosticsByNode.getOrDefault(unit.id(), DeathNodeDiagnostics.NONE).ids()
+                    administratorView
+                            ? diagnosticsByNode.getOrDefault(unit.id(), DeathNodeDiagnostics.NONE).ids()
+                            : List.of()
             ));
         }
 
@@ -362,6 +364,7 @@ public final class NexusDeathNodeAdminService {
                 page.pageSize(),
                 page.totalEntries(),
                 player.level().getGameTime(),
+                administratorView,
                 confirmation == null ? null : confirmation.nodeId(),
                 confirmation == null ? null : confirmation.token(),
                 confirmation == null ? "" : confirmation.action(),
@@ -643,12 +646,16 @@ public final class NexusDeathNodeAdminService {
     }
 
     public static void handleAction(ServerPlayer player, UUID nodeId, String actionId, UUID confirmationToken) {
-        if (!canManage(player)) {
-            deny(player);
+        if (player == null) {
             return;
         }
+        boolean administrator = canManage(player);
         String action = actionId == null ? "" : actionId.trim().toLowerCase(Locale.ROOT);
         if (isBatchAction(action)) {
+            if (!administrator) {
+                deny(player);
+                return;
+            }
             handleBatchAction(player, action, confirmationToken);
             return;
         }
@@ -665,6 +672,30 @@ public final class NexusDeathNodeAdminService {
         if (unit == null || unit.type() != SpaceUnitType.DEATH) {
             player.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.not_found")
                     .withStyle(ChatFormatting.RED));
+            sendSnapshot(player);
+            return;
+        }
+
+        if (!administrator) {
+            if (!unit.owner().equals(player.getUUID())) {
+                player.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.not_found")
+                        .withStyle(ChatFormatting.RED));
+                sendSnapshot(player);
+                return;
+            }
+            if (!canOwnerManageNode(player.getUUID(), unit.owner(), action)) {
+                deny(player);
+                sendSnapshot(player);
+                return;
+            }
+            switch (action) {
+                case ACTION_REQUEST_OWNER_PURGE -> {
+                    requestOwnerPurgeConfirmation(player, unit);
+                    return;
+                }
+                case ACTION_OWNER_PURGE -> ownerPurge(player, data, unitsById, unit, confirmationToken);
+                default -> throw new IllegalStateException("Authorized owner action was not handled: " + action);
+            }
             sendSnapshot(player);
             return;
         }
@@ -832,6 +863,90 @@ public final class NexusDeathNodeAdminService {
         auditMutation(administrator, "permanently purged", unit);
         administrator.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.purged", unit.name())
                 .withStyle(ChatFormatting.GREEN));
+    }
+
+    private static void ownerPurge(
+            ServerPlayer owner,
+            NexusSpaceUnitSavedData data,
+            Map<UUID, NexusSpaceUnitRecord> unitsById,
+            NexusSpaceUnitRecord unit,
+            UUID confirmationToken) {
+        if (!unit.owner().equals(owner.getUUID())) {
+            owner.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.not_found")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
+        if (!consumeOwnerPurgeConfirmation(owner, unit.id(), confirmationToken)) {
+            return;
+        }
+
+        unitsById.remove(unit.id());
+        data.setDirty();
+        removeDiscoveryReferences(owner.level().getServer(), unit.id());
+        LOGGER.info(
+                "Player {} permanently deleted own death node {} at {} {}",
+                owner.getName().getString(),
+                unit.id(),
+                unit.dimension().identifier(),
+                unit.pos()
+        );
+        owner.sendSystemMessage(Component.translatable(
+                "message.deadrecall.death_node_admin.owner_purged",
+                unit.name()).withStyle(ChatFormatting.GREEN));
+    }
+
+    private static void requestOwnerPurgeConfirmation(ServerPlayer owner, NexusSpaceUnitRecord unit) {
+        if (!unit.owner().equals(owner.getUUID())) {
+            owner.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.not_found")
+                    .withStyle(ChatFormatting.RED));
+            return;
+        }
+
+        DestructiveConfirmation confirmation = PENDING_DESTRUCTIVE_CONFIRMATIONS.issue(
+                owner.getUUID(),
+                unit.id(),
+                ACTION_OWNER_PURGE,
+                System.currentTimeMillis(),
+                PURGE_CONFIRMATION_DURATION_MILLIS
+        );
+        owner.sendSystemMessage(Component.translatable(
+                "message.deadrecall.death_node_admin.owner_purge_confirmation_issued")
+                .withStyle(ChatFormatting.YELLOW));
+        sendSnapshot(owner, activeQuery(owner), confirmation);
+    }
+
+    private static boolean consumeOwnerPurgeConfirmation(
+            ServerPlayer owner,
+            UUID nodeId,
+            UUID confirmationToken) {
+        ConfirmationConsumeResult result = PENDING_DESTRUCTIVE_CONFIRMATIONS.consume(
+                owner.getUUID(),
+                nodeId,
+                ACTION_OWNER_PURGE,
+                confirmationToken,
+                System.currentTimeMillis()
+        );
+        return switch (result) {
+            case CONFIRMED -> true;
+            case MISSING -> {
+                owner.sendSystemMessage(Component.translatable(
+                        "message.deadrecall.death_node_admin.owner_purge_confirmation_required")
+                        .withStyle(ChatFormatting.RED));
+                yield false;
+            }
+            case EXPIRED -> {
+                owner.sendSystemMessage(Component.translatable(
+                        "message.deadrecall.death_node_admin.owner_purge_confirmation_expired")
+                        .withStyle(ChatFormatting.RED));
+                yield false;
+            }
+            case MISMATCH -> {
+                owner.sendSystemMessage(Component.translatable(
+                        "message.deadrecall.death_node_admin.owner_purge_confirmation_mismatch")
+                        .withStyle(ChatFormatting.RED));
+                yield false;
+            }
+        };
     }
 
     private static void requestPurgeConfirmation(ServerPlayer administrator, NexusSpaceUnitRecord unit) {
@@ -1092,19 +1207,65 @@ public final class NexusDeathNodeAdminService {
         return ACTIVE_QUERIES.getOrDefault(player.getUUID(), DeathNodeQuery.defaults());
     }
 
-    private static DeathNodeQuery resolveOwnerQuery(MinecraftServer server, DeathNodeQuery query) {
-        return resolveOwnerQuery(query, ownerName -> {
-            if (server == null) {
-                return null;
-            }
-            ServerPlayer online = server.getPlayerList().getPlayerByName(ownerName);
-            if (online != null) {
-                return online.getUUID();
-            }
-            return server.services().nameToIdCache().get(ownerName)
-                    .map(net.minecraft.server.players.NameAndId::id)
-                    .orElse(null);
-        });
+    private static DeathNodeQuery authorizeQuery(ServerPlayer player, DeathNodeQuery query) {
+        return authorizeQuery(
+                player.getUUID(),
+                canManage(player),
+                query,
+                ownerName -> resolveOwnerName(player.level().getServer(), ownerName)
+        );
+    }
+
+    static DeathNodeQuery authorizeQuery(
+            UUID requesterId,
+            boolean administrator,
+            DeathNodeQuery query,
+            Function<String, UUID> nameResolver) {
+        DeathNodeQuery effectiveQuery = query == null ? DeathNodeQuery.defaults() : query;
+        if (administrator) {
+            return resolveOwnerQuery(effectiveQuery, nameResolver);
+        }
+        if (requesterId == null) {
+            return new DeathNodeQuery(
+                    "00000000-0000-0000-0000-000000000000",
+                    effectiveQuery.dimensionId(),
+                    effectiveQuery.statusId(),
+                    effectiveQuery.createdAfterGameTime(),
+                    effectiveQuery.createdBeforeGameTime(),
+                    effectiveQuery.pageRequest()
+            );
+        }
+        return new DeathNodeQuery(
+                requesterId.toString(),
+                effectiveQuery.dimensionId(),
+                effectiveQuery.statusId(),
+                effectiveQuery.createdAfterGameTime(),
+                effectiveQuery.createdBeforeGameTime(),
+                effectiveQuery.pageRequest()
+        );
+    }
+
+    static boolean canOwnerManageNode(UUID actorId, UUID ownerId, String action) {
+        return actorId != null
+                && actorId.equals(ownerId)
+                && (ACTION_REQUEST_OWNER_PURGE.equals(action) || ACTION_OWNER_PURGE.equals(action));
+    }
+
+    static DestructiveConfirmation pendingConfirmationFor(UUID actorId) {
+        return PENDING_DESTRUCTIVE_CONFIRMATIONS.get(actorId);
+    }
+
+    private static UUID resolveOwnerName(MinecraftServer server, String ownerName) {
+        if (server == null) {
+            return null;
+        }
+        ServerPlayer online = server.getPlayerList().getPlayerByName(ownerName);
+        if (online != null) {
+            return online.getUUID();
+        }
+        return server.services().nameToIdCache().get(ownerName)
+                .map(net.minecraft.server.players.NameAndId::id)
+                .orElse(null);
     }
 
     private static boolean isUuid(String value) {

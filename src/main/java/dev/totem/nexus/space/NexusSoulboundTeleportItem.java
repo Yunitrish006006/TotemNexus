@@ -9,7 +9,7 @@ import net.minecraft.world.item.component.CustomData;
 
 import java.util.UUID;
 
-/** Marks and validates the one interface used by a player's latest completed teleport. */
+/** Preserves legacy teleport tags and validates current death-retention candidates. */
 public final class NexusSoulboundTeleportItem {
     private static final String OWNER_KEY = "totem_nexus_soulbound_owner";
     private static final String TOKEN_KEY = "totem_nexus_soulbound_token";
@@ -32,19 +32,13 @@ public final class NexusSoulboundTeleportItem {
         return true;
     }
 
-    public static boolean isActiveFor(ServerPlayer player, ItemStack stack) {
-        if (player == null || TeleportInterfaceItemResolver.resolve(stack).isEmpty()) {
-            return false;
-        }
+    public static boolean isEligibleForDeathRetention(ServerPlayer player, ItemStack stack) {
+        return player != null && TeleportInterfaceItemResolver.resolve(stack).isPresent();
+    }
 
-        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        UUID owner = tag.read(OWNER_KEY, UUIDUtil.CODEC).orElse(null);
-        UUID token = tag.read(TOKEN_KEY, UUIDUtil.CODEC).orElse(null);
-        return player.getUUID().equals(owner)
-                && token != null
-                && discovery(player).soulboundTeleportToken(player.getUUID())
-                .filter(token::equals)
-                .isPresent();
+    /** Binary-compatible alias; eligibility no longer depends on a successful teleport token. */
+    public static boolean isActiveFor(ServerPlayer player, ItemStack stack) {
+        return isEligibleForDeathRetention(player, stack);
     }
 
     private static NexusSpaceDiscoverySavedData discovery(ServerPlayer player) {

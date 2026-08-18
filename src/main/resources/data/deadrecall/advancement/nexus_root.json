@@ -1,8 +1,11 @@
 {
   "parent": "deadrecall:root",
   "criteria": {
-    "ready": {
-      "trigger": "minecraft:tick"
+    "crafted_lodestone": {
+      "conditions": {
+        "recipe_id": "minecraft:lodestone"
+      },
+      "trigger": "minecraft:recipe_crafted"
     }
   },
   "display": {
@@ -14,14 +17,14 @@
     "icon": {
       "id": "minecraft:lodestone"
     },
-    "show_toast": false,
+    "show_toast": true,
     "title": {
       "translate": "advancements.deadrecall.nexus_root.title"
     }
   },
   "requirements": [
     [
-      "ready"
+      "crafted_lodestone"
     ]
   ]
 }

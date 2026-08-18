@@ -16,6 +16,7 @@ public record DeathNodeAdminPayload(
         int pageSize,
         int totalEntries,
         long serverGameTime,
+        boolean administratorView,
         UUID confirmationNodeId,
         UUID confirmationToken,
         String confirmationAction,
@@ -54,7 +55,8 @@ public record DeathNodeAdminPayload(
     }
 
     public DeathNodeAdminPayload(List<Entry> entries, boolean truncated) {
-        this(entries, truncated, 0, MAX_ENTRIES, entries == null ? 0 : entries.size(), 0L, null, null, "", 0L);
+        this(entries, truncated, 0, MAX_ENTRIES, entries == null ? 0 : entries.size(), 0L, false,
+                null, null, "", 0L);
     }
 
     public boolean hasActivePurgeConfirmationFor(UUID nodeId, long nowMillis) {
@@ -81,6 +83,7 @@ public record DeathNodeAdminPayload(
                 buf.writeInt(payload.pageSize());
                 buf.writeInt(payload.totalEntries());
                 buf.writeLong(payload.serverGameTime());
+                buf.writeBoolean(payload.administratorView());
                 buf.writeBoolean(payload.confirmationNodeId() != null && payload.confirmationToken() != null);
                 if (payload.confirmationNodeId() != null && payload.confirmationToken() != null) {
                     buf.writeUUID(payload.confirmationNodeId());
@@ -100,6 +103,7 @@ public record DeathNodeAdminPayload(
                 int pageSize = buf.readInt();
                 int totalEntries = buf.readInt();
                 long serverGameTime = buf.readLong();
+                boolean administratorView = buf.readBoolean();
                 if (!buf.readBoolean()) {
                     return new DeathNodeAdminPayload(
                             entries,
@@ -108,6 +112,7 @@ public record DeathNodeAdminPayload(
                             pageSize,
                             totalEntries,
                             serverGameTime,
+                            administratorView,
                             null,
                             null,
                             "",
@@ -121,6 +126,7 @@ public record DeathNodeAdminPayload(
                         pageSize,
                         totalEntries,
                         serverGameTime,
+                        administratorView,
                         buf.readUUID(),
                         buf.readUUID(),
                         buf.readUtf(32),
