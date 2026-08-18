@@ -124,8 +124,20 @@ tasks.register("normalizeFabricApiTweakersForNamedDevRuntime") {
     }
 }
 
-tasks.matching { task -> task.name in ["runClientGameTest"] }.configureEach {
+// Minecraft 26.x dev runtimes use named mappings while Fabric API may ship
+// official-namespace class tweakers/access wideners. Normalize every runtime
+// entrypoint, not just the visual client GameTest.
+tasks.matching { task -> task.name in [
+        "runClient",
+        "runServer",
+        "runDatagen",
+        "runGameTest",
+        "runClientGameTest"
+] }.configureEach {
     dependsOn("normalizeFabricApiTweakersForNamedDevRuntime")
+}
+
+tasks.named("runClientGameTest").configure {
     doLast {
         copy {
             from(file("${buildDir}/run/clientGameTest/screenshots"))
