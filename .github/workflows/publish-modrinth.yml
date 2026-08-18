@@ -40,13 +40,11 @@ jobs:
           set -euo pipefail
           current_version="$(sed -n 's/^mod_version=//p' gradle.properties)"
           test -n "$current_version"
-
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             echo 'should_publish=true' >> "$GITHUB_OUTPUT"
             echo "dry_run=${REQUESTED_DRY_RUN}" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-
           previous_version="$(git show "${BEFORE_SHA}:gradle.properties" 2>/dev/null | sed -n 's/^mod_version=//p' || true)"
           if [[ -n "$previous_version" && "$previous_version" == "$current_version" ]]; then
             echo 'should_publish=false' >> "$GITHUB_OUTPUT"
@@ -72,7 +70,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Yunitrish006006/TotemCore
-          ref: c39da3cdc3b4eff16f63798dc3eae4a49e41d105
+          ref: 6f0d146379c3e0d7ed8fc6a665fc896c877afb90
           path: .lockstep/TotemCore
           persist-credentials: false
 
@@ -84,7 +82,7 @@ jobs:
           chmod +x .lockstep/TotemCore/gradlew
           ./.lockstep/TotemCore/gradlew -p .lockstep/TotemCore jar --no-daemon --stacktrace
           core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
-          test -n "$core_version"
+          test "$core_version" = '0.6.1'
           core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
           test -f "$core_jar"
           ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" -PtotemCoreJar="$core_jar" jar --no-daemon --stacktrace
@@ -119,32 +117,18 @@ jobs:
           test -n "$mod_version" && test -n "$archive_name" && test -n "$minecraft_version" && test -n "$core_version"
           test -n "$MODRINTH_TOKEN" || { echo 'MODRINTH_TOKEN is missing or empty.'; exit 1; }
           test -n "$MODRINTH_PROJECT_ID" || { echo 'MODRINTH_PROJECT_ID is missing or empty.'; exit 1; }
-          if [[ ! -f "$artifact" ]]; then
-            echo "Expected release JAR is missing: ${artifact}"
-            find build/libs -maxdepth 1 -type f -name '*.jar' -printf 'Found: %f\n' || true
-            exit 1
-          fi
+          test -f "$artifact"
 
           unzip -p "$artifact" fabric.mod.json > /tmp/fabric.mod.json
-          if ! jq -e --arg id "$MODULE_ID" --arg version "$mod_version" --arg minecraft "~${minecraft_version}" --arg core "=${core_version}" '
-              .id == $id
-              and .version == $version
-              and .depends.minecraft == $minecraft
-              and .depends["totem-core"] == $core
-            ' /tmp/fabric.mod.json > /dev/null; then
-            echo 'fabric.mod.json does not match the release metadata or pinned TotemCore version.'
-            jq -c '{id, version, minecraft: .depends.minecraft, core: .depends["totem-core"]}' /tmp/fabric.mod.json
-            exit 1
-          fi
+          jq -e --arg id "$MODULE_ID" --arg version "$mod_version" --arg minecraft "~${minecraft_version}" --arg core "=${core_version}" '
+            .id == $id and .version == $version and .depends.minecraft == $minecraft and .depends["totem-core"] == $core
+          ' /tmp/fabric.mod.json >/dev/null
 
           api_base='https://api.modrinth.com/v2'
           user_agent="Yunitrish006006/${MODULE_ID}-publisher/1.0"
           curl_args=(--fail --silent --show-error --retry 3 -H "Authorization: ${MODRINTH_TOKEN}" -H "User-Agent: ${user_agent}")
-          curl "${curl_args[@]}" "${api_base}/user" > /tmp/modrinth-user.json
           curl "${curl_args[@]}" "${api_base}/project/${MODRINTH_PROJECT_ID}" > /tmp/modrinth-project.json
           project_id="$(jq -er '.id' /tmp/modrinth-project.json)"
-          echo 'Modrinth token and project access verified.'
-
           sha512="$(sha512sum "$artifact" | awk '{print $1}')"
           if [[ "$DRY_RUN" == 'true' ]]; then
             echo "Dry run passed for ${MODULE_ID} ${mod_version}; no Modrinth version was created."
@@ -154,23 +138,18 @@ jobs:
           curl "${curl_args[@]}" "${api_base}/project/${project_id}/version?include_changelog=false" > /tmp/modrinth-versions.json
           existing_count="$(jq --arg version "$mod_version" '[.[] | select(.version_number == $version)] | length' /tmp/modrinth-versions.json)"
           if [[ "$existing_count" != '0' ]]; then
-            echo "Modrinth already has version ${mod_version}; skipping upload."
+            existing_sha="$(jq -r --arg version "$mod_version" '.[] | select(.version_number == $version) | (([.files[] | select(.primary == true)][0] // .files[0]).hashes.sha512)' /tmp/modrinth-versions.json)"
+            test "$existing_count" = '1'
+            test "$existing_sha" = "$sha512" || { echo "Version ${mod_version} exists with a different SHA-512." >&2; exit 1; }
+            echo "Modrinth already has byte-identical version ${mod_version}; skipping upload."
             exit 0
           fi
 
           changelog="$(git log -1 --format=%B)"
-          payload="$(jq -nc \
-            --arg name "${MODULE_ID} ${mod_version}" \
-            --arg version "$mod_version" \
-            --arg changelog "$changelog" \
-            --arg project_id "$project_id" \
-            --arg file_name "$(basename "$artifact")" \
-            --arg minecraft "$minecraft_version" \
-            '{name: $name, version_number: $version, changelog: $changelog, dependencies: [], game_versions: [$minecraft], version_type: "release", loaders: ["fabric"], featured: false, status: "listed", project_id: $project_id, file_parts: [$file_name], primary_file: $file_name}')"
+          payload="$(jq -nc --arg name "${MODULE_ID} ${mod_version}" --arg version "$mod_version" --arg changelog "$changelog" --arg project_id "$project_id" --arg minecraft "$minecraft_version" '{name:$name,version_number:$version,changelog:$changelog,dependencies:[],game_versions:[$minecraft],version_type:"release",loaders:["fabric"],featured:false,status:"listed",project_id:$project_id,file_parts:["primary"],primary_file:"primary",environment:"client_and_server"}')"
           curl "${curl_args[@]}" -X POST "${api_base}/version" \
             -F "data=${payload};type=application/json" \
-            -F "primary=@${artifact};type=application/java-archive" \
+            -F "primary=@${artifact};filename=$(basename "$artifact");type=application/java-archive" \
             > /tmp/modrinth-version.json
           version_id="$(jq -er '.id' /tmp/modrinth-version.json)"
-          test -n "$version_id"
-          echo "Published ${MODULE_ID} ${mod_version} to Modrinth."
+          echo "Published ${MODULE_ID} ${mod_version} to Modrinth as ${version_id}."
