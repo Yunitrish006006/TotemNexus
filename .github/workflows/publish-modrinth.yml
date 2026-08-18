@@ -58,7 +58,7 @@ jobs:
 
       - name: Set up Java 25
         if: steps.release.outputs.should_publish == 'true'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '25'
@@ -72,7 +72,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Yunitrish006006/TotemCore
-          ref: eac4bb3e19dec6d6aca4433df995f95e9631bc9b
+          ref: c39da3cdc3b4eff16f63798dc3eae4a49e41d105
           path: .lockstep/TotemCore
           persist-credentials: false
 
@@ -83,7 +83,9 @@ jobs:
           set -euo pipefail
           chmod +x .lockstep/TotemCore/gradlew
           ./.lockstep/TotemCore/gradlew -p .lockstep/TotemCore jar --no-daemon --stacktrace
-          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-0.4.0.jar"
+          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
+          test -n "$core_version"
+          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
           test -f "$core_jar"
           ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" -PtotemCoreJar="$core_jar" jar --no-daemon --stacktrace
           mod_version="$(sed -n 's/^mod_version=//p' gradle.properties)"
@@ -112,22 +114,26 @@ jobs:
           mod_version="$(sed -n 's/^mod_version=//p' gradle.properties)"
           archive_name="$(sed -n 's/^archives_base_name=//p' gradle.properties)"
           minecraft_version="$(sed -n 's/^minecraft_version=//p' gradle.properties)"
+          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
           artifact="build/libs/${archive_name}-${mod_version}.jar"
-          test -n "$mod_version" && test -n "$archive_name" && test -n "$minecraft_version"
+          test -n "$mod_version" && test -n "$archive_name" && test -n "$minecraft_version" && test -n "$core_version"
           test -n "$MODRINTH_TOKEN" || { echo 'MODRINTH_TOKEN is missing or empty.'; exit 1; }
           test -n "$MODRINTH_PROJECT_ID" || { echo 'MODRINTH_PROJECT_ID is missing or empty.'; exit 1; }
           if [[ ! -f "$artifact" ]]; then
             echo "Expected release JAR is missing: ${artifact}"
-            find build/libs -maxdepth 1 -type f -name '*.jar' -printf 'Found: %f\\n' || true
+            find build/libs -maxdepth 1 -type f -name '*.jar' -printf 'Found: %f\n' || true
             exit 1
           fi
 
           unzip -p "$artifact" fabric.mod.json > /tmp/fabric.mod.json
-          if ! jq -e --arg id "$MODULE_ID" --arg version "$mod_version" --arg minecraft "~${minecraft_version}" '
-              .id == $id and .version == $version and .depends.minecraft == $minecraft
+          if ! jq -e --arg id "$MODULE_ID" --arg version "$mod_version" --arg minecraft "~${minecraft_version}" --arg core "=${core_version}" '
+              .id == $id
+              and .version == $version
+              and .depends.minecraft == $minecraft
+              and .depends["totem-core"] == $core
             ' /tmp/fabric.mod.json > /dev/null; then
-            echo 'fabric.mod.json does not match the release metadata.'
-            jq -c '{id, version, minecraft: .depends.minecraft}' /tmp/fabric.mod.json
+            echo 'fabric.mod.json does not match the release metadata or pinned TotemCore version.'
+            jq -c '{id, version, minecraft: .depends.minecraft, core: .depends["totem-core"]}' /tmp/fabric.mod.json
             exit 1
           fi
 
