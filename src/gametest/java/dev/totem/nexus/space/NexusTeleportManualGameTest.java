@@ -121,7 +121,7 @@ public final class NexusTeleportManualGameTest {
     }
 
     @GameTest(maxTicks = 20)
-    public void existingModuleGuideRefreshesWithoutConsumingAnotherGuide(GameTestHelper helper) {
+    public void activeModuleGuideConsolidatesOffhandGuide(GameTestHelper helper) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         try {
             ItemStack primary = NexusTeleportManual.create();
@@ -134,8 +134,8 @@ public final class NexusTeleportManualGameTest {
                             DataComponents.ENCHANTMENT_GLINT_OVERRIDE,
                             false
                     )
-                    || !TotemManualAssembler.isCanonical(player.getOffhandItem())) {
-                helper.fail("Module refresh did not preserve the reference guides and safe components");
+                    || !player.getOffhandItem().isEmpty()) {
+                helper.fail("Module refresh did not preserve the active guide and consolidate the offhand guide");
                 return;
             }
             helper.succeed();
