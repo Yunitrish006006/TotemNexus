@@ -1,21 +1,19 @@
 package dev.totem.nexus.api.v1;
 
-import dev.totem.nexus.space.NexusFriendSavedData;
+import dev.totem.core.api.v1.social.TotemFriendshipApi;
 import net.minecraft.server.MinecraftServer;
 
-import java.util.Objects;
 import java.util.UUID;
 
-/** Stable read-only v1 bridge for modules that honor Nexus mutual friendships. */
+/**
+ * @deprecated Totem-wide friendships are owned by TotemCore 0.7+.
+ * Use {@link TotemFriendshipApi} directly.
+ */
+@Deprecated(forRemoval = true)
 public final class NexusFriendshipApi {
-    private NexusFriendshipApi() {
-    }
+    private NexusFriendshipApi() { }
 
     public static boolean areMutualFriends(MinecraftServer server, UUID first, UUID second) {
-        Objects.requireNonNull(server, "server");
-        Objects.requireNonNull(first, "first");
-        Objects.requireNonNull(second, "second");
-        return server.overworld().getDataStorage().computeIfAbsent(NexusFriendSavedData.TYPE)
-                .areFriends(first, second);
+        return TotemFriendshipApi.areMutualFriends(server, first, second);
     }
 }

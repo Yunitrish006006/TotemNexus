@@ -9,7 +9,7 @@ group = project.maven_group
 base { archivesName = project.archives_base_name }
 
 def totemCoreJar = file(providers.gradleProperty('totemCoreJar')
-        .getOrElse('../TotemCore/build/libs/totem-core-0.6.0.jar'))
+        .getOrElse('../TotemCore/build/libs/totem-core-0.7.0.jar'))
 
 loom {
     splitEnvironmentSourceSets()
@@ -219,7 +219,7 @@ tasks.named('jar', Jar) {
             )
             try {
                 // JarOutputStream's Manifest constructor stamps the generated
-                // manifest entry with the current time.  Write that entry
+                // manifest entry with the current time. Write that entry
                 // explicitly so it receives the same fixed timestamp as the
                 // rest of this canonical archive.
                 def manifestEntry = new java.util.zip.ZipEntry('META-INF/MANIFEST.MF')
