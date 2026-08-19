@@ -1,6 +1,7 @@
 package dev.totem.nexus.space;
 
 import dev.totem.core.api.v1.death.DeathRetainedItemPolicy;
+import dev.totem.core.social.TotemFriendSavedData;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -88,12 +89,13 @@ public final class NexusDistributedSpawnGameTest {
     }
 
     @GameTest(maxTicks = 20)
-    public void savedDataKeysRemainInTheLegacyNamespace(GameTestHelper helper) {
+    public void savedDataKeysPreserveLegacyWorldDataUnderCoreOwnership(GameTestHelper helper) {
         if (!NexusSpaceUnitSavedData.TYPE.id().toString().equals("deadrecall:space_units")
                 || !NexusSpaceDiscoverySavedData.TYPE.id().toString().equals("deadrecall:space_discovery")
-                || !NexusFriendSavedData.TYPE.id().toString().equals("deadrecall:space_friends")
+                || !TotemFriendSavedData.TYPE.id().toString().equals("deadrecall:space_friends")
+                || !NexusFriendSavedData.TYPE.id().toString().equals("totem-nexus:friendship_view")
                 || !NexusDistributedSpawnSavedData.TYPE.id().toString().equals("deadrecall:distributed_spawns")) {
-            helper.fail("Nexus changed a legacy SavedData key");
+            helper.fail("Core/Nexus friendship ownership changed an expected SavedData key");
             return;
         }
         helper.succeed();
