@@ -15,28 +15,49 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** Captures the real Traditional Chinese Nexus chapter in the shared Totem manual. */
+/** Captures both supported Nexus manual languages in the real shared-book screen. */
 @SuppressWarnings("UnstableApiUsage")
 public final class NexusManualVisualGameTest implements FabricClientGameTest {
     private static final Identifier NEXUS_SECTION = Identifier.parse("totem:nexus/teleport");
 
     @Override
     public void runTest(ClientGameTestContext context) {
+        selectLanguage(context, "zh_tw", "Nexus 傳送陣");
+        context.getInput().resizeWindow(1280, 720);
+        captureManual(context, "nexus-manual-spread");
+
+        selectLanguage(context, "en_us", "Nexus Teleport Arrays");
+        context.getInput().resizeWindow(1279, 720);
+        context.getInput().resizeWindow(1280, 720);
+        captureManual(context, "nexus-manual-en-us-spread");
+    }
+
+    private static void selectLanguage(
+            ClientGameTestContext context,
+            String language,
+            String expectedTitle
+    ) {
         AtomicReference<CompletableFuture<Void>> reload = new AtomicReference<>();
         context.runOnClient(client -> {
-            client.options.languageCode = "zh_tw";
-            client.getLanguageManager().setSelected("zh_tw");
+            client.options.languageCode = language;
+            client.getLanguageManager().setSelected(language);
             reload.set(client.reloadResourcePacks());
         });
         context.waitFor(client -> reload.get() != null && reload.get().isDone());
+        context.waitFor(client -> client.gui.overlay() == null);
         context.runOnClient(client -> {
-            if (!I18n.get("book.deadrecall.nexus_teleport_manual.title").equals("Nexus 傳送陣")) {
-                throw new AssertionError("Traditional Chinese Nexus manual resources were not loaded");
+            String title = I18n.get("book.deadrecall.nexus_teleport_manual.title");
+            if (!title.equals(expectedTitle)) {
+                throw new AssertionError(language + " Nexus manual resources were not loaded: " + title);
             }
             client.options.guiScale().set(3);
         });
-        context.getInput().resizeWindow(1280, 720);
+    }
 
+    private static void captureManual(
+            ClientGameTestContext context,
+            String screenshotPrefix
+    ) {
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
             singleplayer.getClientLevel().waitForChunksRender();
             List<TotemManualSection> sections = TotemManualRegistry.global().sections();
@@ -62,7 +83,8 @@ public final class NexusManualVisualGameTest implements FabricClientGameTest {
                     screen.setPage(capturedPage);
                 });
                 context.waitTicks(2);
-                context.takeScreenshot("nexus-manual-spread-%02d-%02d".formatted(page + 1, page + 2));
+                context.takeScreenshot((screenshotPrefix + "-%02d-%02d")
+                        .formatted(page + 1, page + 2));
             }
 
             context.runOnClient(client -> client.setScreenAndShow(null));

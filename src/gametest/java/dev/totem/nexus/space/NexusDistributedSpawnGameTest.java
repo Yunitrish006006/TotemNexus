@@ -126,7 +126,11 @@ public final class NexusDistributedSpawnGameTest {
                 java.util.Set.of(), java.util.Set.of(), SpaceStructureSnapshot.EMPTY, 1L, 1L);
         NexusSpaceUnitSavedData units = new NexusSpaceUnitSavedData();
         NexusSpaceDiscoverySavedData discovery = new NexusSpaceDiscoverySavedData();
-        NexusFriendSavedData friends = new NexusFriendSavedData();
+        NexusFriendSavedData friends = helper.getLevel().getServer().overworld().getDataStorage()
+                .computeIfAbsent(NexusFriendSavedData.TYPE);
+        // Friendship is TotemCore-owned and GameTest worlds retain saved data between runs.
+        // Reset only this test pair so the pre-friendship visibility assertion is meaningful.
+        friends.removeRelationship(owner, viewer);
         units.put(unit);
         if (!units.visibleDiscoveredUnits(viewer, discovery, friends).isEmpty()) {
             helper.fail("Undiscovered Space Unit was visible");
@@ -137,13 +141,17 @@ public final class NexusDistributedSpawnGameTest {
             helper.fail("Friend-only Space Unit was visible without friendship");
             return;
         }
-        friends.inviteOrAccept(owner, viewer);
-        friends.inviteOrAccept(viewer, owner);
-        if (!units.visibleDiscoveredUnits(viewer, discovery, friends).equals(java.util.List.of(unit))) {
-            helper.fail("Friend-only discovered Space Unit was not visible after acceptance");
-            return;
+        try {
+            friends.inviteOrAccept(owner, viewer);
+            friends.inviteOrAccept(viewer, owner);
+            if (!units.visibleDiscoveredUnits(viewer, discovery, friends).equals(java.util.List.of(unit))) {
+                helper.fail("Friend-only discovered Space Unit was not visible after acceptance");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            friends.removeRelationship(owner, viewer);
         }
-        helper.succeed();
     }
 
     @GameTest(maxTicks = 20)

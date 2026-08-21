@@ -15,6 +15,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.WrittenBookContent;
 
+import java.util.List;
 import java.util.stream.IntStream;
 
 /** Verifies the server-side book conversion used by lodestone interaction. */
@@ -145,10 +146,48 @@ public final class NexusTeleportManualGameTest {
     }
 
     @GameTest(maxTicks = 20)
+    public void basicGuideRemainsSeparateFromGrantedModuleGuide(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        try {
+            ItemStack basicGuide = TotemManualAssembler.create(List.of(TotemManualOnboarding.SECTION));
+            player.setItemInHand(InteractionHand.MAIN_HAND, basicGuide);
+            if (!NexusTeleportManual.grant(player, InteractionHand.MAIN_HAND)) {
+                helper.fail("Basic guide did not act as a reusable Nexus recording reference");
+                return;
+            }
+            if (player.getMainHandItem() != basicGuide
+                    || !TotemManualAssembler.sections(basicGuide).stream()
+                    .map(section -> section.id())
+                    .toList()
+                    .equals(List.of(TotemManualOnboarding.SECTION_ID))) {
+                helper.fail("Granting the Nexus guide modified or replaced the basic guide");
+                return;
+            }
+
+            List<Identifier> nexusSection = List.of(Identifier.parse("totem:nexus/teleport"));
+            long targetGuides = IntStream.range(0, player.getInventory().getContainerSize())
+                    .mapToObj(player.getInventory()::getItem)
+                    .filter(TotemManualAssembler::isCanonical)
+                    .filter(stack -> TotemManualAssembler.sections(stack).stream()
+                            .map(section -> section.id())
+                            .toList()
+                            .equals(nexusSection))
+                    .count();
+            if (targetGuides != 1) {
+                helper.fail("Expected one separate Nexus guide, found " + targetGuides);
+                return;
+            }
+            helper.succeed();
+        } finally {
+            player.discard();
+        }
+    }
+
+    @GameTest(maxTicks = 20)
     public void assembledPageCountMatchesInstalledManualSections(GameTestHelper helper) {
         ItemStack manual = NexusTeleportManual.create();
         WrittenBookContent content = manual.get(DataComponents.WRITTEN_BOOK_CONTENT);
-        int expectedPages = 15;
+        int expectedPages = 21;
         if (content == null || content.pages().size() != expectedPages) {
             helper.fail(
                     "Expected " + expectedPages + " assembled pages, got "
