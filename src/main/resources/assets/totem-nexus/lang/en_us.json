@@ -25,5 +25,21 @@
   "message.deadrecall.space_unit.material_reference.cooldown": "Cooldown recovery %s",
   "message.deadrecall.space_unit.material_reference.load": "Route load %s",
   "message.deadrecall.space_unit.material_reference.catalyst": "Cross-dimension catalyst %s",
-  "message.deadrecall.space_unit.material_reference.affinity": "Dimension affinity: %s"
+  "message.deadrecall.space_unit.material_reference.affinity": "Dimension affinity: %s",
+
+  "book.deadrecall.nexus_teleport_manual.page.19": "§lSpecialist: Backbone§r\nRanks capacity, stability, and wear for long-lived arrays.",
+  "book.deadrecall.nexus_teleport_manual.page.20": "§lSpecialist: Expansion§r\nRanks reach specialists, with capacity and stability as support.",
+  "book.deadrecall.nexus_teleport_manual.page.21": "§lSpecialist: Precision§r\nRanks materials that combine arrival accuracy and target lock.",
+  "book.deadrecall.nexus_teleport_manual.page.22": "§lSpecialist: Fast Routes§r\nRanks phase speed, cooldown, and load; watch the trade-offs.",
+  "book.deadrecall.nexus_teleport_manual.page.23": "§lSpecialist: Efficiency§r\nRanks food and maintenance efficiency for frequent use.",
+  "book.deadrecall.nexus_teleport_manual.page.24": "§lSpecialist: Cross-Dimension§r\nRanks catalyst, affinity, stability, and arrival safety together.",
+  "book.deadrecall.nexus_specialist.loading": "Requesting specialist material recommendations from the server…",
+  "book.deadrecall.nexus_specialist.none": "No current material profile specializes in this role.",
+  "book.deadrecall.nexus_specialist.server_revision": "Server material revision %s · live ranking",
+  "book.deadrecall.nexus_specialist.metrics.backbone": "Cap %s  Stab %s  Wear %s",
+  "book.deadrecall.nexus_specialist.metrics.expansion": "Exp %s  Cap %s",
+  "book.deadrecall.nexus_specialist.metrics.precision": "Acc %s  Lock %s",
+  "book.deadrecall.nexus_specialist.metrics.speed": "Speed %s  CD %s",
+  "book.deadrecall.nexus_specialist.metrics.efficiency": "Food %s  Maint %s",
+  "book.deadrecall.nexus_specialist.metrics.cross_dimension": "Cat %s  Aff %s"
 }
