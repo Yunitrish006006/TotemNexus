@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Yunitrish006006/TotemCore
-          ref: e51e29e10c5a7bd2e632bcffa5617726c5a9de69
+          ref: 37a39d7f8080bb85aaf587ee0d20e39f904eed34
           path: .lockstep/TotemCore
           persist-credentials: false
 
