@@ -28,7 +28,7 @@ public final class NexusTeleportManual {
     private static final Identifier MANUAL_ADVANCEMENT =
             Identifier.fromNamespaceAndPath("deadrecall", "nexus_manual");
 
-    private static final List<String> PAGE_KEYS = IntStream.rangeClosed(1, 12)
+    private static final List<String> PAGE_KEYS = IntStream.rangeClosed(1, 18)
             .mapToObj(page -> "book.deadrecall.nexus_teleport_manual.page." + page)
             .toList();
     private static final TotemManualSection SECTION = new TotemManualSection(

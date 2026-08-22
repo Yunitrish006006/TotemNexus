@@ -151,6 +151,12 @@ tasks.named("runClientGameTest").configure {
             rename { name -> name.replaceFirst(/^\d+_/, "") }
             into(file("test-artifacts/screenshots/nexus-manual-zh_tw"))
         }
+        copy {
+            from(file("${buildDir}/run/clientGameTest/screenshots"))
+            include("*_nexus-manual-en-us-spread-*.png")
+            rename { name -> name.replaceFirst(/^\d+_/, "") }
+            into(file("test-artifacts/screenshots/nexus-manual-en_us"))
+        }
     }
 }
 

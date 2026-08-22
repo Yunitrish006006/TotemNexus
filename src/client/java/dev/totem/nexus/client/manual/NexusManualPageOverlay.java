@@ -6,14 +6,16 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-/** Adds compact vanilla-style diagrams to the seven Nexus manual pages. */
+/** Adds compact vanilla-style diagrams to the focused Nexus manual pages. */
 public final class NexusManualPageOverlay {
     private static final String PAGE_PREFIX = "book.deadrecall.nexus_teleport_manual.page.";
     private static final int INK = 0xFF4B3826;
@@ -31,10 +33,16 @@ public final class NexusManualPageOverlay {
             Map.entry(PAGE_PREFIX + "6", NexusManualPageOverlay::renderStructure),
             Map.entry(PAGE_PREFIX + "7", NexusManualPageOverlay::renderExpansion),
             Map.entry(PAGE_PREFIX + "8", NexusManualPageOverlay::renderMaterials),
-            Map.entry(PAGE_PREFIX + "9", NexusManualPageOverlay::renderAttributes),
-            Map.entry(PAGE_PREFIX + "10", NexusManualPageOverlay::renderCopper),
-            Map.entry(PAGE_PREFIX + "11", NexusManualPageOverlay::renderCatalyst),
-            Map.entry(PAGE_PREFIX + "12", NexusManualPageOverlay::renderMaintenance)
+            Map.entry(PAGE_PREFIX + "9", NexusManualPageOverlay::renderScanProviders),
+            Map.entry(PAGE_PREFIX + "10", NexusManualPageOverlay::renderAccuracyProviders),
+            Map.entry(PAGE_PREFIX + "11", NexusManualPageOverlay::renderLockProviders),
+            Map.entry(PAGE_PREFIX + "12", NexusManualPageOverlay::renderStabilityAndSafety),
+            Map.entry(PAGE_PREFIX + "13", NexusManualPageOverlay::renderWearAndMaintenance),
+            Map.entry(PAGE_PREFIX + "14", NexusManualPageOverlay::renderSpeedAndCooldown),
+            Map.entry(PAGE_PREFIX + "15", NexusManualPageOverlay::renderFoodAndLoad),
+            Map.entry(PAGE_PREFIX + "16", NexusManualPageOverlay::renderCopper),
+            Map.entry(PAGE_PREFIX + "17", NexusManualPageOverlay::renderCatalyst),
+            Map.entry(PAGE_PREFIX + "18", NexusManualPageOverlay::renderMaintenance)
     );
 
     private NexusManualPageOverlay() {
@@ -76,7 +84,6 @@ public final class NexusManualPageOverlay {
         step(context, 2, Items.COMPASS, "book.deadrecall.nexus_diagram.right_click", y + 34);
         step(context, 3, Items.COMPASS, "book.deadrecall.nexus_diagram.confirm_30s", y + 68);
         connection(context, 51, y + 18, y + 68);
-        check(context, 132, y + 72);
         centered(context, "book.deadrecall.nexus_diagram.registered_bound", y + 94, GOOD);
     }
 
@@ -86,16 +93,16 @@ public final class NexusManualPageOverlay {
         arrow(context, 64, y + 8, 10);
         item(context, Items.LODESTONE, 78, y);
         check(context, 103, y + 12);
-        text(context, "book.deadrecall.nexus_diagram.attack_discover", 43, y + 23, MUTED);
+        wrapped(context, "book.deadrecall.nexus_diagram.attack_discover", 43, y + 23, 109, MUTED);
 
         y += 48;
         item(context, Items.COMPASS, 42, y);
         badge(context, 67, y, "≤8", MUTED);
         arrow(context, 87, y + 8, 9);
         item(context, Items.FILLED_MAP, 100, y);
-        text(context, "book.deadrecall.nexus_diagram.open_map", 43, y + 23, GOOD);
+        wrapped(context, "book.deadrecall.nexus_diagram.open_map", 43, y + 23, 109, GOOD);
         text(context, "!", 43, y + 44, WARN);
-        text(context, "book.deadrecall.nexus_diagram.hidden_until_explored", 56, y + 44, WARN);
+        wrapped(context, "book.deadrecall.nexus_diagram.hidden_until_explored", 56, y + 44, 96, WARN);
     }
 
     private static void renderDestination(TotemManualPageRenderContext context) {
@@ -116,7 +123,7 @@ public final class NexusManualPageOverlay {
     private static void renderPreparation(TotemManualPageRenderContext context) {
         int y = context.pageTop() + 50;
         item(context, Items.CLOCK, 43, y);
-        text(context, "book.deadrecall.nexus_diagram.preparing", 66, y + 5, MUTED);
+        wrapped(context, "book.deadrecall.nexus_diagram.preparing", 66, y + 5, 86, MUTED);
         status(context, Items.COMPASS, "book.deadrecall.nexus_diagram.hold_item", y + 25, true);
         status(context, Items.LEATHER_BOOTS, "book.deadrecall.nexus_diagram.move_limit", y + 49, true);
         status(context, Items.SHIELD, "book.deadrecall.nexus_diagram.damage_cancels", y + 73, false);
@@ -136,11 +143,11 @@ public final class NexusManualPageOverlay {
 
         centered(context, "book.deadrecall.nexus_diagram.initial_26", y + 59, MUTED);
         text(context, "!", 43, y + 80, WARN);
-        text(context, "book.deadrecall.nexus_diagram.no_full_shell", 56, y + 80, WARN);
+        wrapped(context, "book.deadrecall.nexus_diagram.no_full_shell", 56, y + 80, 96, WARN);
     }
 
     private static void renderExpansion(TotemManualPageRenderContext context) {
-        int y = context.pageTop() + 58;
+        int y = context.pageTop() + 38;
         item(context, Items.LODESTONE, 40, y);
         arrow(context, 61, y + 8, 7);
         item(context, Items.IRON_BLOCK, 71, y);
@@ -148,59 +155,219 @@ public final class NexusManualPageOverlay {
         item(context, Items.DIAMOND_BLOCK, 102, y);
         arrow(context, 123, y + 8, 7);
         item(context, Items.NETHERITE_BLOCK, 133, y);
-        centered(context, "book.deadrecall.nexus_diagram.extender_path", y + 23, MUTED);
-        centered(context, "book.deadrecall.nexus_diagram.max_distance", y + 40, WARN);
+        centered(context, "book.deadrecall.nexus_diagram.extender_path", y + 21, MUTED);
+        centered(context, "book.deadrecall.nexus_diagram.max_distance", y + 32, WARN);
 
-        y += 66;
+        y += 43;
         capacityBar(context, y, 8, 0.34F, "I");
-        capacityBar(context, y + 13, 24, 1.0F, "II");
-        centered(context, "book.deadrecall.nexus_diagram.tier_capacity", y + 31, GOOD);
+        capacityBar(context, y + 11, 24, 1.0F, "II");
+        wrapped(context, "book.deadrecall.nexus_diagram.capacity_defaults", 40, y + 24, 112, GOOD);
     }
 
     private static void renderMaterials(TotemManualPageRenderContext context) {
-        int y = context.pageTop() + 57;
+        int y = context.pageTop() + 38;
         Item[] materials = {
                 Items.STONE_BRICKS,
-                Items.DEEPSLATE,
+                Items.DEEPSLATE_BRICKS,
                 Items.NETHER_BRICKS,
-                Items.BLACKSTONE
+                Items.POLISHED_BLACKSTONE
         };
         for (int index = 0; index < materials.length; index++) {
             item(context, materials[index], 43 + index * 27, y);
         }
-        centered(context, "book.deadrecall.nexus_diagram.valid_families", y + 23, MUTED);
+        wrapped(context, "book.deadrecall.nexus_diagram.valid_families", 40, y + 19, 112, MUTED);
 
-        y += 43;
+        y += 38;
         item(context, Items.IRON_BLOCK, 44, y);
         plus(context, 65, y + 8);
         item(context, Items.DIAMOND_BLOCK, 77, y);
-        centered(context, "book.deadrecall.nexus_diagram.refined_safe", y + 21, GOOD);
+        plus(context, 98, y + 8);
+        item(context, Items.NETHERITE_BLOCK, 110, y);
+        wrapped(context, "book.deadrecall.nexus_diagram.refined_safe", 40, y + 19, 112, GOOD);
 
-        y += 41;
+        y += 40;
         item(context, Items.CRACKED_STONE_BRICKS, 44, y);
         plus(context, 65, y + 8);
         item(context, Items.RAW_IRON_BLOCK, 77, y);
-        centered(context, "book.deadrecall.nexus_diagram.worn_tradeoff", y + 21, WARN);
+        wrapped(context, "book.deadrecall.nexus_diagram.worn_tradeoff", 40, y + 19, 112, WARN);
     }
 
-    private static void renderAttributes(TotemManualPageRenderContext context) {
-        int y = context.pageTop() + 54;
-        metric(context, Items.CHEST, "book.deadrecall.nexus_diagram.capacity", 42, y);
-        metric(context, Items.SHIELD, "book.deadrecall.nexus_diagram.stability", 98, y);
-        metric(context, Items.COMPASS, "book.deadrecall.nexus_diagram.lock", 42, y + 29);
-        metric(context, Items.CLOCK, "book.deadrecall.nexus_diagram.phase", 98, y + 29);
-        metric(context, Items.COOKED_BEEF, "book.deadrecall.nexus_diagram.food", 42, y + 58);
-        metric(context, Items.AMETHYST_SHARD, "book.deadrecall.nexus_diagram.catalyst", 98, y + 58);
+    private static void renderScanProviders(TotemManualPageRenderContext context) {
+        int y = context.pageTop() + 40;
+        Item[] plusOne = {
+                vanillaItem("copper_bulb"), Items.IRON_BLOCK,
+                Items.AMETHYST_BLOCK, Items.REDSTONE_BLOCK
+        };
+        for (int index = 0; index < plusOne.length; index++) {
+            itemValue(context, plusOne[index], 48 + index * 27, y, "+1", GOOD);
+        }
+        wrapped(context, "book.deadrecall.nexus_diagram.scan_plus_one", 40, y + 26, 112, GOOD);
 
-        y += 94;
-        item(context, Items.FILLED_MAP, 48, y);
-        arrow(context, 70, y + 8, 10);
-        item(context, Items.SPYGLASS, 84, y);
-        text(context, "book.deadrecall.nexus_diagram.live_values", 106, y + 5, WARN);
+        y += 34;
+        itemValue(context, Items.DIAMOND_BLOCK, 68, y, "+2", GOOD);
+        itemValue(context, Items.NETHERITE_BLOCK, 105, y, "+2", GOOD);
+        wrapped(context, "book.deadrecall.nexus_diagram.scan_plus_two", 40, y + 26, 112, GOOD);
+
+        y += 34;
+        itemValue(context, Items.IRON_ORE, 47, y, "−1", WARN);
+        itemValue(context, Items.DEEPSLATE_DIAMOND_ORE, 75, y, "−1", WARN);
+        itemValue(context, Items.NETHER_QUARTZ_ORE, 103, y, "−1", WARN);
+        wrapped(context, "book.deadrecall.nexus_diagram.ore_reach_penalty", 40, y + 26, 112, WARN);
+    }
+
+    private static void renderAccuracyProviders(TotemManualPageRenderContext context) {
+        int y = context.pageTop() + 40;
+        Item[] plusTwo = {
+                Items.CHISELED_STONE_BRICKS, Items.CHISELED_DEEPSLATE,
+                Items.CHISELED_NETHER_BRICKS, vanillaItem("cut_copper"),
+                Items.AMETHYST_BLOCK, Items.DIAMOND_BLOCK, Items.LAPIS_BLOCK
+        };
+        for (int index = 0; index < plusTwo.length; index++) {
+            itemValue(context, plusTwo[index], 29 + index * 18, y, "+2", GOOD);
+        }
+        wrapped(context, "book.deadrecall.nexus_diagram.accuracy_plus_two", 40, y + 26, 112, GOOD);
+
+        y += 34;
+        Item[] plusOne = {
+                Items.DEEPSLATE_TILES, Items.RED_NETHER_BRICKS,
+                Items.CHISELED_POLISHED_BLACKSTONE, vanillaItem("copper_block"),
+                vanillaItem("chiseled_copper"), Items.QUARTZ_BLOCK
+        };
+        for (int index = 0; index < plusOne.length; index++) {
+            itemValue(context, plusOne[index], 34 + index * 20, y, "+1", GOOD);
+        }
+        wrapped(context, "book.deadrecall.nexus_diagram.accuracy_plus_one", 40, y + 26, 112, GOOD);
+
+        y += 34;
+        Item[] ores = {
+                Items.LAPIS_ORE, Items.REDSTONE_ORE, Items.DIAMOND_ORE,
+                Items.EMERALD_ORE, Items.NETHER_QUARTZ_ORE
+        };
+        for (int index = 0; index < ores.length; index++) {
+            itemValue(context, ores[index], 43 + index * 23, y, "+1", GOOD);
+        }
+        wrapped(context, "book.deadrecall.nexus_diagram.accuracy_ores", 40, y + 26, 112, MUTED);
+    }
+
+    private static void renderLockProviders(TotemManualPageRenderContext context) {
+        int y = context.pageTop() + 40;
+        itemValue(context, vanillaItem("chiseled_copper"), 67, y, "+3", GOOD);
+        itemValue(context, Items.CHISELED_POLISHED_BLACKSTONE, 104, y, "+3", GOOD);
+        wrapped(context, "book.deadrecall.nexus_diagram.lock_plus_three", 40, y + 26, 112, GOOD);
+
+        y += 34;
+        Item[] plusTwo = {
+                Items.CHISELED_STONE_BRICKS, Items.CHISELED_DEEPSLATE,
+                Items.CHISELED_NETHER_BRICKS, Items.LAPIS_BLOCK
+        };
+        for (int index = 0; index < plusTwo.length; index++) {
+            itemValue(context, plusTwo[index], 48 + index * 27, y, "+2", GOOD);
+        }
+        wrapped(context, "book.deadrecall.nexus_diagram.lock_plus_two", 40, y + 26, 112, GOOD);
+
+        y += 34;
+        Item[] plusOne = {
+                vanillaItem("cut_copper"), Items.DEEPSLATE_TILES, Items.AMETHYST_BLOCK,
+                Items.LAPIS_ORE, Items.REDSTONE_ORE, Items.DIAMOND_ORE, Items.EMERALD_ORE
+        };
+        for (int index = 0; index < plusOne.length; index++) {
+            itemValue(context, plusOne[index], 29 + index * 18, y, "+1", GOOD);
+        }
+        wrapped(context, "book.deadrecall.nexus_diagram.lock_plus_one", 40, y + 26, 112, MUTED);
+    }
+
+    private static void renderStabilityAndSafety(TotemManualPageRenderContext context) {
+        materialAttribute(context,
+                "book.deadrecall.nexus_diagram.stability_heading",
+                new Item[]{
+                        Items.NETHERITE_BLOCK, Items.DIAMOND_BLOCK, Items.DEEPSLATE_BRICKS,
+                        Items.POLISHED_BLACKSTONE_BRICKS, Items.IRON_BLOCK
+                },
+                new int[]{3, 2, 2, 2, 1},
+                context.pageTop() + 42, GOOD);
+        materialAttribute(context,
+                "book.deadrecall.nexus_diagram.safety_heading",
+                new Item[]{
+                        Items.NETHERITE_BLOCK, Items.DIAMOND_BLOCK,
+                        Items.POLISHED_BLACKSTONE_BRICKS, Items.ANCIENT_DEBRIS,
+                        Items.IRON_BLOCK, Items.AMETHYST_BLOCK
+                },
+                new int[]{3, 2, 2, 2, 1, 1},
+                context.pageTop() + 99, GOOD);
+    }
+
+    private static void renderWearAndMaintenance(TotemManualPageRenderContext context) {
+        materialAttribute(context,
+                "book.deadrecall.nexus_diagram.wear_heading",
+                new Item[]{
+                        Items.NETHERITE_BLOCK, Items.DIAMOND_BLOCK, Items.DEEPSLATE_BRICKS,
+                        Items.ANCIENT_DEBRIS, Items.IRON_BLOCK, Items.POLISHED_BLACKSTONE_BRICKS
+                },
+                new int[]{3, 2, 2, 2, 1, 1},
+                context.pageTop() + 40, GOOD);
+        materialAttribute(context,
+                "book.deadrecall.nexus_diagram.maintenance_heading",
+                new Item[]{
+                        Items.POLISHED_DEEPSLATE, Items.POLISHED_BLACKSTONE, Items.EMERALD_BLOCK,
+                        Items.STONE_BRICKS, vanillaItem("copper_block"), Items.IRON_BLOCK,
+                        Items.DIAMOND_BLOCK
+                },
+                new int[]{2, 2, 2, 1, 1, 1, 1},
+                context.pageTop() + 75, GOOD);
+        materialAttribute(context,
+                "book.deadrecall.nexus_diagram.interference_heading",
+                new Item[]{
+                        Items.MOSSY_STONE_BRICKS, Items.POLISHED_BLACKSTONE,
+                        Items.CHISELED_POLISHED_BLACKSTONE, Items.NETHERITE_BLOCK,
+                        Items.ANCIENT_DEBRIS
+                },
+                new int[]{2, 2, 1, 1, 1},
+                context.pageTop() + 110, GOOD);
+    }
+
+    private static void renderSpeedAndCooldown(TotemManualPageRenderContext context) {
+        materialAttribute(context,
+                "book.deadrecall.nexus_diagram.speed_heading",
+                new Item[]{
+                        Items.REDSTONE_BLOCK, Items.GOLD_BLOCK, Items.NETHER_BRICKS,
+                        vanillaItem("copper_grate"), vanillaItem("copper_block"),
+                        Items.QUARTZ_BLOCK, Items.COAL_BLOCK
+                },
+                new int[]{3, 2, 2, 2, 1, 1, 1},
+                context.pageTop() + 42, GOOD);
+        materialAttribute(context,
+                "book.deadrecall.nexus_diagram.cooldown_heading",
+                new Item[]{
+                        vanillaItem("copper_bulb"), Items.GOLD_BLOCK, Items.REDSTONE_BLOCK,
+                        vanillaItem("copper_block"), vanillaItem("copper_grate"),
+                        Items.EMERALD_BLOCK, Items.NETHER_BRICKS
+                },
+                new int[]{2, 2, 2, 1, 1, 1, 1},
+                context.pageTop() + 99, GOOD);
+    }
+
+    private static void renderFoodAndLoad(TotemManualPageRenderContext context) {
+        materialAttribute(context,
+                "book.deadrecall.nexus_diagram.food_heading",
+                new Item[]{
+                        Items.GOLD_BLOCK, Items.EMERALD_BLOCK, Items.POLISHED_DEEPSLATE,
+                        Items.QUARTZ_BLOCK, Items.RAW_GOLD_BLOCK
+                },
+                new int[]{2, 2, 1, 1, 1},
+                context.pageTop() + 42, GOOD);
+        materialAttribute(context,
+                "book.deadrecall.nexus_diagram.load_heading",
+                new Item[]{
+                        vanillaItem("copper_bulb"), Items.IRON_BLOCK, Items.NETHERITE_BLOCK,
+                        vanillaItem("copper_block"), Items.DIAMOND_BLOCK,
+                        Items.POLISHED_BLACKSTONE_BRICKS, Items.REDSTONE_BLOCK
+                },
+                new int[]{2, 2, 2, 1, 1, 1, 1},
+                context.pageTop() + 99, GOOD);
     }
 
     private static void renderCopper(TotemManualPageRenderContext context) {
-        int y = context.pageTop() + 58;
+        int y = context.pageTop() + 50;
         Item[] copper = {
                 vanillaItem("copper_block"),
                 vanillaItem("exposed_copper"),
@@ -216,7 +383,7 @@ public final class NexusManualPageOverlay {
         text(context, "−", 129, y + 4, WARN);
         centered(context, "book.deadrecall.nexus_diagram.oxidation_weakens", y + 23, WARN);
 
-        y += 48;
+        y += 44;
         item(context, Items.HONEYCOMB, 54, y);
         plus(context, 75, y + 8);
         item(context, vanillaItem("copper_block"), 87, y);
@@ -228,42 +395,97 @@ public final class NexusManualPageOverlay {
     }
 
     private static void renderCatalyst(TotemManualPageRenderContext context) {
-        int y = context.pageTop() + 47;
+        int y = context.pageTop() + 58;
         catalystEndpoint(context, Items.LODESTONE, 2, "book.deadrecall.nexus_diagram.source", y);
-        catalystEndpoint(context, Items.LODESTONE, 2, "book.deadrecall.nexus_diagram.target", y + 31);
+        catalystEndpoint(context, Items.LODESTONE, 2, "book.deadrecall.nexus_diagram.target", y + 26);
 
-        y += 65;
+        y += 55;
         for (int index = 0; index < 4; index++) {
             miniItem(context, Items.AMETHYST_SHARD, context.pageLeft() + 39 + index * 15, y);
         }
         arrow(context, 102, y + 8, 10);
         text(context, "−1", 117, y + 3, GOOD);
         centered(context, "book.deadrecall.nexus_diagram.four_units", y + 21, MUTED);
-        centered(context, "book.deadrecall.nexus_diagram.minimum_one", y + 40, WARN);
+        centered(context, "book.deadrecall.nexus_diagram.minimum_one", y + 36, WARN);
     }
 
     private static void renderMaintenance(TotemManualPageRenderContext context) {
-        int y = context.pageTop() + 47;
+        int y = context.pageTop() + 35;
         item(context, Items.FILLED_MAP, 39, y);
         arrow(context, 61, y + 8, 8);
         item(context, Items.SPYGLASS, 72, y);
         arrow(context, 94, y + 8, 8);
         item(context, Items.CRACKED_STONE_BRICKS, 105, y);
-        centered(context, "book.deadrecall.nexus_diagram.inspect", y + 23, MUTED);
+        centered(context, "book.deadrecall.nexus_diagram.inspect", y + 19, MUTED);
 
-        y += 40;
+        y += 35;
         item(context, Items.CRACKED_STONE_BRICKS, 42, y);
         plus(context, 63, y + 8);
         item(context, Items.STONE_BRICKS, 75, y);
         arrow(context, 97, y + 8, 10);
         item(context, Items.LODESTONE, 110, y);
         check(context, 129, y + 12);
-        centered(context, "book.deadrecall.nexus_diagram.repair_rescan", y + 23, GOOD);
+        centered(context, "book.deadrecall.nexus_diagram.repair_rescan", y + 19, GOOD);
 
-        y += 40;
-        metric(context, Items.CHEST, "book.deadrecall.nexus_diagram.load_slots", 42, y);
-        metric(context, Items.CLOCK, "book.deadrecall.nexus_diagram.recovery", 98, y);
-        centered(context, "book.deadrecall.nexus_diagram.owner_admin", y + 23, WARN);
+        y += 36;
+        metric(context, Items.CHEST, "book.deadrecall.nexus_diagram.load_slots_short", 38, y);
+        metric(context, Items.CLOCK, "book.deadrecall.nexus_diagram.recovery_short", 101, y);
+        centered(context, "book.deadrecall.nexus_diagram.owner_admin", y + 19, WARN);
+        wrapped(context, "book.deadrecall.nexus_diagram.live_truth", 40, y + 30, 116, WARN);
+    }
+
+    private static void materialAttribute(
+            TotemManualPageRenderContext context,
+            String heading,
+            Item[] materials,
+            int[] values,
+            int y,
+            int color
+    ) {
+        if (materials.length != values.length) {
+            throw new IllegalArgumentException("Each material needs one score");
+        }
+        text(context, heading, 40, y, color);
+        int spacing = materials.length >= 7 ? 18 : 20;
+        int totalWidth = 16 + (materials.length - 1) * spacing;
+        int start = 93 - totalWidth / 2;
+        for (int index = 0; index < materials.length; index++) {
+            itemValue(context, materials[index], start + index * spacing, y + 10,
+                    "+" + values[index], GOOD);
+        }
+    }
+
+    private static void itemValue(
+            TotemManualPageRenderContext context,
+            Item item,
+            int localX,
+            int y,
+            String value,
+            int color
+    ) {
+        item(context, item, localX, y);
+        Component label = Component.literal(value);
+        context.graphics().text(context.font(), label,
+                context.pageLeft() + localX + (16 - context.font().width(label)) / 2,
+                y + 16, color, false);
+    }
+
+    private static void wrapped(
+            TotemManualPageRenderContext context,
+            String key,
+            int localX,
+            int y,
+            int width,
+            int color
+    ) {
+        List<FormattedCharSequence> lines = context.font().split(Component.translatable(key), width);
+        for (int index = 0; index < lines.size(); index++) {
+            context.graphics().text(context.font(), lines.get(index),
+                    context.pageLeft() + localX,
+                    y + index * context.font().lineHeight,
+                    color,
+                    false);
+        }
     }
 
     private static void status(
@@ -275,7 +497,7 @@ public final class NexusManualPageOverlay {
     ) {
         item(context, item, 43, y);
         text(context, accepted ? "✓" : "!", 65, y + 4, accepted ? GOOD : WARN);
-        text(context, label, 78, y + 4, accepted ? MUTED : WARN);
+        wrapped(context, label, 78, y + 4, 74, accepted ? MUTED : WARN);
     }
 
     private static void catalystEndpoint(
@@ -301,7 +523,7 @@ public final class NexusManualPageOverlay {
     ) {
         badge(context, 40, y + 2, Integer.toString(number), MUTED);
         item(context, item, 59, y);
-        text(context, label, 82, y + 4, INK);
+        wrapped(context, label, 82, y + 4, 70, INK);
     }
 
     private static void metric(
@@ -414,8 +636,13 @@ public final class NexusManualPageOverlay {
             int y,
             int color
     ) {
-        context.graphics().centeredText(context.font(), Component.translatable(key),
-                context.pageLeft() + 93, y, color);
+        List<FormattedCharSequence> lines = context.font().split(Component.translatable(key), 112);
+        for (int index = 0; index < lines.size(); index++) {
+            context.graphics().centeredText(context.font(), lines.get(index),
+                    context.pageLeft() + 93,
+                    y + index * context.font().lineHeight,
+                    color);
+        }
     }
 
     private static void text(
