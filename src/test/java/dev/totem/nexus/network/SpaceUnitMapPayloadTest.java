@@ -24,6 +24,30 @@ class SpaceUnitMapPayloadTest {
     }
 
     @Test
+    void acceptsMaterialAdjustedStructureWearAboveLegacyDamageCap() {
+        assertDoesNotThrow(() -> new SpaceUnitMapPayload.Entry(
+                UUID.randomUUID(), "lodestone", "A", "private", false, "minecraft:overworld", 0, 64, 0,
+                0, 0, 0, 1, 1, 0, 0, 1, 1,
+                1, 0, 1, 0, 0, 0,
+                0, 0, 0, 0,
+                60, 80, 75,
+                false, "message.deadrecall.space_unit.interface_bonus.compass",
+                false, false, true, 0, 0, true, ""));
+    }
+
+    @Test
+    void rejectsStructureWearAboveOneHundredPercent() {
+        assertThrows(IllegalArgumentException.class, () -> new SpaceUnitMapPayload.Entry(
+                UUID.randomUUID(), "lodestone", "A", "private", false, "minecraft:overworld", 0, 64, 0,
+                0, 0, 0, 1, 1, 0, 0, 1, 1,
+                1, 0, 1, 0, 0, 0,
+                0, 0, 0, 0,
+                60, 101, 75,
+                false, "message.deadrecall.space_unit.interface_bonus.compass",
+                false, false, true, 0, 0, true, ""));
+    }
+
+    @Test
     void roundTripsServerCalculatedMaterialDiagnostics() {
         SpaceUnitMapPayload.MaterialSummary material = new SpaceUnitMapPayload.MaterialSummary(
                 5, 9, 5, 1, 3, 2, 0, 1, 2, 1, 0, 2, 1, 0, 4, -1,
