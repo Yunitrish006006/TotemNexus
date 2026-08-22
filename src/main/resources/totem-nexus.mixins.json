@@ -13,7 +13,8 @@
     "NexusSpaceUnitTeleportTargetAccessor"
   ],
   "client": [
-    "client.NexusSpaceUnitMapScreenMixin"
+    "client.NexusSpaceUnitMapScreenMixin",
+    "client.NexusSpaceUnitMaterialReferenceMixin"
   ],
   "injectors": {
     "defaultRequire": 1

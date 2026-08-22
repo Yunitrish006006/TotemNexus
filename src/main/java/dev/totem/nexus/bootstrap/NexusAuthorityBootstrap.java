@@ -3,6 +3,7 @@ package dev.totem.nexus.bootstrap;
 import dev.totem.core.api.v1.death.DeathBackpackNodeLifecycle;
 import dev.totem.core.api.v1.death.DeathRetainedItemPolicy;
 import dev.totem.nexus.network.NexusAuthorityPayloadHandler;
+import dev.totem.nexus.network.NexusMaterialCatalogNetworking;
 import dev.totem.nexus.network.NexusPayloadRegistration;
 import dev.totem.nexus.space.NexusDeathBackpackNodeAdapter;
 import dev.totem.nexus.space.NexusDeathNodeAdminAuthority;
@@ -46,6 +47,7 @@ public final class NexusAuthorityBootstrap {
         NexusSpaceUnitAuthority.register();
         NexusPayloadRegistration.registerServerboundTypes();
         NexusPayloadRegistration.registerClientboundTypes();
+        NexusMaterialCatalogNetworking.register();
         NexusPayloadRegistration.registerReceivers(new NexusAuthorityPayloadHandler(authority));
         NexusPayloadRegistration.registerDeathNodeAdminReceivers(new NexusDeathNodeAdminAuthority());
         NexusSpaceUnitRefreshNetworking.register();

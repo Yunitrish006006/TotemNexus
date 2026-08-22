@@ -18,7 +18,7 @@ import net.minecraft.world.item.component.WrittenBookContent;
 import java.util.List;
 import java.util.stream.IntStream;
 
-/** Verifies the server-side book conversion used by lodestone interaction. */
+/** Verifies the server-side unified manual conversion used by lodestone interaction. */
 public final class NexusTeleportManualGameTest {
     @GameTest(maxTicks = 20)
     public void basicGuideIsGrantedExactlyOnce(GameTestHelper helper) {
@@ -122,21 +122,21 @@ public final class NexusTeleportManualGameTest {
     }
 
     @GameTest(maxTicks = 20)
-    public void activeModuleGuideConsolidatesOffhandGuide(GameTestHelper helper) {
+    public void moduleRefreshPreservesActiveGuideAndOtherCanonicalBook(GameTestHelper helper) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         try {
             ItemStack primary = NexusTeleportManual.create();
+            ItemStack other = NexusTeleportManual.create();
             primary.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
             player.setItemInHand(InteractionHand.MAIN_HAND, primary);
-            player.setItemInHand(InteractionHand.OFF_HAND, NexusTeleportManual.create());
+            player.setItemInHand(InteractionHand.OFF_HAND, other);
             if (!NexusTeleportManual.grant(player, InteractionHand.MAIN_HAND)
-                    || !TotemManualAssembler.isCanonical(player.getMainHandItem())
-                    || !player.getMainHandItem().getOrDefault(
-                            DataComponents.ENCHANTMENT_GLINT_OVERRIDE,
-                            false
-                    )
-                    || !player.getOffhandItem().isEmpty()) {
-                helper.fail("Module refresh did not preserve the active guide and consolidate the offhand guide");
+                    || player.getMainHandItem() != primary
+                    || !TotemManualAssembler.isCanonical(primary)
+                    || !primary.getOrDefault(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, false)
+                    || player.getOffhandItem() != other
+                    || !TotemManualAssembler.isCanonical(other)) {
+                helper.fail("Unified manual refresh destructively replaced or consumed an existing canonical book");
                 return;
             }
             helper.succeed();
@@ -146,35 +146,35 @@ public final class NexusTeleportManualGameTest {
     }
 
     @GameTest(maxTicks = 20)
-    public void basicGuideRemainsSeparateFromGrantedModuleGuide(GameTestHelper helper) {
+    public void basicGuideReceivesNexusChapterInPlace(GameTestHelper helper) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         try {
             ItemStack basicGuide = TotemManualAssembler.create(List.of(TotemManualOnboarding.SECTION));
             player.setItemInHand(InteractionHand.MAIN_HAND, basicGuide);
             if (!NexusTeleportManual.grant(player, InteractionHand.MAIN_HAND)) {
-                helper.fail("Basic guide did not act as a reusable Nexus recording reference");
-                return;
-            }
-            if (player.getMainHandItem() != basicGuide
-                    || !TotemManualAssembler.sections(basicGuide).stream()
-                    .map(section -> section.id())
-                    .toList()
-                    .equals(List.of(TotemManualOnboarding.SECTION_ID))) {
-                helper.fail("Granting the Nexus guide modified or replaced the basic guide");
+                helper.fail("Basic guide did not accept the Nexus chapter");
                 return;
             }
 
-            List<Identifier> nexusSection = List.of(Identifier.parse("totem:nexus/teleport"));
-            long targetGuides = IntStream.range(0, player.getInventory().getContainerSize())
+            List<Identifier> sectionIds = TotemManualAssembler.sections(basicGuide).stream()
+                    .map(section -> section.id())
+                    .toList();
+            List<Identifier> expected = List.of(
+                    TotemManualOnboarding.SECTION_ID,
+                    Identifier.parse("totem:nexus/teleport")
+            );
+            if (player.getMainHandItem() != basicGuide || !sectionIds.equals(expected)) {
+                helper.fail("Nexus chapter was not appended to the existing shared manual: " + sectionIds);
+                return;
+            }
+
+            long otherCanonicalGuides = IntStream.range(0, player.getInventory().getContainerSize())
                     .mapToObj(player.getInventory()::getItem)
+                    .filter(stack -> stack != basicGuide)
                     .filter(TotemManualAssembler::isCanonical)
-                    .filter(stack -> TotemManualAssembler.sections(stack).stream()
-                            .map(section -> section.id())
-                            .toList()
-                            .equals(nexusSection))
                     .count();
-            if (targetGuides != 1) {
-                helper.fail("Expected one separate Nexus guide, found " + targetGuides);
+            if (otherCanonicalGuides != 0) {
+                helper.fail("Granting Nexus created a separate module guide instead of extending the shared manual");
                 return;
             }
             helper.succeed();
@@ -184,15 +184,21 @@ public final class NexusTeleportManualGameTest {
     }
 
     @GameTest(maxTicks = 20)
-    public void assembledPageCountMatchesInstalledManualSections(GameTestHelper helper) {
+    public void physicalBookStaysTinyWhileVirtualPagesContainNexusChapter(GameTestHelper helper) {
         ItemStack manual = NexusTeleportManual.create();
         WrittenBookContent content = manual.get(DataComponents.WRITTEN_BOOK_CONTENT);
-        int expectedPages = 21;
-        if (content == null || content.pages().size() != expectedPages) {
+        int expectedPhysicalPages = 2;
+        int expectedVirtualPages = 21;
+        int virtualPages = TotemManualAssembler.virtualPages(TotemManualAssembler.sections(manual)).size();
+        if (content == null || content.pages().size() != expectedPhysicalPages) {
             helper.fail(
-                    "Expected " + expectedPages + " assembled pages, got "
+                    "Expected " + expectedPhysicalPages + " physical metadata pages, got "
                             + (content == null ? "no content" : content.pages().size())
             );
+            return;
+        }
+        if (virtualPages != expectedVirtualPages) {
+            helper.fail("Expected " + expectedVirtualPages + " virtual Nexus pages, got " + virtualPages);
             return;
         }
         helper.succeed();
