@@ -25,5 +25,21 @@
   "message.deadrecall.space_unit.material_reference.cooldown": "Cooldown recovery %s",
   "message.deadrecall.space_unit.material_reference.load": "Route load %s",
   "message.deadrecall.space_unit.material_reference.catalyst": "Cross-dimension catalyst %s",
-  "message.deadrecall.space_unit.material_reference.affinity": "Dimension affinity: %s"
+  "message.deadrecall.space_unit.material_reference.affinity": "Dimension affinity: %s",
+
+  "book.deadrecall.nexus_teleport_manual.page.19": "§lSpecialist Materials: Backbone§r\nLong-lived arrays should prioritize capacity, stability, and wear resistance. The list below ranks the strongest structural backbone materials from the current server profile set.",
+  "book.deadrecall.nexus_teleport_manual.page.20": "§lSpecialist Materials: Expansion§r\nExpansion extends array reach and scanning capability. Pair high-expansion blocks with enough capacity and stability rather than maximizing reach alone.",
+  "book.deadrecall.nexus_teleport_manual.page.21": "§lSpecialist Materials: Precision§r\nArrival accuracy reduces landing drift while target lock favors long-range and cross-dimension routes. This page prioritizes materials that support both.",
+  "book.deadrecall.nexus_teleport_manual.page.22": "§lSpecialist Materials: Fast Routes§r\nPhase speed and cooldown recovery improve route throughput. Fast materials often trade away interference resistance, safety, or durability, so mix them with stabilizers.",
+  "book.deadrecall.nexus_teleport_manual.page.23": "§lSpecialist Materials: Efficiency§r\nFood efficiency suits frequent travel while maintenance efficiency favors public and long-lived nodes. The current server's most economical materials are ranked below.",
+  "book.deadrecall.nexus_teleport_manual.page.24": "§lSpecialist Materials: Cross-Dimension§r\nCatalyst units reduce amethyst cost while dimension affinity favors specific routes. Recommendations consider catalyst strength, affinity, stability, and safety together.",
+  "book.deadrecall.nexus_specialist.loading": "Requesting specialist material recommendations from the server…",
+  "book.deadrecall.nexus_specialist.none": "No current material profile specializes in this role.",
+  "book.deadrecall.nexus_specialist.server_revision": "Server material revision %s · live ranking",
+  "book.deadrecall.nexus_specialist.metrics.backbone": "Cap %s  Stab %s  Wear %s",
+  "book.deadrecall.nexus_specialist.metrics.expansion": "Exp %s  Cap %s",
+  "book.deadrecall.nexus_specialist.metrics.precision": "Acc %s  Lock %s",
+  "book.deadrecall.nexus_specialist.metrics.speed": "Speed %s  CD %s",
+  "book.deadrecall.nexus_specialist.metrics.efficiency": "Food %s  Maint %s",
+  "book.deadrecall.nexus_specialist.metrics.cross_dimension": "Cat %s  Aff %s"
 }
