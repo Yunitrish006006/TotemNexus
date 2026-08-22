@@ -22,11 +22,11 @@ public final class NexusManualVisualGameTest implements FabricClientGameTest {
 
     @Override
     public void runTest(ClientGameTestContext context) {
-        selectLanguage(context, "zh_tw", "Nexus 傳送陣");
+        selectLanguage(context, "zh_tw", "Nexus 傳送陣", "專精材料");
         context.getInput().resizeWindow(1280, 720);
         captureManual(context, "nexus-manual-spread");
 
-        selectLanguage(context, "en_us", "Nexus Teleport Arrays");
+        selectLanguage(context, "en_us", "Nexus Teleport Arrays", "Specialist");
         context.getInput().resizeWindow(1279, 720);
         context.getInput().resizeWindow(1280, 720);
         captureManual(context, "nexus-manual-en-us-spread");
@@ -35,7 +35,8 @@ public final class NexusManualVisualGameTest implements FabricClientGameTest {
     private static void selectLanguage(
             ClientGameTestContext context,
             String language,
-            String expectedTitle
+            String expectedTitle,
+            String expectedSpecialistText
     ) {
         AtomicReference<CompletableFuture<Void>> reload = new AtomicReference<>();
         context.runOnClient(client -> {
@@ -49,6 +50,10 @@ public final class NexusManualVisualGameTest implements FabricClientGameTest {
             String title = I18n.get("book.deadrecall.nexus_teleport_manual.title");
             if (!title.equals(expectedTitle)) {
                 throw new AssertionError(language + " Nexus manual resources were not loaded: " + title);
+            }
+            String specialist = I18n.get("book.deadrecall.nexus_teleport_manual.page.19");
+            if (!specialist.contains(expectedSpecialistText)) {
+                throw new AssertionError(language + " specialist material page was not loaded: " + specialist);
             }
             client.options.guiScale().set(3);
         });
