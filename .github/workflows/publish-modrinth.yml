@@ -23,7 +23,7 @@ concurrency:
 
 env:
   MODULE_ID: totem-nexus
-  CORE_REF: 22a8c6a2b753d9832b3296ece5b80ec6e8595f80
+  CORE_REF: d6570474056a6dc8eff9f94527e633c9c7cc4d91
 
 jobs:
   publish:
@@ -89,7 +89,7 @@ jobs:
           chmod +x .lockstep/TotemCore/gradlew
           ./.lockstep/TotemCore/gradlew -p .lockstep/TotemCore jar --no-daemon --stacktrace
           core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
-          test "$core_version" = '0.7.3'
+          test "$core_version" = '0.7.4'
           core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
           test -f "$core_jar"
           ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" -PtotemCoreJar="$core_jar" jar --no-daemon --stacktrace
