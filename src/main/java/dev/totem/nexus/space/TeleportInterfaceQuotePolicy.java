@@ -5,7 +5,11 @@ public final class TeleportInterfaceQuotePolicy {
     public static final int MAX_FOOD_COST = 20;
     public static final int MAX_PREPARE_TICKS = 300;
     public static final int MAX_DEVIATION = 96;
-    public static final int MAX_WEAR_CHANCE_PERCENT = 60;
+    /**
+     * Material wear modifiers are applied after interface specialization and can raise structural wear above
+     * the legacy 60% damage cap. Keep the structural-wear contract at the natural percentage ceiling.
+     */
+    public static final int MAX_WEAR_CHANCE_PERCENT = 100;
     private static final int BOOK_MIN_PREPARE_TICKS = 30;
     private TeleportInterfaceQuotePolicy() { }
     public static Quote specialize(TeleportInterfaceType interfaceType, SpaceUnitType targetType, boolean targetOwnedByPlayer,
