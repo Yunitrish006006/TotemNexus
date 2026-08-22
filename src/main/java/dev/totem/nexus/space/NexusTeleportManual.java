@@ -1,7 +1,6 @@
 package dev.totem.nexus.space;
 
 import dev.totem.core.api.v1.manual.TotemManualAssembler;
-import dev.totem.core.api.v1.manual.TotemManualChapterRecorder;
 import dev.totem.core.api.v1.manual.TotemManualLifecycle;
 import dev.totem.core.api.v1.manual.TotemManualPlayerHelper;
 import dev.totem.core.api.v1.manual.TotemManualRegistry;
@@ -66,12 +65,12 @@ public final class NexusTeleportManual {
         return TotemManualAssembler.create(List.of(SECTION));
     }
 
-    /** Records the Nexus chapter into an existing Totem Manual and migrates exact legacy guides. */
+    /** Delegates lodestone acquisition and exact legacy migration to Core. */
     public static boolean grant(ServerPlayer player, InteractionHand hand) {
         if (player == null || hand == null) {
             return false;
         }
-        return TotemManualChapterRecorder.acquireSections(
+        return TotemManualPlayerHelper.acquireSections(
                 player,
                 hand,
                 List.of(SECTION),
