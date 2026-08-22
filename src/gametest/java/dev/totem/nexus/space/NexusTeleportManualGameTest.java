@@ -188,7 +188,7 @@ public final class NexusTeleportManualGameTest {
         ItemStack manual = NexusTeleportManual.create();
         WrittenBookContent content = manual.get(DataComponents.WRITTEN_BOOK_CONTENT);
         int expectedPhysicalPages = 2;
-        int expectedVirtualPages = 21;
+        int expectedVirtualPages = NexusTeleportManual.pageKeys().size() + 3;
         int virtualPages = TotemManualAssembler.virtualPages(TotemManualAssembler.sections(manual)).size();
         if (content == null || content.pages().size() != expectedPhysicalPages) {
             helper.fail(
