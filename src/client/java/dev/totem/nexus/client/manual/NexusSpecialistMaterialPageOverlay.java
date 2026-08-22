@@ -150,7 +150,7 @@ public final class NexusSpecialistMaterialPageOverlay {
         if (worst < 0) {
             Component penalty = Component.literal("▼" + worst);
             context.graphics().text(context.font(), penalty,
-                    context.pageLeft() + 139, y + 1, WARN, false);
+                    context.pageLeft() + 158, y + 1, WARN, false);
         }
     }
 
@@ -301,7 +301,7 @@ public final class NexusSpecialistMaterialPageOverlay {
 
             @Override
             int score(MaterialCatalogPayload.Entry entry) {
-                return entry.attribute("cross_dimension_catalyst_units") * 6
+                return entry.attribute("cross_dimension_catalyst_units") * 12
                         + maxAffinity(entry) * 2
                         + entry.attribute("stability")
                         + entry.attribute("arrival_safety");
@@ -309,9 +309,11 @@ public final class NexusSpecialistMaterialPageOverlay {
 
             @Override
             Component metrics(MaterialCatalogPayload.Entry entry) {
-                return Component.translatable(metricKey,
+                return Component.translatable(
+                        "book.deadrecall.nexus_specialist.metrics.cross_dimension",
                         signed(entry.attribute("cross_dimension_catalyst_units")),
-                        signed(maxAffinity(entry)));
+                        signed(maxAffinity(entry))
+                );
             }
         };
 
