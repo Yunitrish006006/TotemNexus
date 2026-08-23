@@ -18,7 +18,7 @@ import net.minecraft.world.item.component.WrittenBookContent;
 import java.util.List;
 import java.util.stream.IntStream;
 
-/** Verifies the server-side unified manual conversion used by lodestone interaction. */
+/** Verifies that Nexus no longer exposes a new-manual source while exact legacy manuals still migrate. */
 public final class NexusTeleportManualGameTest {
     @GameTest(maxTicks = 20)
     public void basicGuideIsGrantedExactlyOnce(GameTestHelper helper) {
@@ -46,13 +46,6 @@ public final class NexusTeleportManualGameTest {
                 helper.fail("Basic guide grant repeated or did not create exactly one guide");
                 return;
             }
-            long secondCount = player.getInventory().getNonEquipmentItems().stream()
-                    .filter(TotemManualAssembler::isCanonical)
-                    .count();
-            if (secondCount != 1) {
-                helper.fail("Reconnect-style onboarding check duplicated the basic guide");
-                return;
-            }
             helper.succeed();
         } finally {
             player.discard();
@@ -60,28 +53,23 @@ public final class NexusTeleportManualGameTest {
     }
 
     @GameTest(maxTicks = 20)
-    public void lodestoneManualConversionReplacesOnePlainBook(GameTestHelper helper) {
+    public void plainBookAndCurrentManualAreNotNexusSourceRequests(GameTestHelper helper) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         try {
-            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.BOOK));
-            if (!NexusTeleportManual.grant(player, InteractionHand.MAIN_HAND)) {
-                helper.fail("Plain book did not become a Nexus teleport manual");
+            ItemStack plainBook = new ItemStack(Items.BOOK);
+            player.setItemInHand(InteractionHand.MAIN_HAND, plainBook);
+            if (NexusTeleportManual.isManualRequest(plainBook)
+                    || NexusTeleportManual.grant(player, InteractionHand.MAIN_HAND)
+                    || player.getMainHandItem() != plainBook) {
+                helper.fail("Nexus still accepted a plain book as a lodestone chapter source");
                 return;
             }
 
-            ItemStack converted = player.getMainHandItem();
-            if (!converted.is(Items.WRITTEN_BOOK)
-                    || converted.get(DataComponents.WRITTEN_BOOK_CONTENT) == null
-                    || !TotemManualAssembler.isCanonical(converted)) {
-                helper.fail("Manual conversion did not leave a written guide in the active hand");
-                return;
-            }
-            var advancement = player.level().getServer().getAdvancements().get(
-                    Identifier.fromNamespaceAndPath("deadrecall", "nexus_manual")
-            );
-            if (advancement == null
-                    || !player.getAdvancements().getOrStartProgress(advancement).isDone()) {
-                helper.fail("Obtaining the Nexus guide did not award its module advancement");
+            ItemStack currentManual = TotemManualAssembler.create(List.of(TotemManualOnboarding.SECTION));
+            player.setItemInHand(InteractionHand.MAIN_HAND, currentManual);
+            if (NexusTeleportManual.isManualRequest(currentManual)
+                    || NexusTeleportManual.grant(player, InteractionHand.MAIN_HAND)) {
+                helper.fail("Nexus still accepted the shared Totem Manual as a lodestone chapter source");
                 return;
             }
             helper.succeed();
@@ -91,15 +79,15 @@ public final class NexusTeleportManualGameTest {
     }
 
     @GameTest(maxTicks = 20)
-    public void exactLegacyGuideMigratesButTitleOnlyBookDoesNot(GameTestHelper helper) {
+    public void exactLegacyGuideStillMigratesButTitleOnlyBookDoesNot(GameTestHelper helper) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         try {
             ItemStack legacy = legacyManual();
             player.setItemInHand(InteractionHand.MAIN_HAND, legacy);
-            if (!NexusTeleportManual.isLegacyManual(legacy)
+            if (!NexusTeleportManual.isManualRequest(legacy)
                     || !NexusTeleportManual.grant(player, InteractionHand.MAIN_HAND)
                     || !TotemManualAssembler.isCanonical(player.getMainHandItem())) {
-                helper.fail("Exact generated legacy guide did not migrate");
+                helper.fail("Exact generated legacy Nexus guide did not migrate");
                 return;
             }
 
@@ -111,70 +99,9 @@ public final class NexusTeleportManualGameTest {
                     java.util.List.of(),
                     false
             ));
-            if (NexusTeleportManual.isLegacyManual(titleOnly)) {
-                helper.fail("A player-authored title-only book matched the legacy signature");
-                return;
-            }
-            helper.succeed();
-        } finally {
-            player.discard();
-        }
-    }
-
-    @GameTest(maxTicks = 20)
-    public void moduleRefreshPreservesActiveGuideAndOtherCanonicalBook(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        try {
-            ItemStack primary = NexusTeleportManual.create();
-            ItemStack other = NexusTeleportManual.create();
-            primary.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
-            player.setItemInHand(InteractionHand.MAIN_HAND, primary);
-            player.setItemInHand(InteractionHand.OFF_HAND, other);
-            if (!NexusTeleportManual.grant(player, InteractionHand.MAIN_HAND)
-                    || player.getMainHandItem() != primary
-                    || !TotemManualAssembler.isCanonical(primary)
-                    || !primary.getOrDefault(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, false)
-                    || player.getOffhandItem() != other
-                    || !TotemManualAssembler.isCanonical(other)) {
-                helper.fail("Unified manual refresh destructively replaced or consumed an existing canonical book");
-                return;
-            }
-            helper.succeed();
-        } finally {
-            player.discard();
-        }
-    }
-
-    @GameTest(maxTicks = 20)
-    public void basicGuideReceivesNexusChapterInPlace(GameTestHelper helper) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        try {
-            ItemStack basicGuide = TotemManualAssembler.create(List.of(TotemManualOnboarding.SECTION));
-            player.setItemInHand(InteractionHand.MAIN_HAND, basicGuide);
-            if (!NexusTeleportManual.grant(player, InteractionHand.MAIN_HAND)) {
-                helper.fail("Basic guide did not accept the Nexus chapter");
-                return;
-            }
-
-            List<Identifier> sectionIds = TotemManualAssembler.sections(basicGuide).stream()
-                    .map(section -> section.id())
-                    .toList();
-            List<Identifier> expected = List.of(
-                    TotemManualOnboarding.SECTION_ID,
-                    Identifier.parse("totem:nexus/teleport")
-            );
-            if (player.getMainHandItem() != basicGuide || !sectionIds.equals(expected)) {
-                helper.fail("Nexus chapter was not appended to the existing shared manual: " + sectionIds);
-                return;
-            }
-
-            long otherCanonicalGuides = IntStream.range(0, player.getInventory().getContainerSize())
-                    .mapToObj(player.getInventory()::getItem)
-                    .filter(stack -> stack != basicGuide)
-                    .filter(TotemManualAssembler::isCanonical)
-                    .count();
-            if (otherCanonicalGuides != 0) {
-                helper.fail("Granting Nexus created a separate module guide instead of extending the shared manual");
+            if (NexusTeleportManual.isLegacyManual(titleOnly)
+                    || NexusTeleportManual.isManualRequest(titleOnly)) {
+                helper.fail("A player-authored title-only book matched the legacy Nexus signature");
                 return;
             }
             helper.succeed();
@@ -191,10 +118,7 @@ public final class NexusTeleportManualGameTest {
         int expectedVirtualPages = NexusTeleportManual.pageKeys().size() + 3;
         int virtualPages = TotemManualAssembler.virtualPages(TotemManualAssembler.sections(manual)).size();
         if (content == null || content.pages().size() != expectedPhysicalPages) {
-            helper.fail(
-                    "Expected " + expectedPhysicalPages + " physical metadata pages, got "
-                            + (content == null ? "no content" : content.pages().size())
-            );
+            helper.fail("Expected two physical metadata pages for the Nexus section");
             return;
         }
         if (virtualPages != expectedVirtualPages) {
@@ -216,9 +140,7 @@ public final class NexusTeleportManualGameTest {
                 0,
                 IntStream.rangeClosed(1, 7)
                         .mapToObj(page -> Filterable.<Component>passThrough(
-                                Component.translatable(
-                                        "book.deadrecall.nexus_teleport_manual.page." + page
-                                )
+                                Component.translatable("book.deadrecall.nexus_teleport_manual.page." + page)
                         ))
                         .toList(),
                 false

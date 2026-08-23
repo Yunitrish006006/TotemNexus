@@ -12,7 +12,7 @@
     "announce_to_chat": false,
     "background": "minecraft:gui/advancements/backgrounds/end",
     "description": {
-      "translate": "advancements.deadrecall.nexus_root.description"
+      "translate": "advancements.deadrecall.nexus_lodestone_anchor.description"
     },
     "icon": {
       "id": "minecraft:lodestone"
