@@ -28,7 +28,9 @@ public final class NexusTeleportManual {
     private static final Identifier MANUAL_ADVANCEMENT =
             Identifier.fromNamespaceAndPath("deadrecall", "nexus_manual");
 
-    private static final List<String> PAGE_KEYS = IntStream.rangeClosed(1, 24)
+    // Page 1 was the obsolete "book -> lodestone -> manual" acquisition tutorial.
+    // Core now owns acquisition/source instructions, so the live Nexus chapter begins at setup page 2.
+    private static final List<String> PAGE_KEYS = IntStream.rangeClosed(2, 24)
             .mapToObj(page -> "book.deadrecall.nexus_teleport_manual.page." + page)
             .toList();
     private static final TotemManualSection SECTION = new TotemManualSection(
