@@ -18,7 +18,7 @@ import net.minecraft.world.item.component.WrittenBookContent;
 import java.util.List;
 import java.util.stream.IntStream;
 
-/** Verifies that Nexus no longer exposes a new-manual source while exact legacy manuals still migrate. */
+/** Verifies lodestone recording while acquisition instructions remain Core-owned. */
 public final class NexusTeleportManualGameTest {
     @GameTest(maxTicks = 20)
     public void basicGuideIsGrantedExactlyOnce(GameTestHelper helper) {
@@ -53,23 +53,66 @@ public final class NexusTeleportManualGameTest {
     }
 
     @GameTest(maxTicks = 20)
-    public void plainBookAndCurrentManualAreNotNexusSourceRequests(GameTestHelper helper) {
+    public void plainBookRecordsSharedManualWithNexusChapter(GameTestHelper helper) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         try {
             ItemStack plainBook = new ItemStack(Items.BOOK);
             player.setItemInHand(InteractionHand.MAIN_HAND, plainBook);
-            if (NexusTeleportManual.isManualRequest(plainBook)
-                    || NexusTeleportManual.grant(player, InteractionHand.MAIN_HAND)
-                    || player.getMainHandItem() != plainBook) {
-                helper.fail("Nexus still accepted a plain book as a lodestone chapter source");
+            if (!NexusTeleportManual.isManualRequest(plainBook)
+                    || !NexusTeleportManual.grant(player, InteractionHand.MAIN_HAND)) {
+                helper.fail("Plain book was not accepted at the Nexus lodestone source");
                 return;
             }
 
+            ItemStack converted = player.getMainHandItem();
+            List<Identifier> sectionIds = TotemManualAssembler.sections(converted).stream()
+                    .map(section -> section.id())
+                    .toList();
+            List<Identifier> expected = List.of(
+                    TotemManualOnboarding.SECTION_ID,
+                    Identifier.parse("totem:nexus/teleport")
+            );
+            if (!TotemManualAssembler.isCanonical(converted) || !sectionIds.equals(expected)) {
+                helper.fail("Plain book did not become the shared manual with Core + Nexus: " + sectionIds);
+                return;
+            }
+            helper.succeed();
+        } finally {
+            player.discard();
+        }
+    }
+
+    @GameTest(maxTicks = 20)
+    public void existingSharedManualReceivesNexusChapterInPlace(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        try {
             ItemStack currentManual = TotemManualAssembler.create(List.of(TotemManualOnboarding.SECTION));
             player.setItemInHand(InteractionHand.MAIN_HAND, currentManual);
-            if (NexusTeleportManual.isManualRequest(currentManual)
-                    || NexusTeleportManual.grant(player, InteractionHand.MAIN_HAND)) {
-                helper.fail("Nexus still accepted the shared Totem Manual as a lodestone chapter source");
+            if (!NexusTeleportManual.isManualRequest(currentManual)
+                    || !NexusTeleportManual.grant(player, InteractionHand.MAIN_HAND)) {
+                helper.fail("Existing shared manual was not accepted at the Nexus lodestone source");
+                return;
+            }
+
+            List<Identifier> sectionIds = TotemManualAssembler.sections(currentManual).stream()
+                    .map(section -> section.id())
+                    .toList();
+            List<Identifier> expected = List.of(
+                    TotemManualOnboarding.SECTION_ID,
+                    Identifier.parse("totem:nexus/teleport")
+            );
+            if (player.getMainHandItem() != currentManual || !sectionIds.equals(expected)) {
+                helper.fail("Nexus chapter was not appended to the existing shared manual: " + sectionIds);
+                return;
+            }
+
+            long otherCanonicalGuides = IntStream.range(0, player.getInventory().getContainerSize())
+                    .mapToObj(player.getInventory()::getItem)
+                    .filter(stack -> stack != currentManual)
+                    .filter(TotemManualAssembler::isCanonical)
+                    .count();
+            if (otherCanonicalGuides != 0) {
+                helper.fail("Recording Nexus created a second Totem Manual");
                 return;
             }
             helper.succeed();
