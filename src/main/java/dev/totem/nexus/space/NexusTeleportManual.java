@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
 
-/** Nexus section plus a legacy-only migration bridge for old standalone Nexus manuals. */
+/** Nexus section and legacy migration bridge for the shared Totem Manual. */
 public final class NexusTeleportManual {
     private static final String TITLE = "Nexus Teleport Manual";
     private static final String AUTHOR = "Totem Nexus";
@@ -28,8 +28,8 @@ public final class NexusTeleportManual {
     private static final Identifier MANUAL_ADVANCEMENT =
             Identifier.fromNamespaceAndPath("deadrecall", "nexus_manual");
 
-    // Page 1 was the obsolete "book -> lodestone -> manual" acquisition tutorial.
-    // Core now owns acquisition/source instructions, so the live Nexus chapter begins at setup page 2.
+    // Page 1 used to duplicate acquisition instructions. TotemCore's starter guide is now the
+    // canonical source index, while the actual lodestone source remains supported here.
     private static final List<String> PAGE_KEYS = IntStream.rangeClosed(2, 24)
             .mapToObj(page -> "book.deadrecall.nexus_teleport_manual.page." + page)
             .toList();
@@ -52,12 +52,12 @@ public final class NexusTeleportManual {
         TotemManualLifecycle.registerLoginRefresh();
     }
 
-    /**
-     * Lodestones are no longer a Nexus chapter source. This remains true only for exact legacy
-     * standalone Nexus manuals so old saves can still migrate them into the shared Totem Manual.
-     */
+    /** A lodestone may record Nexus into a plain book, the shared manual, or an exact legacy guide. */
     public static boolean isManualRequest(ItemStack stack) {
-        return isLegacyManual(stack);
+        return TotemManualPlayerHelper.supportsSourceInteraction(
+                stack,
+                NexusTeleportManual::isLegacyManual
+        );
     }
 
     static List<String> pageKeys() {
@@ -68,9 +68,9 @@ public final class NexusTeleportManual {
         return TotemManualAssembler.create(List.of(SECTION));
     }
 
-    /** Legacy-only conversion; plain books and current Totem Manuals are deliberately rejected. */
+    /** Records the Nexus chapter at a lodestone, or migrates an exact legacy Nexus manual. */
     public static boolean grant(ServerPlayer player, InteractionHand hand) {
-        if (player == null || hand == null || !isLegacyManual(player.getItemInHand(hand))) {
+        if (player == null || hand == null) {
             return false;
         }
         return TotemManualPlayerHelper.acquireSections(
