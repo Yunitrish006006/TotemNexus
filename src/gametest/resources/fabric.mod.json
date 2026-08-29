@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "name": "TotemNexus GameTests",
   "environment": "*",
+  "mixins": [
+    "totem-nexus-gametest.client.mixins.json"
+  ],
   "entrypoints": {
     "fabric-gametest": [
       "dev.totem.nexus.space.NexusDistributedSpawnGameTest",
@@ -14,6 +17,7 @@
       "dev.totem.nexus.space.TeleportRouteReservationGameTest"
     ],
     "fabric-client-gametest": [
+      "dev.totem.nexus.client.NexusObserverProviderClientGameTest",
       "dev.totem.nexus.client.NexusFriendsVisualGameTest",
       "dev.totem.nexus.client.NexusManualVisualGameTest",
       "dev.totem.nexus.client.TotemAdvancementsVisualGameTest",

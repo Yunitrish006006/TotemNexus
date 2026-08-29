@@ -13,7 +13,7 @@ import net.minecraft.network.chat.Component;
 import java.util.List;
 import java.util.UUID;
 
-final class NexusSpaceUnitFriendsScreen extends Screen {
+final class NexusSpaceUnitFriendsScreen extends NexusOwnedScreen {
     static NexusSpaceUnitFriendsScreen CURRENT = null;
 
     private static final int PANEL_WIDTH = 330;
@@ -32,7 +32,11 @@ final class NexusSpaceUnitFriendsScreen extends Screen {
     private Button doneButton;
 
     NexusSpaceUnitFriendsScreen(Screen parent, SpaceUnitFriendsPayload payload) {
-        super(Component.translatable("message.deadrecall.space_unit.friends_title"));
+        this(parent, payload, false, () -> { });
+    }
+
+    NexusSpaceUnitFriendsScreen(Screen parent, SpaceUnitFriendsPayload payload, boolean observer, Runnable stop) {
+        super(Component.translatable("message.deadrecall.space_unit.friends_title"), observer, stop);
         this.parent = parent;
         this.payload = payload;
     }
@@ -60,7 +64,7 @@ final class NexusSpaceUnitFriendsScreen extends Screen {
         this.addRenderableWidget(this.doneButton);
 
         updateButtons();
-        if (this.payload == null) {
+        if (this.payload == null && !observerReadOnly()) {
             requestRefresh();
         }
     }
@@ -84,6 +88,8 @@ final class NexusSpaceUnitFriendsScreen extends Screen {
         this.scrollIndex = Math.min(this.scrollIndex, maxScrollIndex());
         updateButtons();
     }
+
+    SpaceUnitFriendsPayload observerPayload() { return payload; }
 
     @Override
     public void extractBackground(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
@@ -109,6 +115,7 @@ final class NexusSpaceUnitFriendsScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (observerReadOnly()) return true;
         UUID hit = entryAt(event.x(), event.y());
         if (hit != null) {
             this.selectedPlayerId = hit;
@@ -120,6 +127,7 @@ final class NexusSpaceUnitFriendsScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (observerReadOnly()) return true;
         if (!isInside(mouseX, mouseY, listX(), listY(), listWidth(), listHeight())) {
             return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
         }
@@ -136,6 +144,7 @@ final class NexusSpaceUnitFriendsScreen extends Screen {
 
     @Override
     public void onClose() {
+        if (observerReadOnly()) { closeOwnedScreen(); return; }
         if (this.minecraft != null) {
             this.minecraft.setScreenAndShow(this.parent);
         }

@@ -28,7 +28,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
-public class NexusSpaceUnitMapScreen extends Screen {
+public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     public static NexusSpaceUnitMapScreen CURRENT = null;
 
     private static final int PANEL_WIDTH = 640;
@@ -86,7 +86,11 @@ public class NexusSpaceUnitMapScreen extends Screen {
     private String expandedMaterialFamily;
 
     public NexusSpaceUnitMapScreen(SpaceUnitMapPayload payload) {
-        super(Component.translatable("container.deadrecall.space_unit.map"));
+        this(payload, false, () -> { });
+    }
+
+    NexusSpaceUnitMapScreen(SpaceUnitMapPayload payload, boolean observer, Runnable stop) {
+        super(Component.translatable("container.deadrecall.space_unit.map"), observer, stop);
         this.payload = payload;
         this.dimensions = collectDimensions(payload);
         this.activeDimension = dimensions.contains(payload.sourceDimension())
@@ -124,6 +128,8 @@ public class NexusSpaceUnitMapScreen extends Screen {
         this.listScrollIndex = Math.min(this.listScrollIndex, getMaxListScrollIndex());
         syncSelectionWithFilters();
     }
+
+    SpaceUnitMapPayload observerPayload() { return payload; }
 
     @Override
     protected void init() {
@@ -270,6 +276,7 @@ public class NexusSpaceUnitMapScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (observerReadOnly()) return true;
         if (this.showMaterials) {
             if (selectMaterialFamilyAt(event.x(), event.y())) {
                 return true;
@@ -307,6 +314,7 @@ public class NexusSpaceUnitMapScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (observerReadOnly()) return true;
         if (this.showMaterials) {
             List<SpaceUnitMapPayload.MaintenanceTarget> targets = selectedMaterial().maintenanceTargets();
             if (isInside(mouseX, mouseY, panelX() + PANEL_PADDING + 8, maintenanceListY(),
@@ -831,7 +839,10 @@ public class NexusSpaceUnitMapScreen extends Screen {
         if (selected != null && selected.dimension().equals(this.activeDimension)) {
             extractor.text(this.font, trimToWidth(selected.name(), width - 12), x + 6, y + height - 15, 0xFFE8EDF2);
         } else if (entriesForActiveDimension().isEmpty()) {
-            extractor.text(this.font, Component.translatable("message.deadrecall.space_unit.map_dimension_empty"), x + 8, y + 8, 0xFFFFC857);
+            extractor.text(this.font,
+                    trimToWidth(Component.translatable("message.deadrecall.space_unit.map_dimension_empty").getString(),
+                            Math.max(1, width - 16)),
+                    x + 8, y + 8, 0xFFFFC857);
         }
     }
 
@@ -885,7 +896,10 @@ public class NexusSpaceUnitMapScreen extends Screen {
         }
 
         if (entries.isEmpty()) {
-            extractor.text(this.font, Component.translatable("message.deadrecall.space_unit.map_dimension_empty"), x + 8, y + 28, 0xFFFFC857);
+            extractor.text(this.font,
+                    trimToWidth(Component.translatable("message.deadrecall.space_unit.map_dimension_empty").getString(),
+                            Math.max(1, width - 16)),
+                    x + 8, y + 28, 0xFFFFC857);
         } else if (entries.size() > rowsVisible) {
             drawScrollBar(extractor, x + width - 5, y + LIST_HEADER_HEIGHT,
                     Math.max(1, height - LIST_HEADER_HEIGHT - LIST_ROW_BOTTOM_GAP),
@@ -1627,11 +1641,11 @@ public class NexusSpaceUnitMapScreen extends Screen {
     }
 
     private int panelWidth() {
-        return Math.min(PANEL_WIDTH, Math.max(300, this.width - 12));
+        return Math.max(1, Math.min(PANEL_WIDTH, this.width - 12));
     }
 
     private int panelHeight() {
-        return Math.min(PANEL_HEIGHT, Math.max(250, this.height - 12));
+        return Math.max(1, Math.min(PANEL_HEIGHT, this.height - 12));
     }
 
     private int panelX() {
@@ -1687,23 +1701,23 @@ public class NexusSpaceUnitMapScreen extends Screen {
     }
 
     private int searchWidth() {
-        return Math.max(90, mapWidth());
+        return Math.max(1, (panelWidth() - PANEL_PADDING * 2) / 3);
     }
 
     private int typeFilterWidth() {
-        return Math.max(1, Math.max(1, listWidth() - 12) / 3);
+        return Math.max(1, filterControlsWidth() / 3);
     }
 
     private int friendFilterWidth() {
-        return Math.max(1, Math.max(1, listWidth() - 12) / 3);
+        return Math.max(1, filterControlsWidth() / 3);
     }
 
     private int sortWidth() {
-        return Math.max(1, listWidth() - typeFilterWidth() - friendFilterWidth() - 12);
+        return Math.max(1, filterControlsWidth() - typeFilterWidth() - friendFilterWidth());
     }
 
     private int typeFilterX() {
-        return listX();
+        return searchX() + searchWidth() + 6;
     }
 
     private int friendFilterX() {
@@ -1712,6 +1726,11 @@ public class NexusSpaceUnitMapScreen extends Screen {
 
     private int sortX() {
         return friendFilterX() + friendFilterWidth() + 6;
+    }
+
+    private int filterControlsWidth() {
+        int controlsRight = panelX() + panelWidth() - PANEL_PADDING;
+        return Math.max(3, controlsRight - typeFilterX() - 12);
     }
 
     private int favoriteButtonWidth() {

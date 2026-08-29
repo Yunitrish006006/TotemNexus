@@ -15,7 +15,7 @@ import net.minecraft.network.chat.Component;
 import java.util.List;
 import java.util.UUID;
 
-public final class NexusDeathNodeAdminScreen extends Screen {
+public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
     public static NexusDeathNodeAdminScreen CURRENT;
 
     private static final int PANEL_WIDTH = 620;
@@ -50,7 +50,11 @@ public final class NexusDeathNodeAdminScreen extends Screen {
     private Button doneButton;
 
     public NexusDeathNodeAdminScreen(DeathNodeAdminPayload payload) {
-        super(Component.translatable("container.deadrecall.death_node_admin"));
+        this(payload, false, () -> { });
+    }
+
+    NexusDeathNodeAdminScreen(DeathNodeAdminPayload payload, boolean observer, Runnable stop) {
+        super(Component.translatable("container.deadrecall.death_node_admin"), observer, stop);
         this.payload = payload;
         this.selectedNodeId = payload.entries().stream().findFirst().map(DeathNodeAdminPayload.Entry::id).orElse(null);
         CURRENT = this;
@@ -163,6 +167,8 @@ public final class NexusDeathNodeAdminScreen extends Screen {
         updateButtons();
     }
 
+    DeathNodeAdminPayload observerPayload() { return payload; }
+
     @Override
     public void extractBackground(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
         extractor.fill(0, 0, this.width, this.height, 0xA0000000);
@@ -192,6 +198,7 @@ public final class NexusDeathNodeAdminScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (observerReadOnly()) return true;
         UUID hit = entryAt(event.x(), event.y());
         if (hit != null) {
             this.selectedNodeId = hit;
@@ -203,6 +210,7 @@ public final class NexusDeathNodeAdminScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (observerReadOnly()) return true;
         if (!isInside(mouseX, mouseY, listX(), listY(), listWidth(), listHeight())) {
             return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
         }
@@ -631,11 +639,11 @@ public final class NexusDeathNodeAdminScreen extends Screen {
     }
 
     private int panelWidth() {
-        return Math.min(PANEL_WIDTH, Math.max(560, this.width - 12));
+        return Math.max(1, Math.min(PANEL_WIDTH, this.width - 12));
     }
 
     private int panelHeight() {
-        return Math.min(PANEL_HEIGHT, Math.max(320, this.height - 12));
+        return Math.max(1, Math.min(PANEL_HEIGHT, this.height - 12));
     }
 
     private int panelX() {
@@ -675,7 +683,7 @@ public final class NexusDeathNodeAdminScreen extends Screen {
     }
 
     private int ownerQueryWidth() {
-        return 120;
+        return this.payload.administratorView() ? scaledAdminControlWidth(120) : 0;
     }
 
     private int dimensionX() {
@@ -685,7 +693,7 @@ public final class NexusDeathNodeAdminScreen extends Screen {
     }
 
     private int dimensionWidth() {
-        return 130;
+        return this.payload.administratorView() ? scaledAdminControlWidth(130) : 130;
     }
 
     private int statusFilterX() {
@@ -693,7 +701,7 @@ public final class NexusDeathNodeAdminScreen extends Screen {
     }
 
     private int statusFilterWidth() {
-        return 96;
+        return this.payload.administratorView() ? scaledAdminControlWidth(96) : 96;
     }
 
     private int timeFilterX() {
@@ -701,7 +709,7 @@ public final class NexusDeathNodeAdminScreen extends Screen {
     }
 
     private int timeFilterWidth() {
-        return 86;
+        return this.payload.administratorView() ? scaledAdminControlWidth(86) : 86;
     }
 
     private int footerY() {
@@ -726,6 +734,12 @@ public final class NexusDeathNodeAdminScreen extends Screen {
 
     private int refreshWidth() {
         return 60;
+    }
+
+    private int scaledAdminControlWidth(int preferredWidth) {
+        int innerWidth = Math.max(1, panelWidth() - PANEL_PADDING * 2);
+        int scalableWidth = Math.max(1, innerWidth - refreshWidth() - 16);
+        return Math.max(1, preferredWidth * scalableWidth / (120 + 130 + 96 + 86));
     }
 
     private int previousPageX() {
