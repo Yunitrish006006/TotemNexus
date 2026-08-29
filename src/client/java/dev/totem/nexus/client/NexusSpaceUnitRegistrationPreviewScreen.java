@@ -8,14 +8,18 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-final class NexusSpaceUnitRegistrationPreviewScreen extends Screen {
+final class NexusSpaceUnitRegistrationPreviewScreen extends NexusOwnedScreen {
     private static final int DIALOG_WIDTH = 286;
     private static final int DIALOG_HEIGHT = 142;
 
-    private final SpaceUnitRegistrationPreviewPayload payload;
+    private SpaceUnitRegistrationPreviewPayload payload;
 
     NexusSpaceUnitRegistrationPreviewScreen(SpaceUnitRegistrationPreviewPayload payload) {
-        super(Component.translatable("message.deadrecall.space_unit.registration_gui_title"));
+        this(payload, false, () -> { });
+    }
+
+    NexusSpaceUnitRegistrationPreviewScreen(SpaceUnitRegistrationPreviewPayload payload, boolean observer, Runnable stop) {
+        super(Component.translatable("message.deadrecall.space_unit.registration_gui_title"), observer, stop);
         this.payload = payload;
     }
 
@@ -62,8 +66,12 @@ final class NexusSpaceUnitRegistrationPreviewScreen extends Screen {
         extractor.text(this.font, Component.translatable(
                 "message.deadrecall.space_unit.registration_gui_timeout",
                 this.payload.confirmSeconds()), x + 12, y + 65, 0xFFFFD166);
-        extractor.text(this.font, Component.translatable(
-                "message.deadrecall.space_unit.registration_gui_hint"), x + 12, y + 84, 0xFF93A4B5);
+        int hintY = y + 84;
+        for (var line : this.font.split(Component.translatable(
+                "message.deadrecall.space_unit.registration_gui_hint"), DIALOG_WIDTH - 24)) {
+            extractor.text(this.font, line, x + 12, hintY, 0xFF93A4B5);
+            hintY += 10;
+        }
         super.extractRenderState(extractor, mouseX, mouseY, partialTick);
     }
 
@@ -78,4 +86,7 @@ final class NexusSpaceUnitRegistrationPreviewScreen extends Screen {
         }
         onClose();
     }
+
+    SpaceUnitRegistrationPreviewPayload observerPayload() { return payload; }
+    void applyPayload(SpaceUnitRegistrationPreviewPayload payload) { this.payload = payload; }
 }

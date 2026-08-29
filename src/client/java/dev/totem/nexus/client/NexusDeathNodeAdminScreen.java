@@ -15,7 +15,7 @@ import net.minecraft.network.chat.Component;
 import java.util.List;
 import java.util.UUID;
 
-public final class NexusDeathNodeAdminScreen extends Screen {
+public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
     public static NexusDeathNodeAdminScreen CURRENT;
 
     private static final int PANEL_WIDTH = 620;
@@ -26,6 +26,8 @@ public final class NexusDeathNodeAdminScreen extends Screen {
     private static final int DETAIL_HEIGHT = 72;
     private static final int FOOTER_HEIGHT = 36;
     private static final int ROW_HEIGHT = 34;
+    private static final int COMPACT_PANEL_WIDTH = 520;
+    private static final int TELEPORT_BUTTON_WIDTH = 72;
 
     private DeathNodeAdminPayload payload;
     private UUID selectedNodeId;
@@ -50,7 +52,11 @@ public final class NexusDeathNodeAdminScreen extends Screen {
     private Button doneButton;
 
     public NexusDeathNodeAdminScreen(DeathNodeAdminPayload payload) {
-        super(Component.translatable("container.deadrecall.death_node_admin"));
+        this(payload, false, () -> { });
+    }
+
+    NexusDeathNodeAdminScreen(DeathNodeAdminPayload payload, boolean observer, Runnable stop) {
+        super(Component.translatable("container.deadrecall.death_node_admin"), observer, stop);
         this.payload = payload;
         this.selectedNodeId = payload.entries().stream().findFirst().map(DeathNodeAdminPayload.Entry::id).orElse(null);
         CURRENT = this;
@@ -114,17 +120,17 @@ public final class NexusDeathNodeAdminScreen extends Screen {
         this.addRenderableWidget(this.batchPurgeButton);
 
         this.previousPageButton = Button.builder(Component.literal("<"), button -> requestPage(this.payload.page() - 1))
-                .bounds(previousPageX(), footerY(), 40, 18)
+                .bounds(previousPageX(), footerY(), pageButtonWidth(), 18)
                 .build();
         this.addRenderableWidget(this.previousPageButton);
 
         this.nextPageButton = Button.builder(Component.literal(">"), button -> requestPage(this.payload.page() + 1))
-                .bounds(nextPageX(), footerY(), 40, 18)
+                .bounds(nextPageX(), footerY(), pageButtonWidth(), 18)
                 .build();
         this.addRenderableWidget(this.nextPageButton);
 
         this.teleportButton = Button.builder(Component.translatable("message.deadrecall.death_node_admin.teleport"), button -> teleportToSelected())
-                .bounds(teleportX(), footerY(), 60, 18)
+                .bounds(teleportX(), footerY(), TELEPORT_BUTTON_WIDTH, 18)
                 .build();
         this.addRenderableWidget(this.teleportButton);
 
@@ -163,6 +169,8 @@ public final class NexusDeathNodeAdminScreen extends Screen {
         updateButtons();
     }
 
+    DeathNodeAdminPayload observerPayload() { return payload; }
+
     @Override
     public void extractBackground(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
         extractor.fill(0, 0, this.width, this.height, 0xA0000000);
@@ -184,14 +192,19 @@ public final class NexusDeathNodeAdminScreen extends Screen {
         drawEntries(extractor, mouseX, mouseY);
         drawSelectedDetails(extractor);
         if (this.payload.truncated()) {
-            extractor.text(this.font, Component.translatable("message.deadrecall.death_node_admin.more_results").getString(),
-                    x + 106, y + height - 20, 0xFFFFC857);
+            String moreResults = Component.translatable("message.deadrecall.death_node_admin.more_results").getString();
+            int moreResultsX = nextPageX() + pageButtonWidth() + 8;
+            int firstActionX = this.payload.administratorView() ? teleportX() : purgeX();
+            if (this.font.width(moreResults) <= firstActionX - 8 - moreResultsX) {
+                extractor.text(this.font, moreResults, moreResultsX, footerY() + 5, 0xFFFFC857);
+            }
         }
         super.extractRenderState(extractor, mouseX, mouseY, partialTick);
     }
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (observerReadOnly()) return true;
         UUID hit = entryAt(event.x(), event.y());
         if (hit != null) {
             this.selectedNodeId = hit;
@@ -203,6 +216,7 @@ public final class NexusDeathNodeAdminScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (observerReadOnly()) return true;
         if (!isInside(mouseX, mouseY, listX(), listY(), listWidth(), listHeight())) {
             return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
         }
@@ -302,18 +316,21 @@ public final class NexusDeathNodeAdminScreen extends Screen {
                         "message.deadrecall.death_node_admin.details.node",
                         selected.id()).getString(),
                 x + 8, y + 32, 0xFFD2D8E0);
-        extractor.text(this.font,
-                Component.translatable(
-                        "message.deadrecall.death_node_admin.details.times",
-                        selected.createdGameTime(),
-                        selected.updatedGameTime()).getString(),
-                x + 8, y + 44, 0xFFB8C0C8);
+        String times = Component.translatable(
+                "message.deadrecall.death_node_admin.details.times",
+                selected.createdGameTime(),
+                selected.updatedGameTime()).getString();
+        extractor.text(this.font, times, x + 8, y + 44, 0xFFB8C0C8);
         if (this.payload.administratorView()) {
-            extractor.text(this.font,
-                    Component.translatable(
-                            "message.deadrecall.death_node_admin.details.diagnostics",
-                            diagnosticsText(selected)).getString(),
-                    x + width / 2, y + 44, 0xFFFFC857);
+            String diagnostics = Component.translatable(
+                    "message.deadrecall.death_node_admin.details.diagnostics",
+                    diagnosticsText(selected)).getString();
+            int contentWidth = width - 16;
+            if (this.font.width(times) + 12 + this.font.width(diagnostics) <= contentWidth) {
+                extractor.text(this.font, diagnostics, x + 20 + this.font.width(times), y + 44, 0xFFFFC857);
+            } else {
+                extractor.text(this.font, trimToWidth(diagnostics, contentWidth), x + 8, y + 56, 0xFFFFC857);
+            }
         }
     }
 
@@ -475,11 +492,13 @@ public final class NexusDeathNodeAdminScreen extends Screen {
         if (this.previousPageButton != null) {
             this.previousPageButton.setX(previousPageX());
             this.previousPageButton.setY(footerY());
+            this.previousPageButton.setWidth(pageButtonWidth());
             this.previousPageButton.active = this.payload.page() > 0;
         }
         if (this.nextPageButton != null) {
             this.nextPageButton.setX(nextPageX());
             this.nextPageButton.setY(footerY());
+            this.nextPageButton.setWidth(pageButtonWidth());
             this.nextPageButton.active = this.payload.truncated();
         }
         DeathNodeAdminPayload.Entry selected = selectedEntry();
@@ -487,6 +506,7 @@ public final class NexusDeathNodeAdminScreen extends Screen {
             this.teleportButton.visible = this.payload.administratorView();
             this.teleportButton.setX(teleportX());
             this.teleportButton.setY(footerY());
+            this.teleportButton.setWidth(TELEPORT_BUTTON_WIDTH);
             this.teleportButton.active = this.payload.administratorView() && selected != null;
         }
         if (this.disableButton != null) {
@@ -565,7 +585,9 @@ public final class NexusDeathNodeAdminScreen extends Screen {
         }
         return selected != null && this.payload.hasActivePurgeConfirmationFor(selected.id(), System.currentTimeMillis())
                 ? Component.translatable("message.deadrecall.death_node_admin.confirm_purge")
-                : Component.translatable("message.deadrecall.death_node_admin.purge");
+                : Component.translatable(panelWidth() < COMPACT_PANEL_WIDTH
+                        ? "message.deadrecall.death_node_admin.purge_compact"
+                        : "message.deadrecall.death_node_admin.purge");
     }
 
     private Component batchDisableButtonText() {
@@ -631,11 +653,11 @@ public final class NexusDeathNodeAdminScreen extends Screen {
     }
 
     private int panelWidth() {
-        return Math.min(PANEL_WIDTH, Math.max(560, this.width - 12));
+        return Math.max(1, Math.min(PANEL_WIDTH, this.width - 12));
     }
 
     private int panelHeight() {
-        return Math.min(PANEL_HEIGHT, Math.max(320, this.height - 12));
+        return Math.max(1, Math.min(PANEL_HEIGHT, this.height - 12));
     }
 
     private int panelX() {
@@ -675,7 +697,7 @@ public final class NexusDeathNodeAdminScreen extends Screen {
     }
 
     private int ownerQueryWidth() {
-        return 120;
+        return this.payload.administratorView() ? scaledAdminControlWidth(120) : 0;
     }
 
     private int dimensionX() {
@@ -685,7 +707,7 @@ public final class NexusDeathNodeAdminScreen extends Screen {
     }
 
     private int dimensionWidth() {
-        return 130;
+        return this.payload.administratorView() ? scaledAdminControlWidth(130) : 130;
     }
 
     private int statusFilterX() {
@@ -693,7 +715,7 @@ public final class NexusDeathNodeAdminScreen extends Screen {
     }
 
     private int statusFilterWidth() {
-        return 96;
+        return this.payload.administratorView() ? scaledAdminControlWidth(96) : 96;
     }
 
     private int timeFilterX() {
@@ -701,7 +723,7 @@ public final class NexusDeathNodeAdminScreen extends Screen {
     }
 
     private int timeFilterWidth() {
-        return 86;
+        return this.payload.administratorView() ? scaledAdminControlWidth(86) : 86;
     }
 
     private int footerY() {
@@ -728,12 +750,22 @@ public final class NexusDeathNodeAdminScreen extends Screen {
         return 60;
     }
 
+    private int scaledAdminControlWidth(int preferredWidth) {
+        int innerWidth = Math.max(1, panelWidth() - PANEL_PADDING * 2);
+        int scalableWidth = Math.max(1, innerWidth - refreshWidth() - 16);
+        return Math.max(1, preferredWidth * scalableWidth / (120 + 130 + 96 + 86));
+    }
+
     private int previousPageX() {
         return panelX() + PANEL_PADDING;
     }
 
     private int nextPageX() {
-        return previousPageX() + 46;
+        return previousPageX() + pageButtonWidth() + 6;
+    }
+
+    private int pageButtonWidth() {
+        return panelWidth() < COMPACT_PANEL_WIDTH ? 32 : 40;
     }
 
     private int doneX() {
@@ -749,7 +781,7 @@ public final class NexusDeathNodeAdminScreen extends Screen {
     }
 
     private int teleportX() {
-        return disableX() - 6 - 60;
+        return disableX() - 6 - TELEPORT_BUTTON_WIDTH;
     }
 
     private static boolean isInside(double mouseX, double mouseY, int x, int y, int width, int height) {
