@@ -157,7 +157,7 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                 UUID.randomUUID(), owner, "Owner", "Node " + index, "active",
                 "minecraft:overworld", 1, 64, 1, 1, 2,
                 index == 0 ? List.of("duplicate_active_location") : List.of()));
-        return new DeathNodeAdminPayload(entries, false, 1, 20, 43, 20L, true,
+        return new DeathNodeAdminPayload(entries, true, 1, 20, 43, 20L, true,
                 null, null, "", 0L);
     }
 

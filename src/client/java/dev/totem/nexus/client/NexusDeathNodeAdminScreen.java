@@ -192,8 +192,12 @@ public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
         drawEntries(extractor, mouseX, mouseY);
         drawSelectedDetails(extractor);
         if (this.payload.truncated()) {
-            extractor.text(this.font, Component.translatable("message.deadrecall.death_node_admin.more_results").getString(),
-                    x + 106, y + height - 20, 0xFFFFC857);
+            String moreResults = Component.translatable("message.deadrecall.death_node_admin.more_results").getString();
+            int moreResultsX = nextPageX() + pageButtonWidth() + 8;
+            int firstActionX = this.payload.administratorView() ? teleportX() : purgeX();
+            if (this.font.width(moreResults) <= firstActionX - 8 - moreResultsX) {
+                extractor.text(this.font, moreResults, moreResultsX, footerY() + 5, 0xFFFFC857);
+            }
         }
         super.extractRenderState(extractor, mouseX, mouseY, partialTick);
     }
