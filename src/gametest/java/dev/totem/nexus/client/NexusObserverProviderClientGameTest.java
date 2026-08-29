@@ -71,6 +71,7 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                     clientScreen(context, () -> new NexusRegistrationPreviewScreen(registration(4))),
                     "nexus-observer-owner-registration-legacy", screen ->
                             ((NexusRegistrationPreviewScreen) screen).observerPayload().tier() == 4);
+            context.getInput().resizeWindow(854, 480);
             exercise(context, death,
                     clientScreen(context, () -> new NexusDeathNodeAdminScreen(death(1))),
                     clientScreen(context, () -> new NexusDeathNodeAdminScreen(death(2))),
@@ -154,8 +155,10 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
         UUID owner = UUID.randomUUID();
         for (int index = 0; index < count; index++) entries.add(new DeathNodeAdminPayload.Entry(
                 UUID.randomUUID(), owner, "Owner", "Node " + index, "active",
-                "minecraft:overworld", 1, 64, 1, 1, 2, List.of()));
-        return new DeathNodeAdminPayload(entries, false);
+                "minecraft:overworld", 1, 64, 1, 1, 2,
+                index == 0 ? List.of("duplicate_active_location") : List.of()));
+        return new DeathNodeAdminPayload(entries, false, 1, 20, 43, 20L, true,
+                null, null, "", 0L);
     }
 
     private static ObserverScreenSnapshot foreign(ObserverScreenSnapshot source, String family,

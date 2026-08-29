@@ -57,6 +57,7 @@
   "message.deadrecall.death_node_admin.page_summary": "第 %s 頁：%s / 共 %s 個節點",
   "message.deadrecall.death_node_admin.permission_denied": "你沒有管理死亡節點的權限。",
   "message.deadrecall.death_node_admin.purge": "永久刪除",
+  "message.deadrecall.death_node_admin.purge_compact": "刪除節點",
   "message.deadrecall.death_node_admin.purge_confirmation_expired": "永久刪除確認已逾時，請重新確認。",
   "message.deadrecall.death_node_admin.purge_confirmation_issued": "永久刪除確認已啟用，請在 30 秒內再次確認。",
   "message.deadrecall.death_node_admin.purge_confirmation_mismatch": "永久刪除確認不符合目前操作。",

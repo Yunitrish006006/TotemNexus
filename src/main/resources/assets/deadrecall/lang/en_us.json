@@ -57,6 +57,7 @@
   "message.deadrecall.death_node_admin.page_summary": "Page %s: %s / %s nodes",
   "message.deadrecall.death_node_admin.permission_denied": "You do not have permission to manage death nodes.",
   "message.deadrecall.death_node_admin.purge": "Permanently delete",
+  "message.deadrecall.death_node_admin.purge_compact": "Delete node",
   "message.deadrecall.death_node_admin.purge_confirmation_expired": "The permanent-delete confirmation expired; confirm again.",
   "message.deadrecall.death_node_admin.purge_confirmation_issued": "Permanent-delete confirmation is active; confirm again within 30 seconds.",
   "message.deadrecall.death_node_admin.purge_confirmation_mismatch": "The permanent-delete confirmation does not match this operation.",
