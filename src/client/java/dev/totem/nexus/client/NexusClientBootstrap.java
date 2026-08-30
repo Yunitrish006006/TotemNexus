@@ -3,6 +3,7 @@ package dev.totem.nexus.client;
 import dev.totem.nexus.network.SpaceUnitFriendsPayload;
 import dev.totem.nexus.network.SpaceUnitMapPayload;
 import dev.totem.nexus.network.SpaceUnitRegistrationPreviewPayload;
+import dev.totem.nexus.network.TeleportArrayVisualizationPayload;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 
@@ -45,5 +46,9 @@ public final class NexusClientBootstrap {
                     Minecraft mc = context.client();
                     mc.execute(() -> mc.setScreenAndShow(new NexusSpaceUnitRegistrationPreviewScreen(payload)));
                 });
+
+        ClientPlayNetworking.registerGlobalReceiver(TeleportArrayVisualizationPayload.TYPE,
+                (payload, context) -> context.client().execute(() ->
+                        NexusArrayVisualizationClient.accept(payload)));
     }
 }

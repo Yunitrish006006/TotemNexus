@@ -22,7 +22,8 @@ public final class NexusMapSourceAuthority {
         if (source == null || !source.isLodestoneAnchor() || source.status() != SpaceUnitStatus.ACTIVE
                 || !source.canView(player.getUUID(), friends.areFriends(player.getUUID(), source.owner()))
                 || !discovery.hasDiscovered(player.getUUID(), source.id())
-                || !isWithinOpenRadius(player.level().dimension(), player.position(), source)) return Optional.empty();
+                || !isWithinOpenRadius(player.level().dimension(), player.position(), source)
+                || !player.level().isLoaded(source.pos())) return Optional.empty();
         if (!player.level().getBlockState(source.pos()).is(Blocks.LODESTONE)) {
             units.disableLodestone(source.id(), player.level().getGameTime());
             return Optional.empty();

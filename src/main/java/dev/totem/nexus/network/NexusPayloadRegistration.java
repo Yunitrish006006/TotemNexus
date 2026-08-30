@@ -38,6 +38,10 @@ public final class NexusPayloadRegistration {
         PayloadTypeRegistry.serverboundPlay().register(ConfirmSpaceUnitRegistrationPayload.TYPE, ConfirmSpaceUnitRegistrationPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RequestDeathNodeAdminPayload.TYPE, RequestDeathNodeAdminPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(ManageDeathNodeAdminPayload.TYPE, ManageDeathNodeAdminPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(
+                RequestTeleportArrayVisualizationPayload.TYPE,
+                RequestTeleportArrayVisualizationPayload.CODEC
+        );
     }
 
     /** Registers every Nexus-owned clientbound codec before a server may send it. */
@@ -52,6 +56,10 @@ public final class NexusPayloadRegistration {
                 SpaceUnitRegistrationPreviewPayload.CODEC
         );
         PayloadTypeRegistry.clientboundPlay().register(DeathNodeAdminPayload.TYPE, DeathNodeAdminPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(
+                TeleportArrayVisualizationPayload.TYPE,
+                TeleportArrayVisualizationPayload.CODEC
+        );
     }
 
     /** Activates receivers only when the complete server authority layer is cut over. */
@@ -80,6 +88,8 @@ public final class NexusPayloadRegistration {
                 (payload, context) -> context.server().execute(() -> handler.repair(context.player(), payload)));
         ServerPlayNetworking.registerGlobalReceiver(ConfirmSpaceUnitRegistrationPayload.TYPE,
                 (payload, context) -> context.server().execute(() -> handler.confirmRegistration(context.player(), payload)));
+        ServerPlayNetworking.registerGlobalReceiver(RequestTeleportArrayVisualizationPayload.TYPE,
+                (payload, context) -> context.server().execute(() -> handler.visualizeArray(context.player(), payload)));
     }
 
     /** Activates Death Node admin receivers only when their service migrates with Nexus. */

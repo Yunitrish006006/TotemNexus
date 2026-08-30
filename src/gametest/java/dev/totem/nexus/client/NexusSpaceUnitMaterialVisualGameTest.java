@@ -26,6 +26,16 @@ public final class NexusSpaceUnitMaterialVisualGameTest implements FabricClientG
             context.waitTicks(2);
             context.takeScreenshot("totem-nexus-space-unit-material-diagnostics");
             context.setScreen(() -> null);
+
+            context.setScreen(() -> {
+                NexusSpaceUnitMapScreen screen = new NexusSpaceUnitMapScreen(materialPayload(), true, () -> { });
+                screen.showMaterialDiagnosticsForVisualTest();
+                return screen;
+            });
+            context.waitForScreen(NexusSpaceUnitMapScreen.class);
+            context.waitFor(client -> ((NexusSpaceUnitMapScreen) client.gui.screen())
+                    .arrayPreviewButtonDisabledForVisualTest());
+            context.setScreen(() -> null);
         }
     }
 

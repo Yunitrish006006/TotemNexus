@@ -591,7 +591,7 @@ public class NexusSpaceUnitSavedData extends SavedData {
         return Map.copyOf(values);
     }
 
-    private static boolean isStructureBlock(BlockState state) {
+    static boolean isStructureBlock(BlockState state) {
         return state.is(SPACE_STRUCTURE_BLOCKS);
     }
 

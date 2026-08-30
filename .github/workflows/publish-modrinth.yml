@@ -23,7 +23,7 @@ concurrency:
 
 env:
   MODULE_ID: totem-nexus
-  CORE_REF: e9dc2975cca37210f9d3bab2df4830e81af77295
+  CORE_REF: d7aa9bbc441f064abaad377e2d47f9dbb7141af6
 
 jobs:
   publish:
@@ -89,7 +89,7 @@ jobs:
           chmod +x .lockstep/TotemCore/gradlew
           ./.lockstep/TotemCore/gradlew -p .lockstep/TotemCore jar --no-daemon --stacktrace
           core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
-          test "$core_version" = '0.7.12'
+          test "$core_version" = '0.7.13'
           core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
           test -f "$core_jar"
           ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" -PtotemCoreJar="$core_jar" jar --no-daemon --stacktrace
@@ -119,7 +119,7 @@ jobs:
           test -n "$MODRINTH_PROJECT_ID"
           test -f "$artifact"
           unzip -p "$artifact" fabric.mod.json >/tmp/fabric.mod.json
-          jq -e --arg id "$MODULE_ID" --arg version "$version" --arg minecraft "~${minecraft}" --arg core '>=0.7.12 <0.8.0' '.id == $id and .version == $version and .depends.minecraft == $minecraft and .depends["totem-core"] == $core' /tmp/fabric.mod.json >/dev/null
+          jq -e --arg id "$MODULE_ID" --arg version "$version" --arg minecraft "~${minecraft}" --arg core '>=0.7.13 <0.8.0' '.id == $id and .version == $version and .depends.minecraft == $minecraft and .depends["totem-core"] == $core' /tmp/fabric.mod.json >/dev/null
 
           api='https://api.modrinth.com/v2'
           ua="Yunitrish006006/${MODULE_ID}-publisher/2.0"
@@ -152,6 +152,27 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "version_id=$version_id" >> "$GITHUB_OUTPUT"
           echo "sha512=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Submit project for public review
+        if: steps.release.outputs.should_publish == 'true' && steps.release.outputs.dry_run == 'false'
+        shell: bash
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          api='https://api.modrinth.com/v2'
+          args=(--fail --silent --show-error --retry 3 -H "Authorization: ${MODRINTH_TOKEN}" -H 'User-Agent: Yunitrish006006/totem-nexus-publisher/2.0')
+          curl "${args[@]}" "$api/project/${MODRINTH_PROJECT_ID}" >/tmp/project-before-review.json
+          status="$(jq -er '.status' /tmp/project-before-review.json)"
+          if [[ "$status" != 'approved' && "$status" != 'processing' ]]; then
+            curl "${args[@]}" -X PATCH -H 'Content-Type: application/json' \
+              --data '{"requested_status":"approved"}' \
+              "$api/project/${MODRINTH_PROJECT_ID}" >/dev/null
+          fi
+          curl "${args[@]}" "$api/project/${MODRINTH_PROJECT_ID}" >/tmp/project-after-review.json
+          jq -e '.status == "approved" or .status == "processing" or .requested_status == "approved"' \
+            /tmp/project-after-review.json >/dev/null
 
       - name: Record verified publication
         if: steps.release.outputs.should_publish == 'true' && steps.release.outputs.dry_run == 'false'

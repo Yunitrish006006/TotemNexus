@@ -3,6 +3,7 @@ package dev.totem.nexus.client;
 import dev.totem.nexus.network.CalibrateSpaceUnitPayload;
 import dev.totem.nexus.network.RenameSpaceUnitPayload;
 import dev.totem.nexus.network.RequestSpaceUnitMapPayload;
+import dev.totem.nexus.network.RequestTeleportArrayVisualizationPayload;
 import dev.totem.nexus.network.RepairSpaceUnitPayload;
 import dev.totem.nexus.network.SpaceUnitMapPayload;
 import dev.totem.nexus.network.StartSpaceUnitTeleportPayload;
@@ -14,6 +15,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
@@ -77,6 +79,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     private Button teleportButton;
     private Button friendsButton;
     private Button materialButton;
+    private Button arrayPreviewButton;
     private Button repairButton;
     private Button refreshButton;
     private Button doneButton;
@@ -97,6 +100,9 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
                 ? payload.sourceDimension()
                 : dimensions.isEmpty() ? payload.sourceDimension() : dimensions.get(0);
         this.selectedUnitId = payload.sourceUnitId();
+        if (observer) {
+            NexusArrayVisualizationClient.clear();
+        }
         CURRENT = this;
     }
 
@@ -178,6 +184,12 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
                 .bounds(maintenanceButtonX(), maintenanceButtonY(), 78, 18)
                 .build();
         this.addRenderableWidget(this.repairButton);
+
+        this.arrayPreviewButton = Button.builder(arrayPreviewButtonText(), button -> toggleArrayPreview())
+                .bounds(arrayPreviewButtonX(), maintenanceButtonY(), arrayPreviewButtonWidth(), 18)
+                .tooltip(Tooltip.create(arrayPreviewTooltip()))
+                .build();
+        this.addRenderableWidget(this.arrayPreviewButton);
 
         this.favoriteButton = Button.builder(favoriteButtonText(), button -> toggleSelectedFavorite())
                 .bounds(favoriteButtonX(), favoriteButtonY(), favoriteButtonWidth(), 18)
@@ -507,9 +519,58 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         updateButtonLayout();
     }
 
+    private void toggleArrayPreview() {
+        if (observerReadOnly() || !"lodestone".equals(this.payload.sourceType())) {
+            return;
+        }
+        boolean enabled = NexusArrayVisualizationClient.isActiveFor(this.payload.sourceUnitId());
+        if (enabled) {
+            NexusArrayVisualizationClient.clear();
+        } else if (!this.payload.sourceUnitId().equals(this.selectedUnitId)) {
+            return;
+        }
+        if (ClientPlayNetworking.canSend(RequestTeleportArrayVisualizationPayload.TYPE)) {
+            ClientPlayNetworking.send(new RequestTeleportArrayVisualizationPayload(
+                    this.payload.sourceType(),
+                    this.payload.sourceUnitId(),
+                    !enabled
+            ));
+        }
+    }
+
+    private Component arrayPreviewButtonText() {
+        return Component.translatable(NexusArrayVisualizationClient.isActiveFor(this.payload.sourceUnitId())
+                ? "message.deadrecall.space_unit.array_preview_hide"
+                : "message.deadrecall.space_unit.array_preview_show");
+    }
+
+    private Component arrayPreviewTooltip() {
+        if (observerReadOnly()) {
+            return Component.translatable("message.deadrecall.space_unit.array_preview_observer");
+        }
+        if (!"lodestone".equals(this.payload.sourceType())) {
+            return Component.translatable("message.deadrecall.space_unit.array_preview_lodestone_only");
+        }
+        if (!this.payload.sourceUnitId().equals(this.selectedUnitId)
+                && !NexusArrayVisualizationClient.isActiveFor(this.payload.sourceUnitId())) {
+            return Component.translatable("message.deadrecall.space_unit.array_preview_source_only");
+        }
+        if (!ClientPlayNetworking.canSend(RequestTeleportArrayVisualizationPayload.TYPE)) {
+            return Component.translatable("message.deadrecall.space_unit.array_preview_unavailable");
+        }
+        return Component.translatable("message.deadrecall.space_unit.array_preview_hint");
+    }
+
     /** Package-visible visual-test hook; production input still uses the Material button. */
     void showMaterialDiagnosticsForVisualTest() {
         this.showMaterials = true;
+    }
+
+    /** Package-visible proof that Observer relays cannot activate the visualization request. */
+    boolean arrayPreviewButtonDisabledForVisualTest() {
+        return this.arrayPreviewButton != null
+                && this.arrayPreviewButton.visible
+                && !this.arrayPreviewButton.active;
     }
 
     private Component materialButtonText() {
@@ -1487,6 +1548,21 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             this.repairButton.visible = this.showMaterials && selectedMaintenanceTarget() != null;
             this.repairButton.active = this.repairButton.visible;
         }
+        if (this.arrayPreviewButton != null) {
+            this.arrayPreviewButton.setX(arrayPreviewButtonX());
+            this.arrayPreviewButton.setY(maintenanceButtonY());
+            this.arrayPreviewButton.setWidth(arrayPreviewButtonWidth());
+            boolean previewActive = NexusArrayVisualizationClient.isActiveFor(this.payload.sourceUnitId());
+            boolean sourceSelected = this.payload.sourceUnitId().equals(this.selectedUnitId);
+            this.arrayPreviewButton.visible = this.showMaterials;
+            this.arrayPreviewButton.active = this.arrayPreviewButton.visible
+                    && !observerReadOnly()
+                    && "lodestone".equals(this.payload.sourceType())
+                    && (previewActive || sourceSelected)
+                    && ClientPlayNetworking.canSend(RequestTeleportArrayVisualizationPayload.TYPE);
+            this.arrayPreviewButton.setMessage(arrayPreviewButtonText());
+            this.arrayPreviewButton.setTooltip(Tooltip.create(arrayPreviewTooltip()));
+        }
         if (this.favoriteButton != null) {
             this.favoriteButton.setX(favoriteButtonX());
             this.favoriteButton.setY(favoriteButtonY());
@@ -1774,7 +1850,16 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private int maintenanceButtonX() {
-        return panelX() + panelWidth() - PANEL_PADDING - 78;
+        return arrayPreviewButtonX() - 4 - 78;
+    }
+
+    private int arrayPreviewButtonWidth() {
+        return 88;
+    }
+
+    private int arrayPreviewButtonX() {
+        // The module's material-reference mixin owns the rightmost 94-pixel slot.
+        return panelX() + panelWidth() - PANEL_PADDING - 94 - 4 - arrayPreviewButtonWidth();
     }
 
     private int maintenanceButtonY() {

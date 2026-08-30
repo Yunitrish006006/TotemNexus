@@ -6,15 +6,140 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /** Covers the placement-driven material expansion graph around one lodestone. */
 public final class TeleportArrayMaterialScanGameTest {
     private static final BlockPos LODESTONE = new BlockPos(4, 2, 4);
+
+    @GameTest(maxTicks = 30)
+    public void visualizationRejectsForgedRemoteUnauthorizedAndInvalidSources(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer viewer = helper.makeMockServerPlayerInLevel();
+        BlockPos validPos = helper.absolutePos(LODESTONE);
+        NexusSpaceUnitSavedData units = units(level);
+        NexusSpaceDiscoverySavedData discovery = level.getServer().overworld().getDataStorage()
+                .computeIfAbsent(NexusSpaceDiscoverySavedData.TYPE);
+        viewer.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.COMPASS));
+        viewer.setPos(validPos.getX() + 0.5D, validPos.getY() + 0.5D, validPos.getZ() + 0.5D);
+        level.setBlockAndUpdate(validPos, Blocks.LODESTONE.defaultBlockState());
+        level.setBlockAndUpdate(validPos.east(), Blocks.IRON_BLOCK.defaultBlockState());
+
+        try {
+            UUID validId = UUID.randomUUID();
+            units.put(lodestone(validId, level, validPos, viewer.getUUID(), SpaceUnitVisibility.PRIVATE));
+            discovery.markDiscovered(viewer.getUUID(), validId);
+            if (request(viewer, validId).isEmpty()) {
+                helper.fail("Valid local visualization request did not produce a payload");
+                return;
+            }
+
+            UUID forgedId = UUID.randomUUID();
+            if (request(viewer, forgedId).isPresent()) {
+                helper.fail("Forged source ID produced a visualization payload");
+                return;
+            }
+
+            UUID unauthorizedId = UUID.randomUUID();
+            BlockPos unauthorizedPos = validPos.offset(0, 0, 2);
+            level.setBlockAndUpdate(unauthorizedPos, Blocks.LODESTONE.defaultBlockState());
+            units.put(lodestone(unauthorizedId, level, unauthorizedPos, UUID.randomUUID(),
+                    SpaceUnitVisibility.PRIVATE));
+            discovery.markDiscovered(viewer.getUUID(), unauthorizedId);
+            if (request(viewer, unauthorizedId).isPresent()) {
+                helper.fail("Permission loss exposed a private source visualization");
+                return;
+            }
+
+            UUID otherDimensionId = UUID.randomUUID();
+            units.put(new NexusSpaceUnitRecord(
+                    otherDimensionId,
+                    SpaceUnitType.LODESTONE,
+                    net.minecraft.world.level.Level.NETHER,
+                    validPos,
+                    viewer.getUUID(),
+                    "Other dimension",
+                    SpaceUnitVisibility.PRIVATE,
+                    SpaceUnitStatus.ACTIVE,
+                    java.util.Set.of(),
+                    java.util.Set.of(),
+                    SpaceStructureSnapshot.EMPTY,
+                    0,
+                    0
+            ));
+            discovery.markDiscovered(viewer.getUUID(), otherDimensionId);
+            if (request(viewer, otherDimensionId).isPresent()) {
+                helper.fail("Different-dimension source produced a visualization payload");
+                return;
+            }
+
+            UUID missingId = UUID.randomUUID();
+            BlockPos missingPos = validPos.offset(0, 0, -2);
+            level.setBlockAndUpdate(missingPos, Blocks.AIR.defaultBlockState());
+            units.put(lodestone(missingId, level, missingPos, viewer.getUUID(), SpaceUnitVisibility.PRIVATE));
+            discovery.markDiscovered(viewer.getUUID(), missingId);
+            if (request(viewer, missingId).isPresent()
+                    || units.get(missingId).filter(unit -> unit.status() == SpaceUnitStatus.DISABLED).isEmpty()) {
+                helper.fail("Missing lodestone produced a payload or remained active");
+                return;
+            }
+
+            BlockPos unloadedPos = validPos.offset(32_000, 0, 32_000);
+            if (level.isLoaded(unloadedPos)) {
+                helper.fail("Unloaded-boundary fixture unexpectedly started loaded");
+                return;
+            }
+            UUID unloadedId = UUID.randomUUID();
+            units.put(lodestone(unloadedId, level, unloadedPos, viewer.getUUID(), SpaceUnitVisibility.PRIVATE));
+            discovery.markDiscovered(viewer.getUUID(), unloadedId);
+            if (request(viewer, unloadedId).isPresent() || level.isLoaded(unloadedPos)) {
+                helper.fail("Unloaded source produced a payload or forced its chunk to load");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            NexusArrayVisualizationAuthority.disconnect(viewer.getUUID());
+            NexusSpaceUnitAuthority.clearInterfaceContext(viewer.getUUID());
+            viewer.discard();
+        }
+    }
+
+    @GameTest(maxTicks = 30)
+    public void visualizationContainsOnlyCountedBlocksAndMarksExtenders(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos origin = helper.absolutePos(LODESTONE);
+        level.setBlockAndUpdate(origin, Blocks.LODESTONE.defaultBlockState());
+        level.setBlockAndUpdate(origin.east(), Blocks.IRON_BLOCK.defaultBlockState());
+        level.setBlockAndUpdate(origin.east(2), Blocks.GOLD_BLOCK.defaultBlockState());
+        level.setBlockAndUpdate(origin.west(3), Blocks.DIAMOND_BLOCK.defaultBlockState());
+
+        TeleportArrayMaterialScan.Result scan = TeleportArrayMaterialScan.scan(
+                level,
+                origin,
+                NexusSpaceUnitSavedData::isStructureBlock,
+                NexusSpaceUnitSavedData::isWornStructureBlock
+        );
+        List<dev.totem.nexus.network.TeleportArrayVisualizationPayload.RelativeBlock> blocks =
+                NexusArrayVisualizationAuthority.relativeBlocks(origin, scan);
+
+        if (blocks.size() != 2
+                || !blocks.contains(new dev.totem.nexus.network.TeleportArrayVisualizationPayload.RelativeBlock(1, 0, 0, true))
+                || !blocks.contains(new dev.totem.nexus.network.TeleportArrayVisualizationPayload.RelativeBlock(2, 0, 0, false))
+                || blocks.stream().anyMatch(block -> block.dx() == -3)) {
+            helper.fail("Visualization did not match the authoritative connected structural set: " + blocks);
+            return;
+        }
+        helper.succeed();
+    }
 
     @GameTest(maxTicks = 30)
     public void extenderChainExpandsOnlyAlongItsPlacedPath(GameTestHelper helper) {
@@ -284,6 +409,49 @@ public final class TeleportArrayMaterialScanGameTest {
 
     private static NexusSpaceUnitSavedData units(ServerLevel level) {
         return level.getServer().overworld().getDataStorage().computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
+    }
+
+    private static java.util.Optional<dev.totem.nexus.network.TeleportArrayVisualizationPayload> request(
+            ServerPlayer player,
+            UUID sourceId) {
+        NexusArrayVisualizationAuthority.disconnect(player.getUUID());
+        NexusSpaceUnitAuthority.establishInterfaceContext(
+                player,
+                InteractionHand.MAIN_HAND,
+                SpaceUnitType.LODESTONE.id(),
+                sourceId
+        );
+        return NexusArrayVisualizationAuthority.createPayload(
+                player,
+                new dev.totem.nexus.network.RequestTeleportArrayVisualizationPayload(
+                        SpaceUnitType.LODESTONE.id(),
+                        sourceId,
+                        true
+                )
+        );
+    }
+
+    private static NexusSpaceUnitRecord lodestone(
+            UUID id,
+            ServerLevel level,
+            BlockPos pos,
+            UUID owner,
+            SpaceUnitVisibility visibility) {
+        return new NexusSpaceUnitRecord(
+                id,
+                SpaceUnitType.LODESTONE,
+                level.dimension(),
+                pos,
+                owner,
+                "Visualization fixture",
+                visibility,
+                SpaceUnitStatus.ACTIVE,
+                java.util.Set.of(),
+                java.util.Set.of(),
+                SpaceStructureSnapshot.EMPTY,
+                0,
+                0
+        );
     }
 
     private static net.minecraft.world.level.block.Block block(String path) {

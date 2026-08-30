@@ -1,5 +1,6 @@
 package dev.totem.nexus.network;
 
+import dev.totem.nexus.space.NexusArrayVisualizationAuthority;
 import dev.totem.nexus.space.NexusTeleportAuthority;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -50,5 +51,8 @@ public final class NexusAuthorityPayloadHandler implements NexusPayloadHandler {
     }
     @Override public void confirmRegistration(ServerPlayer player, ConfirmSpaceUnitRegistrationPayload payload) {
         authority.confirmRegistration(player, payload.dimension(), payload.x(), payload.y(), payload.z());
+    }
+    @Override public void visualizeArray(ServerPlayer player, RequestTeleportArrayVisualizationPayload payload) {
+        NexusArrayVisualizationAuthority.handle(player, payload);
     }
 }

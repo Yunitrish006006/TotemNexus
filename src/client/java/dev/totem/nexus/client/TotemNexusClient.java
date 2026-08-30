@@ -13,5 +13,6 @@ public final class TotemNexusClient implements ClientModInitializer {
         NexusClientBootstrap.registerNetworking();
         NexusDeathNodeAdminClientInitializer.registerReceiver();
         NexusMaterialCatalogClientState.register();
+        NexusArrayVisualizationClient.register();
     }
 }

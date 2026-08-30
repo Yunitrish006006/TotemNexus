@@ -46,6 +46,7 @@ final class TeleportArrayMaterialScan {
         Map<String, TeleportArrayMaterialAttributes> familyContributions = new LinkedHashMap<>();
         Map<String, Integer> localExpansionPathCounts = new LinkedHashMap<>();
         Set<BlockPos> structuralPositions = new LinkedHashSet<>();
+        Set<BlockPos> expansionEmitterPositions = new LinkedHashSet<>();
 
         while (!pending.isEmpty()) {
             BlockPos current = pending.removeFirst();
@@ -79,6 +80,9 @@ final class TeleportArrayMaterialScan {
             }
 
             int radius = profile.validStructureMaterial() ? profile.attributes().localScanExpansionRadius() : 0;
+            if (structural && radius > 0) {
+                expansionEmitterPositions.add(current);
+            }
             if (radius == 0) {
                 continue;
             }
@@ -117,7 +121,7 @@ final class TeleportArrayMaterialScan {
         return new Result(rawBlocks, wornBlocks, symmetricPairs, checkedPairs, maximumReachedDistance, totals, families,
                 familyContributions,
                 localExpansionPathCounts,
-                Set.copyOf(structuralPositions), Set.copyOf(visited));
+                Set.copyOf(structuralPositions), Set.copyOf(expansionEmitterPositions), Set.copyOf(visited));
     }
 
     private static boolean withinBounds(BlockPos origin, BlockPos position) {
@@ -140,12 +144,14 @@ final class TeleportArrayMaterialScan {
             Map<String, TeleportArrayMaterialAttributes> familyContributions,
             Map<String, Integer> localExpansionPathCounts,
             Set<BlockPos> structuralPositions,
+            Set<BlockPos> expansionEmitterPositions,
             Set<BlockPos> visitedPositions) {
         Result {
             familyCounts = Map.copyOf(familyCounts);
             familyContributions = Map.copyOf(familyContributions);
             localExpansionPathCounts = Map.copyOf(localExpansionPathCounts);
             structuralPositions = Set.copyOf(structuralPositions);
+            expansionEmitterPositions = Set.copyOf(expansionEmitterPositions);
             visitedPositions = Set.copyOf(visitedPositions);
         }
     }

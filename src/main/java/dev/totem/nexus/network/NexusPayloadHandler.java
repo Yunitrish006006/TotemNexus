@@ -15,4 +15,5 @@ public interface NexusPayloadHandler {
     void updateAccess(ServerPlayer player, UpdateSpaceUnitAccessPayload payload);
     void repair(ServerPlayer player, RepairSpaceUnitPayload payload);
     void confirmRegistration(ServerPlayer player, ConfirmSpaceUnitRegistrationPayload payload);
+    void visualizeArray(ServerPlayer player, RequestTeleportArrayVisualizationPayload payload);
 }

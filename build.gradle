@@ -9,7 +9,7 @@ group = project.maven_group
 base { archivesName = project.archives_base_name }
 
 def totemCoreJar = file(providers.gradleProperty('totemCoreJar')
-        .getOrElse('../TotemCore/build/libs/totem-core-0.7.12.jar'))
+        .getOrElse('../TotemCore/build/libs/totem-core-0.7.13.jar'))
 
 loom {
     splitEnvironmentSourceSets()
@@ -156,6 +156,12 @@ tasks.named("runClientGameTest").configure {
             include("*_nexus-manual-en-us-spread-*.png")
             rename { name -> name.replaceFirst(/^\d+_/, "") }
             into(file("test-artifacts/screenshots/nexus-manual-en_us"))
+        }
+        copy {
+            from(file("${buildDir}/run/clientGameTest/screenshots"))
+            include("*_totem-nexus-array-through-wall.png", "*_totem-nexus-space-unit-material-diagnostics.png")
+            rename { name -> name.replaceFirst(/^\d+_/, "") }
+            into(file("test-artifacts/screenshots/teleport-array-visualization"))
         }
     }
 }
