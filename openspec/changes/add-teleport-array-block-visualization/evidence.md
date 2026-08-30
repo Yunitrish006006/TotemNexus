@@ -56,6 +56,13 @@ Executed locally on 2026-08-31 with Minecraft 26.2, Java 25, Fabric Loader
   metadata.
 - OpenSpec CLI strict validation passed for
   `add-teleport-array-block-visualization`.
+- Feature commit `009b3a3fc78572ced8de3e2916ab95aafad51175` was pushed to
+  `master`. GitHub Build run `33325361637` passed unit/build, all 55 server
+  GameTests and the client GameTests.
+- Modrinth run `33325361690` uploaded and authenticated-API-verified version
+  `0.3.7` as version ID `S5HsB3t9`, successfully submitted the project for
+  public review and wrote the matching version ID and SHA-512 to the repository
+  publication marker.
 
 ### Deliberately pending
 
@@ -64,11 +71,7 @@ Executed locally on 2026-08-31 with Minecraft 26.2, Java 25, Fabric Loader
   0.7.13 has been committed, built, uploaded and submitted for public review.
 - No Nexus three-JVM E2E or Production Runtime harness exists for this path;
   task 5.5 remains open.
-- Anonymous Modrinth lookups for the new Core and Excavation version IDs still
-  returned HTTP 404 immediately after their review-submission runs. The
+- Anonymous Modrinth lookups for the new Core, Excavation and Nexus version IDs
+  still returned HTTP 404 immediately after their review-submission runs. The
   artifacts are uploaded, but public availability remains moderation-dependent
   and is not claimed by this evidence.
-- Nexus commit, CI and publication results are intentionally not claimed in
-  this pre-push evidence; they must be verified independently from the GitHub
-  Actions run and repository publication marker after this change reaches
-  `master`.
