@@ -47,6 +47,14 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                     "nexus-observer-owner-map", screen ->
                             "Remote Home".equals(((NexusSpaceUnitMapScreen) screen).observerPayload().sourceName()));
             exercise(context, nexus,
+                    clientScreen(context, () -> new NexusSpaceUnitMapScreen(filledMap("Map Home", 8801))),
+                    clientScreen(context, () -> new NexusSpaceUnitMapScreen(filledMap("Remote Map Home", 8801))),
+                    "nexus-observer-owner-map-data-unavailable", screen -> {
+                        NexusSpaceUnitMapScreen map = (NexusSpaceUnitMapScreen) screen;
+                        return "Remote Map Home".equals(map.observerPayload().sourceName())
+                                && map.mapDataUnavailableForVisualTest();
+                    });
+            exercise(context, nexus,
                     clientScreen(context, () -> new NexusMapScreen(map("Home"))),
                     clientScreen(context, () -> new NexusMapScreen(map("Remote Home"))),
                     "nexus-observer-owner-map-legacy", screen ->
@@ -135,7 +143,12 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
 
     private static SpaceUnitMapPayload map(String name) {
         return new SpaceUnitMapPayload(UUID.randomUUID(), "local", name, "minecraft:overworld",
-                1, 64, 1, TeleportInterfaceType.COMPASS, List.of());
+                1, 64, 1, TeleportInterfaceType.COMPASS, SpaceUnitMapPayload.NO_MAP_ID, List.of());
+    }
+
+    private static SpaceUnitMapPayload filledMap(String name, int mapId) {
+        return new SpaceUnitMapPayload(UUID.randomUUID(), "local", name, "minecraft:overworld",
+                1, 64, 1, TeleportInterfaceType.FILLED_MAP, mapId, List.of());
     }
 
     private static SpaceUnitFriendsPayload friends(int count) {

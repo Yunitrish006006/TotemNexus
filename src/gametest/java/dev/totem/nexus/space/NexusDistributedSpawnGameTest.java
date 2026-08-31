@@ -2,6 +2,7 @@ package dev.totem.nexus.space;
 
 import dev.totem.core.api.v1.death.DeathRetainedItemPolicy;
 import dev.totem.core.social.TotemFriendSavedData;
+import dev.totem.nexus.network.SpaceUnitMapPayload;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -252,7 +253,7 @@ public final class NexusDistributedSpawnGameTest {
     }
 
     @GameTest(maxTicks = 20)
-    public void mapPayloadAuthorityIncludesOnlyServerAuthorizedOnlineFriends(GameTestHelper helper) {
+    public void managementPayloadNeverIncludesSyntheticOnlinePlayerCoordinates(GameTestHelper helper) {
         var viewer = helper.makeMockServerPlayerInLevel();
         var friend = helper.makeMockServerPlayerInLevel();
         var stranger = helper.makeMockServerPlayerInLevel();
@@ -272,9 +273,10 @@ public final class NexusDistributedSpawnGameTest {
         TeleportInterfaceContext context = new TeleportInterfaceContext(viewer.getUUID(), TeleportInterfaceType.COMPASS,
                 "lodestone", sourceId, net.minecraft.world.InteractionHand.MAIN_HAND, null, 0, 1000);
         authority.sendCalculated(viewer, context, source, new NexusMapQuoteAuthority());
-        if (sent.size() != 1 || sent.getFirst().entries().stream().noneMatch(entry -> entry.id().equals(friend.getUUID()))
-                || sent.getFirst().entries().stream().anyMatch(entry -> entry.id().equals(stranger.getUUID()))) {
-            helper.fail("Map payload did not project only server-authorized online friends");
+        if (sent.size() != 1 || sent.getFirst().mapId() != SpaceUnitMapPayload.NO_MAP_ID
+                || sent.getFirst().entries().stream().anyMatch(entry -> entry.id().equals(friend.getUUID())
+                || entry.id().equals(stranger.getUUID()))) {
+            helper.fail("Management payload leaked synthetic online-player coordinates");
             return;
         }
         helper.succeed();
@@ -283,13 +285,14 @@ public final class NexusDistributedSpawnGameTest {
     @GameTest(maxTicks = 20)
     public void favoriteMutationResendsTheAuthoritativeMap(GameTestHelper helper) {
         var viewer = helper.makeMockServerPlayerInLevel();
-        viewer.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,
-                new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COMPASS));
+        UUID sourceId = UUID.randomUUID();
+        UUID targetId = UUID.randomUUID();
+        var heldCompass = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COMPASS);
+        NexusInterfaceBinding.writeIdentity(heldCompass, sourceId);
+        viewer.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, heldCompass);
         var storage = helper.getLevel().getServer().overworld().getDataStorage();
         NexusSpaceUnitSavedData units = storage.computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
         NexusSpaceDiscoverySavedData discovery = storage.computeIfAbsent(NexusSpaceDiscoverySavedData.TYPE);
-        UUID sourceId = UUID.randomUUID();
-        UUID targetId = UUID.randomUUID();
         NexusSpaceUnitRecord source = new NexusSpaceUnitRecord(sourceId, SpaceUnitType.LODESTONE,
                 helper.getLevel().dimension(), helper.absolutePos(new BlockPos(4, 2, 4)), viewer.getUUID(), "Source",
                 SpaceUnitVisibility.PRIVATE, SpaceUnitStatus.ACTIVE, java.util.Set.of(), java.util.Set.of(),
@@ -307,8 +310,10 @@ public final class NexusDistributedSpawnGameTest {
                 net.minecraft.world.InteractionHand.MAIN_HAND, null, 0, 1000));
         NexusMapOpenAuthority authority = new NexusMapOpenAuthority(sessions, payloads, new NexusMapQuoteAuthority());
         if (!authority.setFavorite(viewer, "lodestone", sourceId, targetId, true) || sent.size() != 1
-                || sent.getFirst().entries().stream().noneMatch(entry -> entry.id().equals(targetId) && entry.favorite())) {
-            helper.fail("Favorite mutation did not resend the authoritative map");
+                || !discovery.isFavorite(viewer.getUUID(), targetId)
+                || sent.getFirst().entries().size() != 1
+                || !sent.getFirst().entries().getFirst().id().equals(sourceId)) {
+            helper.fail("Favorite mutation did not persist or leaked non-source map data to a management interface");
             return;
         }
         helper.succeed();
@@ -369,32 +374,28 @@ public final class NexusDistributedSpawnGameTest {
     }
 
     @GameTest(maxTicks = 20)
-    public void teleportInterfaceAuthorityEstablishesContextFromTheHeldHand(GameTestHelper helper) {
+    public void teleportInterfaceAuthorityRejectsRetiredPlayerAnchorContext(GameTestHelper helper) {
         var player = helper.makeMockServerPlayerInLevel();
         player.setItemInHand(net.minecraft.world.InteractionHand.OFF_HAND,
                 new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.BOOK));
         UUID source = UUID.randomUUID();
         NexusTeleportInterfaceAuthority authority = new NexusTeleportInterfaceAuthority(new TeleportInterfaceSessionStore());
-        var context = authority.establish(player, net.minecraft.world.InteractionHand.OFF_HAND, "player", source);
-        if (context.filter(value -> value.interfaceType() == TeleportInterfaceType.BOOK
-                        && value.interactionHand() == net.minecraft.world.InteractionHand.OFF_HAND
-                        && value.matchesSource("player", source)).isEmpty()
-                || authority.require(player, "player", source).isEmpty()) {
-            helper.fail("Teleport interface authority did not establish the server-held context");
+        if (authority.establish(player, net.minecraft.world.InteractionHand.OFF_HAND, "player", source).isPresent()
+                || authority.require(player, "player", source).isPresent()) {
+            helper.fail("Retired player-anchor source context was established");
             return;
         }
         helper.succeed();
     }
 
     @GameTest(maxTicks = 20)
-    public void playerAnchorContextAlwaysUsesTheServerPlayersIdentity(GameTestHelper helper) {
+    public void playerAnchorCompatibilityMethodIsRetired(GameTestHelper helper) {
         var player = helper.makeMockServerPlayerInLevel();
         player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,
                 new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COMPASS));
         NexusTeleportInterfaceAuthority authority = new NexusTeleportInterfaceAuthority(new TeleportInterfaceSessionStore());
-        if (authority.establishPlayerAnchor(player, net.minecraft.world.InteractionHand.MAIN_HAND)
-                .filter(context -> context.sourceType().equals("player") && context.sourceId().equals(player.getUUID())).isEmpty()) {
-            helper.fail("Player anchor context did not use the server player's identity");
+        if (authority.establishPlayerAnchor(player, net.minecraft.world.InteractionHand.MAIN_HAND).isPresent()) {
+            helper.fail("Retired player-anchor compatibility method created a context");
             return;
         }
         helper.succeed();
@@ -426,7 +427,7 @@ public final class NexusDistributedSpawnGameTest {
     }
 
     @GameTest(maxTicks = 20)
-    public void mapPayloadFactoryUsesOnlyVisibleActiveUnitsAndPreservesViewerFlags(GameTestHelper helper) {
+    public void nexusMapPayloadFactoryUsesOnlyVisibleInBoundsUnitsAndPreservesViewerFlags(GameTestHelper helper) {
         UUID owner = UUID.fromString("00000000-0000-0000-0000-000000000061");
         UUID viewer = UUID.fromString("00000000-0000-0000-0000-000000000062");
         NexusSpaceUnitRecord source = new NexusSpaceUnitRecord(UUID.randomUUID(), SpaceUnitType.LODESTONE, helper.getLevel().dimension(),
@@ -443,12 +444,16 @@ public final class NexusDistributedSpawnGameTest {
                 java.util.Set.of(), java.util.Set.of(), SpaceStructureSnapshot.EMPTY, 0, 0);
         NexusSpaceDiscoverySavedData discovery = new NexusSpaceDiscoverySavedData();
         discovery.markDiscovered(viewer, visible.id()); discovery.setFavorite(viewer, visible.id(), true);
-        var payload = NexusMapPayloadFactory.build(viewer, source, TeleportInterfaceType.COMPASS,
-                java.util.List.of(visible, hidden, disabled), discovery, new NexusFriendSavedData(),
-                ignored -> NexusMapQuote.unavailable(TeleportInterfaceType.COMPASS, "pending_authority"));
-        if (payload.entries().size() != 1 || !payload.entries().getFirst().id().equals(visible.id())
-                || !payload.entries().getFirst().favorite() || !payload.entries().getFirst().manageable()
-                || payload.entries().getFirst().canTeleport()) {
+        var mapData = net.minecraft.world.level.saveddata.maps.MapItemSavedData.createFresh(
+                source.pos().getX(), source.pos().getZ(), (byte) 0, false, false, helper.getLevel().dimension());
+        var payload = NexusMapPayloadFactory.build(viewer, source, TeleportInterfaceType.FILLED_MAP,
+                new net.minecraft.world.level.saveddata.maps.MapId(91), mapData,
+                java.util.List.of(source, visible, hidden, disabled), discovery, new NexusFriendSavedData(),
+                ignored -> NexusMapQuote.unavailable(TeleportInterfaceType.FILLED_MAP, "pending_authority"));
+        var visibleEntry = payload.entries().stream().filter(entry -> entry.id().equals(visible.id())).findFirst();
+        if (payload.entries().size() != 2 || visibleEntry.isEmpty()
+                || !visibleEntry.get().favorite() || !visibleEntry.get().manageable()
+                || visibleEntry.get().canTeleport()) {
             helper.fail("Map factory exposed an invalid unit or lost authoritative viewer flags");
             return;
         }
@@ -456,7 +461,7 @@ public final class NexusDistributedSpawnGameTest {
     }
 
     @GameTest(maxTicks = 20)
-    public void mapPayloadFactoryIncludesOnlyAuthorizedOnlineFriendsAcrossDimensions(GameTestHelper helper) {
+    public void mapPayloadFactoryIgnoresSyntheticOnlineFriendsAcrossDimensions(GameTestHelper helper) {
         UUID viewer = UUID.fromString("00000000-0000-0000-0000-000000000071");
         UUID friendId = UUID.fromString("00000000-0000-0000-0000-000000000072");
         UUID strangerId = UUID.fromString("00000000-0000-0000-0000-000000000073");
@@ -465,16 +470,14 @@ public final class NexusDistributedSpawnGameTest {
                 java.util.Set.of(), java.util.Set.of(), SpaceStructureSnapshot.EMPTY, 0, 0);
         NexusFriendSavedData friends = new NexusFriendSavedData();
         friends.inviteOrAccept(viewer, friendId); friends.inviteOrAccept(friendId, viewer);
-        var payload = NexusMapPayloadFactory.build(viewer, source, TeleportInterfaceType.COMPASS, java.util.List.of(),
+        var payload = NexusMapPayloadFactory.build(viewer, source, TeleportInterfaceType.COMPASS, null, java.util.List.of(),
                 java.util.List.of(new NexusOnlineFriendTarget(friendId, "Friend", net.minecraft.world.level.Level.NETHER, new BlockPos(32, 70, -32)),
                         new NexusOnlineFriendTarget(strangerId, "Stranger", helper.getLevel().dimension(), new BlockPos(1, 70, 1))),
                 new NexusSpaceDiscoverySavedData(), friends,
                 ignored -> NexusMapQuote.unavailable(TeleportInterfaceType.COMPASS, "pending_authority"),
                 ignored -> NexusMapQuote.unavailable(TeleportInterfaceType.COMPASS, "pending_authority"));
-        if (payload.entries().size() != 1 || !payload.entries().getFirst().id().equals(friendId)
-                || !payload.entries().getFirst().dimension().equals("minecraft:the_nether")
-                || !payload.entries().getFirst().friendShared()) {
-            helper.fail("Map factory exposed a non-friend or lost the friend's cross-dimension identity");
+        if (!payload.entries().isEmpty()) {
+            helper.fail("Map factory exposed synthetic online-player coordinates");
             return;
         }
         helper.succeed();

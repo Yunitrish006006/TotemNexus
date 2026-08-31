@@ -111,6 +111,7 @@ public abstract class NexusSpaceUnitMapCatalystBreakdownMixin {
                 payload.sourceY(),
                 payload.sourceZ(),
                 payload.interfaceType(),
+                payload.mapId(),
                 List.copyOf(enriched)
         ));
     }

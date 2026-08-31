@@ -61,7 +61,7 @@ public final class NexusManualPageOverlay {
     }
 
     private static void renderIntroduction(TotemManualPageRenderContext context) {
-        int y = context.pageTop() + 68;
+        int y = context.pageTop() + 64;
         item(context, Items.BOOK, 45, y);
         arrow(context, 67, y + 8, 13);
         item(context, Items.LODESTONE, 83, y);
@@ -69,55 +69,82 @@ public final class NexusManualPageOverlay {
         item(context, Items.WRITTEN_BOOK, 121, y);
         centered(context, "book.deadrecall.nexus_diagram.record", y + 24, MUTED);
 
-        y += 55;
-        item(context, Items.COMPASS, 58, y);
-        plus(context, 79, y + 8);
-        item(context, Items.LODESTONE, 91, y);
-        arrow(context, 113, y + 8, 10);
-        badge(context, 126, y + 1, "SU", GOOD);
-        centered(context, "book.deadrecall.nexus_diagram.anchor_core", y + 24, GOOD);
+        y += 49;
+        item(context, Items.COMPASS, 39, y);
+        item(context, Items.RECOVERY_COMPASS, 65, y);
+        item(context, Items.BOOK, 91, y);
+        item(context, Items.FILLED_MAP, 117, y);
+        centered(context, "book.deadrecall.nexus_diagram.anchor_core", y + 23, GOOD);
     }
 
     private static void renderRegistration(TotemManualPageRenderContext context) {
-        int y = context.pageTop() + 59;
-        step(context, 1, Items.LODESTONE, "book.deadrecall.nexus_diagram.place", y);
-        step(context, 2, Items.COMPASS, "book.deadrecall.nexus_diagram.right_click", y + 34);
-        step(context, 3, Items.COMPASS, "book.deadrecall.nexus_diagram.confirm_30s", y + 68);
-        connection(context, 51, y + 18, y + 68);
-        centered(context, "book.deadrecall.nexus_diagram.registered_bound", y + 94, GOOD);
+        int y = context.pageTop() + 45;
+        item(context, Items.COMPASS, 38, y);
+        item(context, Items.RECOVERY_COMPASS, 64, y);
+        item(context, Items.BOOK, 90, y);
+        item(context, Items.FILLED_MAP, 116, y);
+        check(context, 138, y + 12);
+        centered(context, "book.deadrecall.nexus_diagram.interfaces_bind_manage", y + 22, GOOD);
+
+        y += 54;
+        item(context, Items.BOOK, 40, y);
+        badge(context, 62, y, "R", MUTED);
+        arrow(context, 83, y + 8, 9);
+        item(context, Items.LODESTONE, 96, y);
+        wrapped(context, "book.deadrecall.nexus_diagram.book_normal_manual", 40, y + 21, 112, MUTED);
+
+        y += 43;
+        item(context, Items.BOOK, 40, y);
+        badge(context, 62, y, "⇩R", GOOD);
+        arrow(context, 83, y + 8, 9);
+        item(context, Items.LODESTONE, 96, y);
+        wrapped(context, "book.deadrecall.nexus_diagram.book_sneak_nexus", 40, y + 21, 112, GOOD);
     }
 
     private static void renderDiscovery(TotemManualPageRenderContext context) {
-        int y = context.pageTop() + 58;
-        item(context, Items.COMPASS, 42, y);
-        arrow(context, 64, y + 8, 10);
-        item(context, Items.LODESTONE, 78, y);
-        check(context, 103, y + 12);
-        wrapped(context, "book.deadrecall.nexus_diagram.attack_discover", 43, y + 23, 109, MUTED);
+        int y = context.pageTop() + 43;
+        item(context, Items.MAP, 36, y);
+        arrow(context, 58, y + 8, 10);
+        item(context, Items.LODESTONE, 72, y);
+        arrow(context, 94, y + 8, 10);
+        item(context, Items.FILLED_MAP, 108, y);
+        badge(context, 132, y, "ID", GOOD);
+        centered(context, "book.deadrecall.nexus_diagram.empty_map_create", y + 23, GOOD);
 
-        y += 48;
-        item(context, Items.COMPASS, 42, y);
-        badge(context, 67, y, "≤8", MUTED);
-        arrow(context, 87, y + 8, 9);
-        item(context, Items.FILLED_MAP, 100, y);
-        wrapped(context, "book.deadrecall.nexus_diagram.open_map", 43, y + 23, 109, GOOD);
-        text(context, "!", 43, y + 44, WARN);
-        wrapped(context, "book.deadrecall.nexus_diagram.hidden_until_explored", 56, y + 44, 96, WARN);
+        y += 51;
+        item(context, Items.FILLED_MAP, 40, y);
+        plus(context, 61, y + 8);
+        item(context, Items.PAPER, 73, y);
+        arrow(context, 95, y + 8, 9);
+        item(context, Items.FILLED_MAP, 108, y);
+        badge(context, 132, y, "◎", GOOD);
+        centered(context, "book.deadrecall.nexus_diagram.exact_center", y + 23, MUTED);
+
+        y += 49;
+        text(context, "!", 40, y + 2, WARN);
+        wrapped(context, "book.deadrecall.nexus_diagram.scale_anchor", 54, y, 98, WARN);
     }
 
     private static void renderDestination(TotemManualPageRenderContext context) {
-        int y = context.pageTop() + 58;
-        item(context, Items.FILLED_MAP, 42, y);
-        arrow(context, 64, y + 8, 12);
-        item(context, Items.LODESTONE, 80, y);
-        arrow(context, 102, y + 8, 12);
-        item(context, Items.ENDER_PEARL, 118, y);
-        centered(context, "book.deadrecall.nexus_diagram.choose_target", y + 24, MUTED);
+        int y = context.pageTop() + 43;
+        item(context, Items.FILLED_MAP, 38, y);
+        arrow(context, 60, y + 8, 8);
+        item(context, Items.LODESTONE, 72, y);
+        plus(context, 93, y + 8);
+        item(context, Items.NAME_TAG, 105, y);
+        check(context, 128, y + 12);
+        wrapped(context, "book.deadrecall.nexus_diagram.named_markers", 40, y + 22, 112, GOOD);
 
-        y += 45;
-        status(context, Items.SPYGLASS, "book.deadrecall.nexus_diagram.explored", y, true);
-        status(context, Items.NAME_TAG, "book.deadrecall.nexus_diagram.permission", y + 26, true);
-        status(context, Items.COOKED_BEEF, "book.deadrecall.nexus_diagram.resources", y + 52, true);
+        y += 51;
+        item(context, Items.PLAYER_HEAD, 42, y);
+        plus(context, 63, y + 8);
+        badge(context, 76, y, "→", WARN);
+        arrow(context, 98, y + 8, 8);
+        item(context, Items.BARRIER, 110, y);
+        wrapped(context, "book.deadrecall.nexus_diagram.no_player_edges", 40, y + 22, 112, WARN);
+
+        y += 49;
+        centered(context, "book.deadrecall.nexus_diagram.choose_target", y, MUTED);
     }
 
     private static void renderPreparation(TotemManualPageRenderContext context) {

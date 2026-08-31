@@ -18,16 +18,20 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.renderer.state.MapRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.saveddata.maps.MapDecoration;
+import net.minecraft.world.level.saveddata.maps.MapDecorationTypes;
+import net.minecraft.world.level.saveddata.maps.MapId;
+import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
+import java.util.Optional;
 import java.util.UUID;
 
 public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
@@ -37,7 +41,6 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     private static final int PANEL_HEIGHT = 360;
     private static final int PANEL_PADDING = 12;
     private static final int HEADER_HEIGHT = 34;
-    private static final int TAB_HEIGHT = 20;
     private static final int CONTROL_HEIGHT = 24;
     private static final int FOOTER_HEIGHT = 46;
     private static final int GAP = 10;
@@ -53,15 +56,15 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     private static final String ACCESS_ROLE_ADMINISTRATOR = "administrator";
     private static final String ACCESS_ROLE_ALLOWED = "allowed";
     private static final int MIN_MAP_SIZE = 32;
-    private static final double MIN_ZOOM = 0.35D;
-    private static final double MAX_ZOOM = 5.0D;
+    private static final int VANILLA_MAP_SIZE = 128;
 
     private SpaceUnitMapPayload payload;
     private List<String> dimensions;
     private String activeDimension;
     private UUID selectedUnitId;
     private int listScrollIndex = 0;
-    private double zoom = 1.0D;
+    private final MapRenderState mapRenderState = new MapRenderState();
+    private List<MapLabelLayout> renderedMapLabels = List.of();
     private String searchQuery = "";
     private TypeFilter typeFilter = TypeFilter.ALL;
     private FriendFilter friendFilter = FriendFilter.ALL;
@@ -93,7 +96,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     NexusSpaceUnitMapScreen(SpaceUnitMapPayload payload, boolean observer, Runnable stop) {
-        super(Component.translatable("container.deadrecall.space_unit.map"), observer, stop);
+        super(screenTitle(payload), observer, stop);
         this.payload = payload;
         this.dimensions = collectDimensions(payload);
         this.activeDimension = dimensions.contains(payload.sourceDimension())
@@ -131,11 +134,25 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         this.selectedUnitId = containsEntry(previousSelection) || payload.sourceUnitId().equals(previousSelection)
                 ? previousSelection
                 : payload.sourceUnitId();
+        if (!hasMapVisualization()) {
+            this.activeDimension = payload.sourceDimension();
+            this.selectedUnitId = payload.sourceUnitId();
+        }
         this.listScrollIndex = Math.min(this.listScrollIndex, getMaxListScrollIndex());
         syncSelectionWithFilters();
     }
 
     SpaceUnitMapPayload observerPayload() { return payload; }
+
+    private static Component screenTitle(SpaceUnitMapPayload payload) {
+        return Component.translatable(payload.interfaceType().hasMapVisualization()
+                ? "container.deadrecall.space_unit.map"
+                : "container.deadrecall.space_unit.management");
+    }
+
+    private boolean hasMapVisualization() {
+        return this.payload.interfaceType().hasMapVisualization();
+    }
 
     @Override
     protected void init() {
@@ -275,9 +292,12 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         }
 
         if (this.showMaterials) {
+            this.renderedMapLabels = List.of();
             drawMaterialPanel(extractor, mouseX, mouseY);
+        } else if (!hasMapVisualization()) {
+            this.renderedMapLabels = List.of();
+            drawManagementOnly(extractor, mouseX, mouseY);
         } else {
-            drawDimensionTabs(extractor, mouseX, mouseY);
             drawMap(extractor, mouseX, mouseY);
             drawNodeList(extractor, mouseX, mouseY);
             drawFooter(extractor, mouseX, mouseY);
@@ -298,8 +318,8 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             }
             return super.mouseClicked(event, doubleClick);
         }
-        if (selectDimensionAt(event.x(), event.y())) {
-            return true;
+        if (!hasMapVisualization()) {
+            return super.mouseClicked(event, doubleClick);
         }
 
         UUID mapHit = mapEntryAt(event.x(), event.y());
@@ -339,13 +359,8 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             }
             return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
         }
-        if (isInside(mouseX, mouseY, mapX(), mapY(), mapWidth(), mapHeight())) {
-            if (verticalAmount > 0) {
-                this.zoom = Math.min(MAX_ZOOM, this.zoom * 1.15D);
-            } else if (verticalAmount < 0) {
-                this.zoom = Math.max(MIN_ZOOM, this.zoom / 1.15D);
-            }
-            return true;
+        if (!hasMapVisualization()) {
+            return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
         }
 
         if (isInside(mouseX, mouseY, listX(), listY(), listWidth(), listHeight())) {
@@ -571,6 +586,40 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         return this.arrayPreviewButton != null
                 && this.arrayPreviewButton.visible
                 && !this.arrayPreviewButton.active;
+    }
+
+    /** Package-visible semantic proof that a non-map interface exposes only its bound source. */
+    boolean managementOnlyPresentationForVisualTest() {
+        return !hasMapVisualization()
+                && this.selectedUnitId.equals(this.payload.sourceUnitId())
+                && entriesForActiveDimension().size() <= 1
+                && this.searchField != null && !this.searchField.visible
+                && this.typeFilterButton != null && !this.typeFilterButton.visible
+                && this.teleportButton != null && !this.teleportButton.visible;
+    }
+
+    /** Package-visible semantic proof for the explicit Observer/client cache-miss presentation. */
+    boolean mapDataUnavailableForVisualTest() {
+        return hasMapVisualization() && cachedMapData() == null;
+    }
+
+    /** Package-visible proof that the production draw path emitted visible, non-overlapping map labels. */
+    boolean renderedMapLabelsForVisualTest(List<String> expectedNames) {
+        if (!this.renderedMapLabels.stream().map(MapLabelLayout::text).toList().equals(expectedNames)) {
+            return false;
+        }
+        for (int index = 0; index < this.renderedMapLabels.size(); index++) {
+            MapLabelLayout label = this.renderedMapLabels.get(index);
+            if (!label.inside(mapLabelBounds())) {
+                return false;
+            }
+            for (int other = index + 1; other < this.renderedMapLabels.size(); other++) {
+                if (label.overlaps(this.renderedMapLabels.get(other))) {
+                    return false;
+                }
+            }
+        }
+        return !this.renderedMapLabels.isEmpty();
     }
 
     private Component materialButtonText() {
@@ -867,63 +916,268 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         int height = mapHeight();
         extractor.fill(x, y, x + width, y + height, 0xFF0E1115);
         extractor.outline(x, y, width, height, 0xFF3F4A56);
-
-        int centerX = x + width / 2;
-        int centerY = y + height / 2;
-        drawGrid(extractor, x, y, width, height, centerX, centerY);
-        extractor.fill(centerX, y + 1, centerX + 1, y + height - 1, 0x804E6C88);
-        extractor.fill(x + 1, centerY, x + width - 1, centerY + 1, 0x804E6C88);
-
-        drawSourcePoint(extractor, centerX, centerY);
-        for (SpaceUnitMapPayload.Entry entry : entriesForActiveDimension()) {
-            if (entry.id().equals(this.payload.sourceUnitId())) {
-                continue;
-            }
-            int pointX = mapPointX(entry);
-            int pointY = mapPointY(entry);
-            if (!isInside(pointX, pointY, x + 2, y + 2, width - 4, height - 4)) {
-                continue;
-            }
-            boolean selected = entry.id().equals(this.selectedUnitId);
-            boolean hovered = Math.abs(mouseX - pointX) <= 5 && Math.abs(mouseY - pointY) <= 5;
-            int color = colorForType(entry.type());
-            int radius = selected || hovered ? 4 : 3;
-            extractor.fill(pointX - radius, pointY - radius, pointX + radius + 1, pointY + radius + 1, color);
-            if (entry.favorite()) {
-                extractor.outline(pointX - radius - 3, pointY - radius - 3, radius * 2 + 7, radius * 2 + 7, 0xFFFFD166);
-            }
-            extractor.outline(pointX - radius - 1, pointY - radius - 1, radius * 2 + 3, radius * 2 + 3,
-                    selected ? 0xFFFFFFFF : 0xFF1A1A1A);
+        MapItemSavedData cached = cachedMapData();
+        if (cached == null) {
+            this.renderedMapLabels = List.of();
+            Component unavailable = Component.translatable("message.deadrecall.space_unit.map_data_unavailable");
+            Component detail = Component.translatable("message.deadrecall.space_unit.map_data_unavailable_detail");
+            extractor.centeredText(this.font, unavailable, x + width / 2, y + height / 2 - 10, 0xFFFFD166);
+            extractor.centeredText(this.font, trimToWidth(detail.getString(), Math.max(1, width - 16)),
+                    x + width / 2, y + height / 2 + 6, 0xFFB8C0C8);
+            return;
         }
 
-        SpaceUnitMapPayload.Entry selected = selectedEntry();
-        if (selected != null && selected.dimension().equals(this.activeDimension)) {
-            extractor.text(this.font, trimToWidth(selected.name(), width - 12), x + 6, y + height - 15, 0xFFE8EDF2);
-        } else if (entriesForActiveDimension().isEmpty()) {
-            extractor.text(this.font,
-                    trimToWidth(Component.translatable("message.deadrecall.space_unit.map_dimension_empty").getString(),
-                            Math.max(1, width - 16)),
-                    x + 8, y + 8, 0xFFFFC857);
-        }
+        MapId mapId = new MapId(this.payload.mapId());
+        MapItemSavedData transientData = transientMapData(cached);
+        MapRenderArea area = mapRenderArea();
+        extractor.enableScissor(x + 1, y + 1, x + width - 1, y + height - 1);
+        extractor.pose().pushMatrix();
+        extractor.pose().translate(area.x(), area.y());
+        extractor.pose().scale(area.scale(), area.scale());
+        this.minecraft.getMapRenderer().extractRenderState(mapId, transientData, this.mapRenderState);
+        extractor.map(this.mapRenderState);
+        extractor.pose().popMatrix();
+        extractor.disableScissor();
+        drawTransientMapLabels(extractor, cached, area);
     }
 
-    private void drawGrid(GuiGraphicsExtractor extractor, int x, int y, int width, int height, int centerX, int centerY) {
-        double scale = mapScale();
-        int gridBlocks = scale >= 3.0D ? 16 : scale >= 1.5D ? 32 : scale >= 0.75D ? 64 : 128;
-        int gridPixels = Math.max(8, (int) Math.round(gridBlocks * scale));
+    private void drawManagementOnly(GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
+        int x = panelX() + PANEL_PADDING;
+        int y = panelY() + HEADER_HEIGHT + 6;
+        int width = panelWidth() - PANEL_PADDING * 2;
+        int height = panelHeight() - HEADER_HEIGHT - FOOTER_HEIGHT;
+        extractor.fill(x, y, x + width, y + height, 0xC0101419);
+        extractor.outline(x, y, width, height, 0xFF3F4A56);
+        extractor.item(interfaceIcon(), x + 12, y + 12);
+        if (isInside(mouseX, mouseY, x + 12, y + 12, 16, 16)) {
+            extractor.setTooltipForNextFrame(interfaceTooltip(), mouseX, mouseY);
+        }
+        extractor.text(this.font, Component.translatable("message.deadrecall.space_unit.management_only"),
+                x + 36, y + 10, 0xFFFFFFFF);
+        extractor.text(this.font,
+                trimToWidth(Component.translatable("message.deadrecall.space_unit.management_only_detail").getString(),
+                        width - 48),
+                x + 36, y + 23, 0xFFB8C0C8);
 
-        for (int px = centerX % gridPixels; px < width; px += gridPixels) {
-            extractor.fill(x + px, y + 1, x + px + 1, y + height - 1, 0x302B3540);
+        int contentBottom = y + height - 8;
+        int hintY = contentBottom - this.font.lineHeight;
+        int bonusY = hintY - this.font.lineHeight * 2;
+        int summaryY = bonusY - this.font.lineHeight * 2;
+        int interfaceY = summaryY - this.font.lineHeight * 2;
+        int sourceY = interfaceY - this.font.lineHeight * 2;
+        SpaceUnitMapPayload.Entry source = sourceEntry();
+        String sourceName = source == null ? displayNexusName(this.payload.sourceName()) : displayNexusName(source.name());
+        extractor.text(this.font, Component.translatable("message.deadrecall.space_unit.management_bound_source", sourceName),
+                x + 14, sourceY, 0xFFFFD166);
+        extractor.text(this.font, Component.translatable("message.deadrecall.space_unit.management_interface",
+                        Component.translatable(interfaceNameKey())),
+                x + 14, interfaceY, 0xFFE0E6EC);
+        if (source != null) {
+            extractor.text(this.font, trimToWidth(managementSummary(source), width - 28),
+                    x + 14, summaryY, 0xFFB8D9F3);
+            extractor.text(this.font, Component.translatable(source.interfaceBonusMessageKey()),
+                    x + 14, bonusY, source.interfaceBonusActive() ? 0xFF8BD9A0 : 0xFF93A4B5);
+        } else {
+            extractor.text(this.font, Component.translatable("message.deadrecall.space_unit.management_source_unavailable"),
+                    x + 14, summaryY, 0xFFFFD166);
         }
-        for (int py = centerY % gridPixels; py < height; py += gridPixels) {
-            extractor.fill(x + 1, y + py, x + width - 1, y + py + 1, 0x302B3540);
-        }
+        String controlsHint = Component.translatable("message.deadrecall.space_unit.management_controls_hint").getString();
+        extractor.text(this.font, trimToWidth(controlsHint, width - 28),
+                x + 14, hintY, 0xFFB8C0C8);
     }
 
-    private void drawSourcePoint(GuiGraphicsExtractor extractor, int centerX, int centerY) {
-        extractor.fill(centerX - 5, centerY - 1, centerX + 6, centerY + 2, 0xFF7DD3FC);
-        extractor.fill(centerX - 1, centerY - 5, centerX + 2, centerY + 6, 0xFF7DD3FC);
-        extractor.outline(centerX - 6, centerY - 6, 13, 13, 0xFFFFFFFF);
+    private void drawTransientMapLabels(
+            GuiGraphicsExtractor extractor, MapItemSavedData mapData, MapRenderArea area) {
+        List<MapLabelLayout> labels = layoutTransientMapLabels(mapData, area);
+        this.renderedMapLabels = List.copyOf(labels);
+        if (labels.isEmpty()) {
+            return;
+        }
+
+        MapLabelBounds bounds = mapLabelBounds();
+        extractor.nextStratum();
+        extractor.enableScissor(bounds.left(), bounds.top(), bounds.right(), bounds.bottom());
+        for (MapLabelLayout label : labels) {
+            extractor.fill(label.x() - 1, label.y() - 1,
+                    label.x() + label.width() + 1, label.y() + this.font.lineHeight,
+                    0xB0000000);
+            extractor.text(this.font, label.text(), label.x(), label.y(), 0xFFFFFFFF, true);
+        }
+        extractor.disableScissor();
+    }
+
+    private List<MapLabelLayout> layoutTransientMapLabels(MapItemSavedData mapData, MapRenderArea area) {
+        MapLabelBounds bounds = mapLabelBounds();
+        int availableWidth = bounds.right() - bounds.left();
+        int availableHeight = bounds.bottom() - bounds.top();
+        if (availableWidth < 12 || availableHeight < this.font.lineHeight) {
+            return List.of();
+        }
+
+        int maxLabelWidth = Math.max(8, Math.min(88, availableWidth - 4));
+        List<MapLabelLayout> result = new ArrayList<>();
+        for (SpaceUnitMapPayload.Entry entry : mapPresentationEntries()) {
+            MapDecorationPosition position = mapDecorationPosition(entry, mapData);
+            if (position == null) {
+                continue;
+            }
+            String text = trimToWidth(displayNexusName(entry.name()), maxLabelWidth);
+            int textWidth = this.font.width(text);
+            if (text.isEmpty() || textWidth <= 0) {
+                continue;
+            }
+
+            int markerX = area.x() + (int) Math.round((position.x() / 2.0D + 64.0D) * area.scale());
+            int markerY = area.y() + (int) Math.round((position.y() / 2.0D + 64.0D) * area.scale());
+            MapLabelLayout label = chooseMapLabelLayout(text, textWidth, markerX, markerY, bounds, result);
+            if (label != null) {
+                result.add(label);
+            }
+        }
+        return result;
+    }
+
+    private MapLabelLayout chooseMapLabelLayout(
+            String text,
+            int textWidth,
+            int markerX,
+            int markerY,
+            MapLabelBounds bounds,
+            List<MapLabelLayout> occupied) {
+        int centeredY = markerY - this.font.lineHeight / 2;
+        int centeredX = markerX - textWidth / 2;
+        int[][] candidates = {
+                {markerX + 5, centeredY},
+                {markerX - textWidth - 5, centeredY},
+                {centeredX, markerY + 5},
+                {centeredX, markerY - this.font.lineHeight - 5}
+        };
+        for (int[] candidate : candidates) {
+            MapLabelLayout layout = constrainedMapLabel(text, textWidth, candidate[0], candidate[1], bounds);
+            if (!layout.contains(markerX, markerY) && occupied.stream().noneMatch(layout::overlaps)) {
+                return layout;
+            }
+        }
+
+        int step = this.font.lineHeight + 2;
+        for (int distance = step; distance < bounds.bottom() - bounds.top(); distance += step) {
+            for (int direction : new int[]{1, -1}) {
+                MapLabelLayout layout = constrainedMapLabel(
+                        text, textWidth, markerX + 5, centeredY + distance * direction, bounds);
+                if (!layout.contains(markerX, markerY) && occupied.stream().noneMatch(layout::overlaps)) {
+                    return layout;
+                }
+            }
+        }
+        return null;
+    }
+
+    private MapLabelLayout constrainedMapLabel(
+            String text, int textWidth, int x, int y, MapLabelBounds bounds) {
+        int constrainedX = Math.max(bounds.left(), Math.min(bounds.right() - textWidth, x));
+        int constrainedY = Math.max(bounds.top(), Math.min(bounds.bottom() - this.font.lineHeight, y));
+        return new MapLabelLayout(text, constrainedX, constrainedY, textWidth, this.font.lineHeight);
+    }
+
+    private MapLabelBounds mapLabelBounds() {
+        MapRenderArea area = mapRenderArea();
+        int renderedSize = VANILLA_MAP_SIZE * area.scale();
+        return new MapLabelBounds(
+                Math.max(mapX() + 2, area.x() + 2),
+                Math.max(mapY() + 2, area.y() + 2),
+                Math.min(mapX() + mapWidth() - 2, area.x() + renderedSize - 2),
+                Math.min(mapY() + mapHeight() - 2, area.y() + renderedSize - 2));
+    }
+
+    private MapItemSavedData cachedMapData() {
+        if (!hasMapVisualization() || this.minecraft == null || this.minecraft.level == null) {
+            return null;
+        }
+        return this.minecraft.level.getMapData(new MapId(this.payload.mapId()));
+    }
+
+    private MapItemSavedData transientMapData(MapItemSavedData cached) {
+        MapItemSavedData result = MapItemSavedData.createForClient(cached.scale, cached.locked, cached.dimension);
+        System.arraycopy(cached.colors, 0, result.colors, 0, Math.min(cached.colors.length, result.colors.length));
+        List<MapDecoration> decorations = new ArrayList<>();
+        for (MapDecoration decoration : cached.getDecorations()) {
+            decorations.add(decoration);
+        }
+        for (SpaceUnitMapPayload.Entry entry : mapPresentationEntries()) {
+            MapDecorationPosition position = mapDecorationPosition(entry, cached);
+            if (position == null) {
+                continue;
+            }
+            decorations.add(new MapDecoration(
+                    entry.id().equals(this.payload.sourceUnitId())
+                            ? MapDecorationTypes.BLUE_MARKER
+                            : MapDecorationTypes.RED_MARKER,
+                    position.x(), position.y(), (byte) 0,
+                    Optional.of(nexusName(entry.name()))));
+        }
+        result.addClientSideDecorations(List.copyOf(decorations));
+        return result;
+    }
+
+    private List<SpaceUnitMapPayload.Entry> mapPresentationEntries() {
+        return this.payload.entries().stream()
+                .filter(entry -> entry.dimension().equals(this.payload.sourceDimension()))
+                .toList();
+    }
+
+    private MapDecorationPosition mapDecorationPosition(
+            SpaceUnitMapPayload.Entry entry, MapItemSavedData mapData) {
+        double blocksPerPixel = 1 << mapData.scale;
+        double mapX = (entry.x() - mapData.centerX) / blocksPerPixel;
+        double mapY = (entry.z() - mapData.centerZ) / blocksPerPixel;
+        if (mapX < -64.0D || mapX >= 64.0D || mapY < -64.0D || mapY >= 64.0D) {
+            return null;
+        }
+        return new MapDecorationPosition(
+                (byte) Math.max(Byte.MIN_VALUE, Math.min(Byte.MAX_VALUE, Math.round(mapX * 2.0D))),
+                (byte) Math.max(Byte.MIN_VALUE, Math.min(Byte.MAX_VALUE, Math.round(mapY * 2.0D))));
+    }
+
+    private MapRenderArea mapRenderArea() {
+        int scale = Math.max(1, Math.min(mapWidth() - 2, mapHeight() - 2) / VANILLA_MAP_SIZE);
+        int renderedSize = VANILLA_MAP_SIZE * scale;
+        return new MapRenderArea(
+                mapX() + (mapWidth() - renderedSize) / 2,
+                mapY() + (mapHeight() - renderedSize) / 2,
+                scale);
+    }
+
+    private Component nexusName(String name) {
+        return name == null || name.isBlank()
+                ? Component.translatable("message.deadrecall.space_unit.map_unnamed_nexus")
+                : Component.literal(name.strip());
+    }
+
+    private String displayNexusName(String name) {
+        return nexusName(name).getString();
+    }
+
+    private record MapDecorationPosition(byte x, byte y) { }
+    private record MapRenderArea(int x, int y, int scale) { }
+    private record MapLabelBounds(int left, int top, int right, int bottom) { }
+    private record MapLabelLayout(String text, int x, int y, int width, int height) {
+        private boolean contains(int pointX, int pointY) {
+            return pointX >= this.x && pointX < this.x + this.width
+                    && pointY >= this.y && pointY < this.y + this.height;
+        }
+
+        private boolean overlaps(MapLabelLayout other) {
+            return this.x - 2 < other.x + other.width
+                    && this.x + this.width + 2 > other.x
+                    && this.y - 2 < other.y + other.height
+                    && this.y + this.height + 2 > other.y;
+        }
+
+        private boolean inside(MapLabelBounds bounds) {
+            return this.x >= bounds.left && this.y >= bounds.top
+                    && this.x + this.width <= bounds.right
+                    && this.y + this.height <= bounds.bottom;
+        }
     }
 
     private void drawNodeList(GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
@@ -1161,21 +1415,25 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private UUID mapEntryAt(double mouseX, double mouseY) {
-        if (!isInside(mouseX, mouseY, mapX(), mapY(), mapWidth(), mapHeight())) {
+        if (!hasMapVisualization()
+                || !isInside(mouseX, mouseY, mapX(), mapY(), mapWidth(), mapHeight())) {
             return null;
         }
-
-        int centerX = mapX() + mapWidth() / 2;
-        int centerY = mapY() + mapHeight() / 2;
-        if (Math.abs(mouseX - centerX) <= 6 && Math.abs(mouseY - centerY) <= 6) {
-            return this.payload.sourceUnitId();
+        MapItemSavedData mapData = cachedMapData();
+        if (mapData == null) {
+            return null;
         }
-
+        MapRenderArea area = mapRenderArea();
         SpaceUnitMapPayload.Entry best = null;
-        double bestDistance = 36.0D;
-        for (SpaceUnitMapPayload.Entry entry : entriesForActiveDimension()) {
-            int pointX = mapPointX(entry);
-            int pointY = mapPointY(entry);
+        double hitRadius = Math.max(5.0D, 5.0D * area.scale());
+        double bestDistance = hitRadius * hitRadius;
+        for (SpaceUnitMapPayload.Entry entry : mapPresentationEntries()) {
+            MapDecorationPosition position = mapDecorationPosition(entry, mapData);
+            if (position == null) {
+                continue;
+            }
+            double pointX = area.x() + (position.x() / 2.0D + 64.0D) * area.scale();
+            double pointY = area.y() + (position.y() / 2.0D + 64.0D) * area.scale();
             double dx = mouseX - pointX;
             double dy = mouseY - pointY;
             double distance = dx * dx + dy * dy;
@@ -1228,25 +1486,11 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         }
     }
 
-    private int mapPointX(SpaceUnitMapPayload.Entry entry) {
-        return mapX() + mapWidth() / 2 + (int) Math.round((entry.x() - this.payload.sourceX()) * mapScale());
-    }
-
-    private int mapPointY(SpaceUnitMapPayload.Entry entry) {
-        return mapY() + mapHeight() / 2 + (int) Math.round((entry.z() - this.payload.sourceZ()) * mapScale());
-    }
-
-    private double mapScale() {
-        int maxDistance = 32;
-        for (SpaceUnitMapPayload.Entry entry : entriesForActiveDimension()) {
-            maxDistance = Math.max(maxDistance, Math.abs(entry.x() - this.payload.sourceX()));
-            maxDistance = Math.max(maxDistance, Math.abs(entry.z() - this.payload.sourceZ()));
-        }
-        double available = Math.max(MIN_MAP_SIZE, Math.min(mapWidth(), mapHeight()) - 28);
-        return Math.max(0.02D, available / Math.max(1.0D, maxDistance * 2.0D) * this.zoom);
-    }
-
     private List<SpaceUnitMapPayload.Entry> entriesForActiveDimension() {
+        if (!hasMapVisualization()) {
+            SpaceUnitMapPayload.Entry source = sourceEntry();
+            return source == null ? List.of() : List.of(source);
+        }
         List<SpaceUnitMapPayload.Entry> entries = new ArrayList<>();
         for (SpaceUnitMapPayload.Entry entry : this.payload.entries()) {
             if (entry.dimension().equals(this.activeDimension) && matchesFilters(entry)) {
@@ -1316,7 +1560,14 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private SpaceUnitMapPayload.Entry selectedEntry() {
+        if (!hasMapVisualization()) {
+            return sourceEntry();
+        }
         return entryById(this.selectedUnitId);
+    }
+
+    private SpaceUnitMapPayload.Entry sourceEntry() {
+        return entryById(this.payload.sourceUnitId());
     }
 
     private SpaceUnitMapPayload.Entry entryById(UUID unitId) {
@@ -1357,13 +1608,13 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         return "message.deadrecall.space_unit.interface_name." + this.payload.interfaceType().id();
     }
 
-    private boolean hasCompassCapabilities() {
-        return this.payload.interfaceType() == TeleportInterfaceType.COMPASS;
+    private boolean hasManagementCapabilities() {
+        return this.payload.interfaceType().canManage();
     }
 
     private String interfaceFooterSummary(SpaceUnitMapPayload.Entry entry) {
         String bonus = Component.translatable(entry.interfaceBonusMessageKey()).getString();
-        return hasCompassCapabilities() ? bonus + " | " + managementSummary(entry) : bonus;
+        return hasManagementCapabilities() ? bonus + " | " + managementSummary(entry) : bonus;
     }
 
     private String entrySummary(SpaceUnitMapPayload.Entry entry) {
@@ -1474,12 +1725,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private static List<String> collectDimensions(SpaceUnitMapPayload payload) {
-        Set<String> dimensions = new LinkedHashSet<>();
-        dimensions.add(payload.sourceDimension());
-        for (SpaceUnitMapPayload.Entry entry : payload.entries()) {
-            dimensions.add(entry.dimension());
-        }
-        return new ArrayList<>(dimensions);
+        return List.of(payload.sourceDimension());
     }
 
     private int getMaxListScrollIndex() {
@@ -1507,31 +1753,31 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             this.searchField.setX(searchX());
             this.searchField.setY(controlsY());
             this.searchField.setWidth(searchWidth());
-            this.searchField.visible = !this.showMaterials;
+            this.searchField.visible = !this.showMaterials && hasMapVisualization();
         }
         if (this.typeFilterButton != null) {
             this.typeFilterButton.setX(typeFilterX());
             this.typeFilterButton.setY(controlsY());
             this.typeFilterButton.setWidth(typeFilterWidth());
-            this.typeFilterButton.visible = !this.showMaterials;
+            this.typeFilterButton.visible = !this.showMaterials && hasMapVisualization();
         }
         if (this.friendFilterButton != null) {
             this.friendFilterButton.setX(friendFilterX());
             this.friendFilterButton.setY(controlsY());
             this.friendFilterButton.setWidth(friendFilterWidth());
-            this.friendFilterButton.visible = !this.showMaterials;
+            this.friendFilterButton.visible = !this.showMaterials && hasMapVisualization();
         }
         if (this.sortButton != null) {
             this.sortButton.setX(sortX());
             this.sortButton.setY(controlsY());
             this.sortButton.setWidth(sortWidth());
-            this.sortButton.visible = !this.showMaterials;
+            this.sortButton.visible = !this.showMaterials && hasMapVisualization();
         }
         if (this.friendsButton != null) {
             this.friendsButton.setX(friendsButtonX());
             this.friendsButton.setY(friendsButtonY());
             this.friendsButton.setWidth(friendsButtonWidth());
-            this.friendsButton.visible = !this.showMaterials && hasCompassCapabilities();
+            this.friendsButton.visible = !this.showMaterials && hasManagementCapabilities();
             this.friendsButton.active = this.friendsButton.visible;
         }
         if (this.materialButton != null) {
@@ -1568,7 +1814,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             this.favoriteButton.setY(favoriteButtonY());
             this.favoriteButton.setWidth(favoriteButtonWidth());
             SpaceUnitMapPayload.Entry selected = selectedEntry();
-            this.favoriteButton.visible = !this.showMaterials;
+            this.favoriteButton.visible = !this.showMaterials && hasMapVisualization();
             this.favoriteButton.active = this.favoriteButton.visible && selected != null && canFavorite(selected);
         }
         if (this.visibilityButton != null) {
@@ -1576,7 +1822,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             this.visibilityButton.setY(visibilityButtonY());
             this.visibilityButton.setWidth(visibilityButtonWidth());
             SpaceUnitMapPayload.Entry selected = selectedEntry();
-            this.visibilityButton.visible = !this.showMaterials && hasCompassCapabilities();
+            this.visibilityButton.visible = !this.showMaterials && hasManagementCapabilities();
             this.visibilityButton.active = this.visibilityButton.visible
                     && selected != null
                     && canChangeVisibility(selected);
@@ -1615,7 +1861,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             this.calibrateButton.setY(y);
             this.calibrateButton.setWidth(FOOTER_BUTTON_WIDTH);
             SpaceUnitMapPayload.Entry selected = selectedEntry();
-            this.calibrateButton.visible = !this.showMaterials && hasCompassCapabilities();
+            this.calibrateButton.visible = !this.showMaterials && hasManagementCapabilities();
             this.calibrateButton.active = this.calibrateButton.visible
                     && selected != null
                     && canCalibrate(selected);
@@ -1625,7 +1871,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             this.teleportButton.setY(y);
             this.teleportButton.setWidth(FOOTER_BUTTON_WIDTH);
             SpaceUnitMapPayload.Entry selected = selectedEntry();
-            this.teleportButton.visible = !this.showMaterials;
+            this.teleportButton.visible = !this.showMaterials && hasMapVisualization();
             this.teleportButton.active = this.teleportButton.visible && selected != null && selected.canTeleport();
         }
         if (this.refreshButton != null) {
@@ -1737,7 +1983,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private int mapY() {
-        return panelY() + HEADER_HEIGHT + TAB_HEIGHT + CONTROL_HEIGHT + 8;
+        return panelY() + HEADER_HEIGHT + CONTROL_HEIGHT + 8;
     }
 
     private int mapWidth() {
@@ -1745,7 +1991,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private int mapHeight() {
-        return Math.max(MIN_MAP_SIZE, panelHeight() - HEADER_HEIGHT - TAB_HEIGHT - CONTROL_HEIGHT - FOOTER_HEIGHT - 18);
+        return Math.max(MIN_MAP_SIZE, panelHeight() - HEADER_HEIGHT - CONTROL_HEIGHT - FOOTER_HEIGHT - 18);
     }
 
     private int listX() {
@@ -1769,7 +2015,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private int controlsY() {
-        return panelY() + HEADER_HEIGHT + TAB_HEIGHT + 4;
+        return panelY() + HEADER_HEIGHT + 4;
     }
 
     private int searchX() {
@@ -1826,11 +2072,13 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private int visibilityButtonX() {
-        return favoriteButtonX() - visibilityButtonWidth() - 6;
+        return hasMapVisualization()
+                ? favoriteButtonX() - visibilityButtonWidth() - 6
+                : teleportButtonX() + (FOOTER_BUTTON_WIDTH - visibilityButtonWidth()) / 2;
     }
 
     private int visibilityButtonY() {
-        return favoriteButtonY();
+        return hasMapVisualization() ? favoriteButtonY() : footerButtonY();
     }
 
     private int friendsButtonWidth() {
@@ -1927,7 +2175,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private boolean canCalibrate(SpaceUnitMapPayload.Entry entry) {
-        return hasCompassCapabilities()
+        return hasManagementCapabilities()
                 && entry.manageable()
                 && "lodestone".equals(entry.type())
                 && entry.dimension().equals(this.payload.sourceDimension())

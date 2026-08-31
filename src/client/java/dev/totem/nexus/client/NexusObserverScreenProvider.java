@@ -23,7 +23,7 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
             "map", "map_legacy", "friends", "friends_legacy", "registration", "registration_legacy");
 
     @Override public String familyId() { return "nexus"; }
-    @Override public int protocolVersion() { return 2; }
+    @Override public int protocolVersion() { return 3; }
     @Override public Set<String> variants() { return VARIANTS; }
 
     @Override public Optional<ObserverScreenSnapshot> capture(Screen screen, long sequence) {

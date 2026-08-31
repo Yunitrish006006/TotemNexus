@@ -38,12 +38,14 @@ public final class TeleportArrayMaterialScanGameTest {
             UUID validId = UUID.randomUUID();
             units.put(lodestone(validId, level, validPos, viewer.getUUID(), SpaceUnitVisibility.PRIVATE));
             discovery.markDiscovered(viewer.getUUID(), validId);
+            bindCompass(viewer, validId);
             if (request(viewer, validId).isEmpty()) {
                 helper.fail("Valid local visualization request did not produce a payload");
                 return;
             }
 
             UUID forgedId = UUID.randomUUID();
+            bindCompass(viewer, forgedId);
             if (request(viewer, forgedId).isPresent()) {
                 helper.fail("Forged source ID produced a visualization payload");
                 return;
@@ -55,6 +57,7 @@ public final class TeleportArrayMaterialScanGameTest {
             units.put(lodestone(unauthorizedId, level, unauthorizedPos, UUID.randomUUID(),
                     SpaceUnitVisibility.PRIVATE));
             discovery.markDiscovered(viewer.getUUID(), unauthorizedId);
+            bindCompass(viewer, unauthorizedId);
             if (request(viewer, unauthorizedId).isPresent()) {
                 helper.fail("Permission loss exposed a private source visualization");
                 return;
@@ -77,6 +80,7 @@ public final class TeleportArrayMaterialScanGameTest {
                     0
             ));
             discovery.markDiscovered(viewer.getUUID(), otherDimensionId);
+            bindCompass(viewer, otherDimensionId);
             if (request(viewer, otherDimensionId).isPresent()) {
                 helper.fail("Different-dimension source produced a visualization payload");
                 return;
@@ -87,6 +91,7 @@ public final class TeleportArrayMaterialScanGameTest {
             level.setBlockAndUpdate(missingPos, Blocks.AIR.defaultBlockState());
             units.put(lodestone(missingId, level, missingPos, viewer.getUUID(), SpaceUnitVisibility.PRIVATE));
             discovery.markDiscovered(viewer.getUUID(), missingId);
+            bindCompass(viewer, missingId);
             if (request(viewer, missingId).isPresent()
                     || units.get(missingId).filter(unit -> unit.status() == SpaceUnitStatus.DISABLED).isEmpty()) {
                 helper.fail("Missing lodestone produced a payload or remained active");
@@ -101,6 +106,7 @@ public final class TeleportArrayMaterialScanGameTest {
             UUID unloadedId = UUID.randomUUID();
             units.put(lodestone(unloadedId, level, unloadedPos, viewer.getUUID(), SpaceUnitVisibility.PRIVATE));
             discovery.markDiscovered(viewer.getUUID(), unloadedId);
+            bindCompass(viewer, unloadedId);
             if (request(viewer, unloadedId).isPresent() || level.isLoaded(unloadedPos)) {
                 helper.fail("Unloaded source produced a payload or forced its chunk to load");
                 return;
@@ -429,6 +435,12 @@ public final class TeleportArrayMaterialScanGameTest {
                         true
                 )
         );
+    }
+
+    private static void bindCompass(ServerPlayer player, UUID sourceId) {
+        ItemStack compass = new ItemStack(Items.COMPASS);
+        NexusInterfaceBinding.writeIdentity(compass, sourceId);
+        player.setItemInHand(InteractionHand.MAIN_HAND, compass);
     }
 
     private static NexusSpaceUnitRecord lodestone(

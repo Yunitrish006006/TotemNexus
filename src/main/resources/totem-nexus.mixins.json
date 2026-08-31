@@ -3,6 +3,11 @@
   "package": "dev.totem.nexus.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
+    "NexusContainerMapExpansionGateMixin",
+    "NexusCartographyTableMenuMixin",
+    "NexusMapExtendingRecipeMixin",
+    "NexusMapItemPostProcessingMixin",
+    "NexusMapItemSavedDataInvoker",
     "NexusSpaceDiscoverySavedDataAccessor",
     "NexusSpaceUnitSavedDataAccessor",
     "NexusServerPlayerDistributedSpawnMixin",

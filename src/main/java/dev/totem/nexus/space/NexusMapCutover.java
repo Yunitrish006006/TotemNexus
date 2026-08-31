@@ -15,9 +15,9 @@ public final class NexusMapCutover {
         NexusClientboundPayloadRegistration.registerMap();
         NexusMapPayloadAuthority payloads = new NexusMapPayloadAuthority(
                 (player, target) -> NexusMapQuote.unavailable(TeleportInterfaceType.COMPASS, "pending_context"));
-        NexusMapOpenAuthority maps = new NexusMapOpenAuthority(CONTEXTS, payloads, new NexusMapQuoteAuthority());
-        NexusMapOpenLifecycle.register(maps);
-        NexusPlayerAnchorMapLifecycle.register(maps);
+        // Interaction wiring is intentionally owned by NexusSpaceUnitAuthority.
+        // Retaining a second cutover callback would revive the obsolete
+        // ordinary-compass/player-anchor path.
         NexusTeleportCutover.activate(CONTEXTS);
         return CONTEXTS;
     }

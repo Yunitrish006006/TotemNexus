@@ -3,6 +3,8 @@ package dev.totem.nexus.space;
 import dev.totem.nexus.network.SpaceUnitMapPayload;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.MapItem;
+import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
 import java.util.Objects;
 import java.util.List;
@@ -38,8 +40,9 @@ public final class NexusMapPayloadAuthority {
         NexusSpaceUnitSavedData units = storage.computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
         NexusSpaceDiscoverySavedData discovery = storage.computeIfAbsent(NexusSpaceDiscoverySavedData.TYPE);
         NexusFriendSavedData friends = storage.computeIfAbsent(NexusFriendSavedData.TYPE);
-        SpaceUnitMapPayload payload = NexusMapPayloadFactory.build(player.getUUID(), source, context.interfaceType(),
-                units.visibleDiscoveredUnits(player.getUUID(), discovery, friends), onlineFriends(player, friends), discovery, friends,
+        MapItemSavedData mapData = context.mapId() == null ? null : MapItem.getSavedData(context.mapId(), player.level());
+        SpaceUnitMapPayload payload = NexusMapPayloadFactory.build(player.getUUID(), source, context.interfaceType(), context.mapId(), mapData,
+                units.visibleDiscoveredUnits(player.getUUID(), discovery, friends), List.of(), discovery, friends,
                 target -> quotes.quote(player, context, target.id()),
                 friend -> quotes.quote(player, context, friend.playerId()));
         sender.accept(player, payload);
@@ -53,18 +56,11 @@ public final class NexusMapPayloadAuthority {
         NexusSpaceUnitSavedData units = storage.computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
         NexusSpaceDiscoverySavedData discovery = storage.computeIfAbsent(NexusSpaceDiscoverySavedData.TYPE);
         NexusFriendSavedData friends = storage.computeIfAbsent(NexusFriendSavedData.TYPE);
-        SpaceUnitMapPayload payload = NexusMapPayloadFactory.build(player.getUUID(), source, context.interfaceType(),
+        MapItemSavedData mapData = context.mapId() == null ? null : MapItem.getSavedData(context.mapId(), player.level());
+        SpaceUnitMapPayload payload = NexusMapPayloadFactory.build(player.getUUID(), source, context.interfaceType(), context.mapId(), mapData,
                 units.visibleDiscoveredUnits(player.getUUID(), discovery, friends), discovery, friends,
                 target -> quotes.apply(player, target));
         sender.accept(player, payload);
     }
 
-    private static List<NexusOnlineFriendTarget> onlineFriends(ServerPlayer player, NexusFriendSavedData friends) {
-        return player.level().getServer().getPlayerList().getPlayers().stream()
-                .filter(candidate -> !candidate.getUUID().equals(player.getUUID()))
-                .filter(candidate -> friends.areFriends(player.getUUID(), candidate.getUUID()))
-                .map(candidate -> new NexusOnlineFriendTarget(candidate.getUUID(), candidate.getName().getString(),
-                        candidate.level().dimension(), candidate.blockPosition()))
-                .toList();
-    }
 }

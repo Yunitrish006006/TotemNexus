@@ -15,6 +15,34 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class SpaceUnitMapPayloadTest {
     @Test
+    void boundsMapIdentityToFilledMapPayloads() {
+        UUID source = UUID.randomUUID();
+        assertDoesNotThrow(() -> new SpaceUnitMapPayload(
+                source, "lodestone", "Source", "minecraft:overworld", 0, 64, 0,
+                TeleportInterfaceType.FILLED_MAP, 0, List.of()));
+        assertThrows(IllegalArgumentException.class, () -> new SpaceUnitMapPayload(
+                source, "lodestone", "Source", "minecraft:overworld", 0, 64, 0,
+                TeleportInterfaceType.FILLED_MAP, SpaceUnitMapPayload.NO_MAP_ID, List.of()));
+        assertThrows(IllegalArgumentException.class, () -> new SpaceUnitMapPayload(
+                source, "lodestone", "Source", "minecraft:overworld", 0, 64, 0,
+                TeleportInterfaceType.BOOK, 7, List.of()));
+    }
+
+    @Test
+    void roundTripsValidatedVanillaMapIdentity() {
+        SpaceUnitMapPayload payload = new SpaceUnitMapPayload(
+                UUID.randomUUID(), "lodestone", "Source", "minecraft:overworld", 0, 64, 0,
+                TeleportInterfaceType.FILLED_MAP, 42, List.of());
+        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+
+        SpaceUnitMapPayload.CODEC.encode(buffer, payload);
+        SpaceUnitMapPayload decoded = SpaceUnitMapPayload.CODEC.decode(buffer);
+
+        assertEquals(42, decoded.mapId());
+        assertEquals(TeleportInterfaceType.FILLED_MAP, decoded.interfaceType());
+    }
+
+    @Test
     void acceptsConsistentMinimumPaidQuote() {
         assertDoesNotThrow(() -> new SpaceUnitMapPayload.Entry(UUID.randomUUID(), "lodestone", "A", "private", false, "minecraft:overworld", 0,64,0,0,0,0,1,1,0,0,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,false,"message.deadrecall.space_unit.interface_bonus.compass",false,false,true,0,0,true,""));
     }
@@ -62,7 +90,7 @@ class SpaceUnitMapPayloadTest {
                 .withMaterial(material);
         SpaceUnitMapPayload payload = new SpaceUnitMapPayload(
                 UUID.randomUUID(), "lodestone", "Source", "minecraft:overworld", 4, 64, 4,
-                TeleportInterfaceType.COMPASS, List.of(entry), material);
+                TeleportInterfaceType.COMPASS, SpaceUnitMapPayload.NO_MAP_ID, List.of(entry), material);
         FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
 
         SpaceUnitMapPayload.CODEC.encode(buffer, payload);

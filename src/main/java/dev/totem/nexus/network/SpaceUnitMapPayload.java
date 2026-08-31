@@ -24,20 +24,27 @@ public record SpaceUnitMapPayload(
         int sourceY,
         int sourceZ,
         TeleportInterfaceType interfaceType,
+        int mapId,
         List<Entry> entries,
         MaterialSummary sourceMaterial)
         implements CustomPacketPayload {
     public static final Type<SpaceUnitMapPayload> TYPE =
             new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "space_unit_map"));
     public static final int MAX_ENTRIES = 128;
-    /** Bump whenever the material diagnostics wire layout changes. */
-    public static final int FORMAT_VERSION = 2;
+    /** Sentinel used by management-only interfaces, which never carry a vanilla map identity. */
+    public static final int NO_MAP_ID = -1;
+    /** Bump whenever the bounded semantic wire layout changes. */
+    public static final int FORMAT_VERSION = 3;
     public static final int MAX_CATALYST_BLOCKS_PER_ENDPOINT = 10_640;
     public static final int MAX_BASE_AMETHYST_COST = 64;
 
     public SpaceUnitMapPayload {
         if (interfaceType == null) {
             throw new IllegalArgumentException("Teleport interface type cannot be null");
+        }
+        if (mapId < NO_MAP_ID
+                || (interfaceType == TeleportInterfaceType.FILLED_MAP) != (mapId != NO_MAP_ID)) {
+            throw new IllegalArgumentException("Only a filled-map payload may carry a non-negative map ID");
         }
         if (entries == null) {
             throw new IllegalArgumentException("Space Unit map entries cannot be null");
@@ -53,9 +60,10 @@ public record SpaceUnitMapPayload(
 
     public SpaceUnitMapPayload(
             UUID sourceUnitId, String sourceType, String sourceName, String sourceDimension,
-            int sourceX, int sourceY, int sourceZ, TeleportInterfaceType interfaceType, List<Entry> entries) {
+            int sourceX, int sourceY, int sourceZ, TeleportInterfaceType interfaceType, int mapId,
+            List<Entry> entries) {
         this(sourceUnitId, sourceType, sourceName, sourceDimension, sourceX, sourceY, sourceZ,
-                interfaceType, entries, MaterialSummary.EMPTY);
+                interfaceType, mapId, entries, MaterialSummary.EMPTY);
     }
 
     public record Entry(
@@ -333,6 +341,7 @@ public record SpaceUnitMapPayload(
                         buf.writeInt(payload.sourceY());
                         buf.writeInt(payload.sourceZ());
                         buf.writeUtf(payload.interfaceType().id(), 32);
+                        buf.writeInt(payload.mapId());
                         writeMaterialSummary(buf, payload.sourceMaterial());
                         writeEntries(buf, payload.entries());
                     },
@@ -352,11 +361,12 @@ public record SpaceUnitMapPayload(
         int sourceY = buf.readInt();
         int sourceZ = buf.readInt();
         TeleportInterfaceType interfaceType = readInterfaceType(buf);
+        int mapId = buf.readInt();
         MaterialSummary sourceMaterial = readMaterialSummary(buf);
         List<Entry> entries = readEntries(buf);
         return new SpaceUnitMapPayload(
                 sourceUnitId, sourceType, sourceName, sourceDimension, sourceX, sourceY, sourceZ,
-                interfaceType, entries, sourceMaterial
+                interfaceType, mapId, entries, sourceMaterial
         );
     }
 

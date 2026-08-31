@@ -55,6 +55,7 @@ public final class NexusSpaceUnitMaterialVisualGameTest implements FabricClientG
         );
         return new SpaceUnitMapPayload(
                 UUID.fromString("00000000-0000-0000-0000-000000000301"), "lodestone", "Material Test Array",
-                "minecraft:overworld", 0, 64, 0, TeleportInterfaceType.COMPASS, List.of(), material);
+                "minecraft:overworld", 0, 64, 0, TeleportInterfaceType.COMPASS,
+                SpaceUnitMapPayload.NO_MAP_ID, List.of(), material);
     }
 }

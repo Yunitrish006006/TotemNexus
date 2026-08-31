@@ -10,6 +10,7 @@
   "entrypoints": {
     "fabric-gametest": [
       "dev.totem.nexus.space.NexusDistributedSpawnGameTest",
+      "dev.totem.nexus.space.NexusInterfaceLifecycleGameTest",
       "dev.totem.nexus.space.NexusDeathNodeAdminAuthorizationGameTest",
       "dev.totem.nexus.space.NexusTeleportManualGameTest",
       "dev.totem.nexus.space.TeleportArrayMaterialScanGameTest",
@@ -22,6 +23,7 @@
       "dev.totem.nexus.client.NexusManualVisualGameTest",
       "dev.totem.nexus.client.TotemAdvancementsVisualGameTest",
       "dev.totem.nexus.client.NexusSpaceUnitMaterialVisualGameTest",
+      "dev.totem.nexus.client.NexusSpaceUnitMapVisualGameTest",
       "dev.totem.nexus.client.NexusArrayVisualizationClientGameTest"
     ]
   },
