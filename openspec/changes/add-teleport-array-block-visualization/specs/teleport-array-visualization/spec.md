@@ -140,11 +140,17 @@ cleanup rather than elapsed-time expiry.
 
 ### Requirement: Persistent mixed-occlusion world rendering
 
-The client SHALL render one local outline for each server-returned enabled
-class. It MUST render counted blocks in cyan, expansion emitters in gold and the
-lodestone origin in purple through the shared TotemCore API using
-`THROUGH_WALLS`. It MUST render build sites in a lower-interference green using
-`DEPTH_TESTED`. The preview MUST remain framebuffer-free and MUST clear on
+The client SHALL derive one exact outer-boundary outline for each
+server-returned enabled class. The counted outline MUST include the lodestone
+origin and every counted position as one cyan voxel union using `THROUGH_WALLS`.
+The independent build-site outline MUST include every buildable position as one
+lower-interference green voxel union using `DEPTH_TESTED`. Both outlines MUST
+suppress face-shared internal edges and coplanar surface grid seams, ignore
+fully enclosed cavities, preserve irregular and disconnected exterior geometry
+without replacing it with a global bounding box, and merge contiguous collinear
+unit edges into maximal line segments. The client MUST derive and cache the two
+plans once per accepted payload; normal render frames MUST only submit cached
+lines through the shared TotemCore API. The preview MUST remain framebuffer-free and MUST clear on
 explicit disable, invalid distance, acknowledgement/authority loss, world or
 dimension transition, disconnect, or source invalidation. It MUST NOT expire
 solely because time elapsed, and closing the production Screen MUST NOT clear it.
@@ -153,9 +159,23 @@ solely because time elapsed, and closing the production Screen MUST NOT clear it
 
 - **WHEN** counted array blocks are behind opaque terrain from the local
   player's current camera
-- **THEN** the obstructed array outlines remain visible through that terrain
-- **AND** ordinary blocks, expansion emitters and the origin remain visually
-  distinguishable
+- **THEN** the obstructed cyan outer boundary remains visible through that
+  terrain
+- **AND** the origin and every counted block contribute to the same boundary
+  without per-block colour boxes
+
+#### Scenario: Adjacent and irregular positions are outlined
+
+- **WHEN** either enabled class contains adjacent, concave or disconnected
+  positions
+- **THEN** shared faces and coplanar grid seams are absent
+- **AND** each true exterior component and concave turn remains exact without
+  drawing lines across empty space
+
+#### Scenario: A cavity is fully enclosed
+
+- **WHEN** enabled positions completely enclose an unreachable air cavity
+- **THEN** the cavity does not add an internal wireframe
 
 #### Scenario: Build site is behind a wall
 
@@ -176,7 +196,7 @@ solely because time elapsed, and closing the production Screen MUST NOT clear it
 - **WHEN** the player disconnects, changes world or dimension, moves beyond the
   eight-block source authority radius, loses acknowledgements or authority, or
   receives source invalidation
-- **THEN** the client clears both modes and every cached outline immediately
+- **THEN** the client clears both modes and both cached outline plans immediately
 
 ### Requirement: Production-screen and Observer behavior
 

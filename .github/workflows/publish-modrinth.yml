@@ -23,7 +23,7 @@ concurrency:
 
 env:
   MODULE_ID: totem-nexus
-  CORE_REF: 84bbfc96f3aeabbbd9047fa8ae900b92e415f00f
+  CORE_REF: b0b57bc98a98140a1c12a660a33952ea61167278
 
 jobs:
   publish:
@@ -89,7 +89,7 @@ jobs:
           chmod +x .lockstep/TotemCore/gradlew
           ./.lockstep/TotemCore/gradlew -p .lockstep/TotemCore jar --no-daemon --stacktrace
           core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
-          test "$core_version" = '0.7.15'
+          test "$core_version" = '0.7.16'
           core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
           test -f "$core_jar"
           ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" -PtotemCoreJar="$core_jar" jar --no-daemon --stacktrace
@@ -119,7 +119,7 @@ jobs:
           test -n "$MODRINTH_PROJECT_ID"
           test -f "$artifact"
           unzip -p "$artifact" fabric.mod.json >/tmp/fabric.mod.json
-          jq -e --arg id "$MODULE_ID" --arg version "$version" --arg minecraft "~${minecraft}" --arg core '>=0.7.15 <0.8.0' '.id == $id and .version == $version and .depends.minecraft == $minecraft and .depends["totem-core"] == $core' /tmp/fabric.mod.json >/dev/null
+          jq -e --arg id "$MODULE_ID" --arg version "$version" --arg minecraft "~${minecraft}" --arg core '>=0.7.16 <0.8.0' '.id == $id and .version == $version and .depends.minecraft == $minecraft and .depends["totem-core"] == $core' /tmp/fabric.mod.json >/dev/null
 
           api='https://api.modrinth.com/v2'
           ua="Yunitrish006006/${MODULE_ID}-publisher/2.0"

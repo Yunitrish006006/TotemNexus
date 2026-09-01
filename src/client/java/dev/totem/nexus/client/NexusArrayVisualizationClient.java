@@ -1,6 +1,7 @@
 package dev.totem.nexus.client;
 
 import dev.totem.core.api.v1.client.world.TotemWorldOutlines;
+import dev.totem.core.api.v1.client.world.VoxelUnionOutline;
 import dev.totem.core.api.v1.client.world.WorldOutlineOcclusion;
 import dev.totem.core.api.v1.client.world.WorldOutlineStyle;
 import dev.totem.nexus.network.RequestTeleportArrayVisualizationPayload;
@@ -14,6 +15,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -22,17 +25,15 @@ public final class NexusArrayVisualizationClient {
     static final int REFRESH_INTERVAL_TICKS = 20;
     static final int ACK_TIMEOUT_TICKS = 80;
     private static final double DISPLAY_RADIUS = 8.0D;
-    private static final WorldOutlineStyle STRUCTURE_STYLE = new WorldOutlineStyle(
+    private static final WorldOutlineStyle ARRAY_OUTLINE_STYLE = new WorldOutlineStyle(
             0xFF4FC3F7, 3.0F, WorldOutlineOcclusion.THROUGH_WALLS);
-    private static final WorldOutlineStyle EMITTER_STYLE = new WorldOutlineStyle(
-            0xFFFFB74D, 4.0F, WorldOutlineOcclusion.THROUGH_WALLS);
-    private static final WorldOutlineStyle ORIGIN_STYLE = new WorldOutlineStyle(
-            0xFFB388FF, 5.0F, WorldOutlineOcclusion.THROUGH_WALLS);
     private static final WorldOutlineStyle BUILD_SITE_STYLE = new WorldOutlineStyle(
             0xFF66BB6A, 2.0F, WorldOutlineOcclusion.DEPTH_TESTED);
     private static final AtomicBoolean REGISTERED = new AtomicBoolean();
     private static Selection selection;
     private static TeleportArrayVisualizationPayload current;
+    private static OutlinePlans currentOutlines;
+    private static int acceptedOutlinePlanDerivations;
     private static int refreshCountdown;
     private static int ticksWithoutAcknowledgement;
     private static UUID lastRenderedSourceId;
@@ -76,6 +77,8 @@ public final class NexusArrayVisualizationClient {
         }
         selection = next;
         current = null;
+        currentOutlines = null;
+        acceptedOutlinePlanDerivations = 0;
         lastRenderedSourceId = null;
         ticksWithoutAcknowledgement = 0;
         refreshCountdown = REFRESH_INTERVAL_TICKS;
@@ -87,7 +90,10 @@ public final class NexusArrayVisualizationClient {
         if (active == null || !active.matches(payload.sourceUnitId(), payload.showArray(), payload.showBuildSites())) {
             return;
         }
+        OutlinePlans outlines = deriveOutlines(payload);
         current = payload;
+        currentOutlines = outlines;
+        acceptedOutlinePlanDerivations++;
         ticksWithoutAcknowledgement = 0;
         lastRenderedSourceId = null;
     }
@@ -127,6 +133,8 @@ public final class NexusArrayVisualizationClient {
     static void enableForVisualTest(String sourceType, UUID sourceUnitId, boolean showArray, boolean showBuildSites) {
         selection = new Selection(sourceType, sourceUnitId, showArray, showBuildSites);
         current = null;
+        currentOutlines = null;
+        acceptedOutlinePlanDerivations = 0;
         refreshCountdown = REFRESH_INTERVAL_TICKS;
         ticksWithoutAcknowledgement = 0;
         lastRenderedSourceId = null;
@@ -135,6 +143,8 @@ public final class NexusArrayVisualizationClient {
     public static void clear() {
         selection = null;
         current = null;
+        currentOutlines = null;
+        acceptedOutlinePlanDerivations = 0;
         refreshCountdown = 0;
         ticksWithoutAcknowledgement = 0;
         lastRenderedSourceId = null;
@@ -196,21 +206,51 @@ public final class NexusArrayVisualizationClient {
             return;
         }
 
-        submit(snapshot);
+        OutlinePlans outlines = currentOutlines;
+        if (outlines == null) {
+            return;
+        }
+        submit(outlines);
         lastRenderedSourceId = snapshot.sourceUnitId();
     }
 
     static void submit(TeleportArrayVisualizationPayload payload) {
+        OutlinePlans cached = currentOutlines;
+        submit(payload == current && cached != null ? cached : deriveOutlines(payload));
+    }
+
+    private static void submit(OutlinePlans outlines) {
+        TotemWorldOutlines.submit(outlines.array(), ARRAY_OUTLINE_STYLE);
+        TotemWorldOutlines.submit(outlines.buildSites(), BUILD_SITE_STYLE);
+    }
+
+    private static OutlinePlans deriveOutlines(TeleportArrayVisualizationPayload payload) {
         BlockPos origin = origin(payload);
+        List<BlockPos> array = new ArrayList<>();
+        List<BlockPos> buildSites = new ArrayList<>();
         if (payload.showArray()) {
-            TotemWorldOutlines.block(origin, ORIGIN_STYLE);
+            array.add(origin);
         }
         for (TeleportArrayVisualizationPayload.RelativeBlock block : payload.blocks()) {
-            WorldOutlineStyle style = block.buildable()
-                    ? BUILD_SITE_STYLE
-                    : block.expansionEmitter() ? EMITTER_STYLE : STRUCTURE_STYLE;
-            TotemWorldOutlines.block(origin.offset(block.dx(), block.dy(), block.dz()), style);
+            if (block.buildable() && payload.showBuildSites()) {
+                buildSites.add(origin.offset(block.dx(), block.dy(), block.dz()));
+            } else if (!block.buildable() && payload.showArray()) {
+                array.add(origin.offset(block.dx(), block.dy(), block.dz()));
+            }
         }
+        return new OutlinePlans(VoxelUnionOutline.of(array), VoxelUnionOutline.of(buildSites));
+    }
+
+    static int acceptedOutlinePlanDerivationsForTest() {
+        return acceptedOutlinePlanDerivations;
+    }
+
+    static int cachedArraySegmentCountForTest() {
+        return currentOutlines == null ? 0 : currentOutlines.array().segmentCount();
+    }
+
+    static int cachedBuildSiteSegmentCountForTest() {
+        return currentOutlines == null ? 0 : currentOutlines.buildSites().segmentCount();
     }
 
     static boolean hasRendered(UUID sourceUnitId) {
@@ -241,6 +281,9 @@ public final class NexusArrayVisualizationClient {
 
     private static BlockPos origin(TeleportArrayVisualizationPayload payload) {
         return new BlockPos(payload.originX(), payload.originY(), payload.originZ());
+    }
+
+    private record OutlinePlans(VoxelUnionOutline array, VoxelUnionOutline buildSites) {
     }
 
     private record Selection(

@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gizmos.Gizmos;
+import net.minecraft.gizmos.LineGizmo;
 import net.minecraft.gizmos.SimpleGizmoCollector;
 import net.minecraft.world.level.block.Blocks;
 
@@ -15,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** Client proof for session persistence, dual-mode state and mixed occlusion gizmos. */
+/** Client proof for cached outer-only union lines, dual-mode state and mixed occlusion. */
 @SuppressWarnings("UnstableApiUsage")
 public final class NexusArrayVisualizationClientGameTest implements FabricClientGameTest {
     private static final Map<BlockPos, net.minecraft.world.level.block.Block> COMPLEX_EMITTERS = Map.ofEntries(
@@ -60,6 +61,11 @@ public final class NexusArrayVisualizationClientGameTest implements FabricClient
                 || !NexusArrayVisualizationClient.hasSnapshotFor(source)) {
             throw new AssertionError("Persistent dual-mode Nexus preview was not active");
         }
+        if (NexusArrayVisualizationClient.acceptedOutlinePlanDerivationsForTest() != 1
+                || NexusArrayVisualizationClient.cachedArraySegmentCountForTest() != 12
+                || NexusArrayVisualizationClient.cachedBuildSiteSegmentCountForTest() != 12) {
+            throw new AssertionError("Accepted payload did not cache one independent outline plan per class");
+        }
         for (int tick = 1; tick < NexusArrayVisualizationClient.REFRESH_INTERVAL_TICKS; tick++) {
             if (NexusArrayVisualizationClient.advanceRefreshCadence()) {
                 throw new AssertionError("Nexus client requested a refresh before 20 ticks");
@@ -75,14 +81,42 @@ public final class NexusArrayVisualizationClientGameTest implements FabricClient
         }
         long throughWalls = collector.getGizmos().stream().filter(gizmo -> gizmo.isAlwaysOnTop()).count();
         long depthTested = collector.getGizmos().size() - throughWalls;
-        if (collector.getGizmos().size() != 4 || throughWalls != 3 || depthTested != 1) {
-            throw new AssertionError("Nexus counted/origin and build-site outlines did not preserve mixed occlusion");
+        long cyan = collector.getGizmos().stream()
+                .map(entry -> requireLine(entry.gizmo()))
+                .filter(line -> line.color() == 0xFF4FC3F7)
+                .count();
+        long green = collector.getGizmos().stream()
+                .map(entry -> requireLine(entry.gizmo()))
+                .filter(line -> line.color() == 0xFF66BB6A)
+                .count();
+        if (collector.getGizmos().size() != 24
+                || throughWalls != 12
+                || depthTested != 12
+                || cyan != 12
+                || green != 12) {
+            throw new AssertionError("Nexus array/build-site outer lines did not preserve semantic style and occlusion");
         }
+        assertThreeBlockRowHasOnlyTwelveOuterSegments(collector);
+        if (collector.getGizmos().size() >= 4 * 12) {
+            throw new AssertionError("Merged outline did not materially reduce four per-block wireframes");
+        }
+        collect(payload);
+        collect(payload);
+        if (NexusArrayVisualizationClient.acceptedOutlinePlanDerivationsForTest() != 1) {
+            throw new AssertionError("Render submission rebuilt an already accepted outline plan");
+        }
+
+        assertDisconnectedArrayComponentsRemainSeparate(source);
 
         NexusArrayVisualizationClient.acceptStatus(
                 new TeleportArrayVisualizationStatusPayload(source, false, false, false));
         if (NexusArrayVisualizationClient.isActiveFor(source)) {
             throw new AssertionError("Server invalidation did not clear the persistent Nexus preview");
+        }
+        if (NexusArrayVisualizationClient.acceptedOutlinePlanDerivationsForTest() != 0
+                || NexusArrayVisualizationClient.cachedArraySegmentCountForTest() != 0
+                || NexusArrayVisualizationClient.cachedBuildSiteSegmentCountForTest() != 0) {
+            throw new AssertionError("Server invalidation did not clear cached outline geometry");
         }
         NexusArrayVisualizationClient.clear();
 
@@ -261,9 +295,13 @@ public final class NexusArrayVisualizationClientGameTest implements FabricClient
             throw new AssertionError("Complex counted-array fixture does not cover origin, emitter and ordinary blocks");
         }
         SimpleGizmoCollector collector = collect(payload);
-        if (collector.getGizmos().size() != payload.blocks().size() + 1
-                || collector.getGizmos().stream().anyMatch(gizmo -> !gizmo.isAlwaysOnTop())) {
-            throw new AssertionError("Counted-array fixture did not keep origin and every structure outline through walls");
+        if (collector.getGizmos().isEmpty()
+                || collector.getGizmos().size() >= (payload.blocks().size() + 1) * 12
+                || collector.getGizmos().stream().anyMatch(gizmo -> !gizmo.isAlwaysOnTop())
+                || collector.getGizmos().stream()
+                        .map(entry -> requireLine(entry.gizmo()))
+                        .anyMatch(line -> line.color() != 0xFF4FC3F7)) {
+            throw new AssertionError("Counted-array fixture did not use one reduced cyan outer union through walls");
         }
     }
 
@@ -273,10 +311,57 @@ public final class NexusArrayVisualizationClientGameTest implements FabricClient
             throw new AssertionError("Complex build-site fixture does not contain only reached replaceable positions");
         }
         SimpleGizmoCollector collector = collect(payload);
-        if (collector.getGizmos().size() != payload.blocks().size()
-                || collector.getGizmos().stream().anyMatch(gizmo -> gizmo.isAlwaysOnTop())) {
-            throw new AssertionError("Build-site fixture did not remain depth-tested behind opaque terrain");
+        if (collector.getGizmos().isEmpty()
+                || collector.getGizmos().size() >= payload.blocks().size() * 12
+                || collector.getGizmos().stream().anyMatch(gizmo -> gizmo.isAlwaysOnTop())
+                || collector.getGizmos().stream()
+                        .map(entry -> requireLine(entry.gizmo()))
+                        .anyMatch(line -> line.color() != 0xFF66BB6A)) {
+            throw new AssertionError("Build-site fixture did not use one reduced green depth-tested outer union");
         }
+    }
+
+    private static void assertThreeBlockRowHasOnlyTwelveOuterSegments(SimpleGizmoCollector collector) {
+        List<LineGizmo> cyan = collector.getGizmos().stream()
+                .map(entry -> requireLine(entry.gizmo()))
+                .filter(line -> line.color() == 0xFF4FC3F7)
+                .toList();
+        long lengthThree = cyan.stream().filter(line -> line.start().distanceTo(line.end()) == 3.0D).count();
+        boolean hasInternalSeam = cyan.stream().anyMatch(line -> {
+            boolean variesY = line.start().x == line.end().x && line.start().y != line.end().y;
+            boolean variesZ = line.start().x == line.end().x && line.start().z != line.end().z;
+            return (variesY || variesZ) && (line.start().x == 0.0D || line.start().x == 1.0D);
+        });
+        if (cyan.size() != 12 || lengthThree != 4 || hasInternalSeam) {
+            throw new AssertionError("Adjacent array voxels retained a shared face or coplanar grid seam");
+        }
+    }
+
+    private static void assertDisconnectedArrayComponentsRemainSeparate(UUID source) {
+        TeleportArrayVisualizationPayload disconnected = new TeleportArrayVisualizationPayload(
+                source,
+                "minecraft:overworld",
+                0,
+                64,
+                0,
+                true,
+                false,
+                List.of(new TeleportArrayVisualizationPayload.RelativeBlock(4, 0, 0, false, false))
+        );
+        SimpleGizmoCollector collector = collect(disconnected);
+        if (collector.getGizmos().size() != 24
+                || collector.getGizmos().stream()
+                        .map(entry -> requireLine(entry.gizmo()))
+                        .anyMatch(line -> line.start().distanceTo(line.end()) > 1.0D)) {
+            throw new AssertionError("Disconnected array components were wrapped or bridged by one inaccurate box");
+        }
+    }
+
+    private static LineGizmo requireLine(net.minecraft.gizmos.Gizmo gizmo) {
+        if (!(gizmo instanceof LineGizmo line)) {
+            throw new AssertionError("Merged Nexus outline submitted a non-line gizmo: " + gizmo);
+        }
+        return line;
     }
 
     private static SimpleGizmoCollector collect(TeleportArrayVisualizationPayload payload) {

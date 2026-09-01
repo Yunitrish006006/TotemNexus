@@ -23,8 +23,8 @@ submission and occlusion style, not either feature's selection or array state.
   scan for the local source lodestone.
 - Independently show every currently replaceable build site reached by that
   same scan, so builders can see where a valid next block may be placed.
-- Make expansion-emitting blocks distinguishable so a builder can understand
-  why the scan reaches a distant block.
+- Show only each semantic set's exact outer boundary, without shared block
+  edges or coplanar surface grid seams obscuring a complex build.
 - Keep rendering local, dynamically refreshed, bounded and lifecycle-safe.
 - Give Totem modules one versioned client-only outline primitive with an
   explicit occlusion choice instead of duplicating raw gizmo setup.
@@ -49,19 +49,23 @@ submission and occlusion style, not either feature's selection or array state.
 
 ### TotemCore world-outline contract
 
-TotemCore adds a client-only API under `dev.totem.core.api.v1.client` with three
-small public concepts:
+TotemCore provides a client-only API under `dev.totem.core.api.v1.client.world`
+with four small public concepts:
 
 - an immutable outline style carrying ARGB colour and finite positive line
   width;
 - an explicit occlusion enum with `DEPTH_TESTED` and `THROUGH_WALLS`; and
-- a stateless cuboid/block submission helper backed by Minecraft's normal
-  gizmo extraction path.
+- stateless cuboid/block/line submission helpers backed by Minecraft's normal
+  gizmo extraction path; and
+- an immutable voxel-union outline plan that retains only exterior corners,
+  merges maximal collinear lines, ignores enclosed cavities and processes
+  disconnected components without one coordinate-span-sized flood fill.
 
 The helper returns no mutable renderer state. It submits a default depth-tested
 gizmo for `DEPTH_TESTED` and applies always-on-top only for `THROUGH_WALLS`.
-Feature modules register their own level-render callback and call the helper
-each frame for their current immutable snapshot. This keeps Core free of
+Feature modules register their own level-render callback, derive a plan only
+when their semantic block set changes, cache it, and submit its lines each
+frame. This keeps Core free of
 selection sets, teleport-array positions, timers, packets, permissions and
 world lifecycle ownership.
 
@@ -75,9 +79,9 @@ modules keep their current 0.7.x constraints.
 
 Excavation migrates its current selection renderer to the helper with
 `DEPTH_TESTED`, retaining the already-validated no-through-wall behavior. Nexus
-uses `THROUGH_WALLS` for every counted block, expansion emitter and origin
-marker. The two consumers therefore prove both modes without Core learning
-either feature's semantics.
+uses one cyan `THROUGH_WALLS` voxel-union plan for the counted array and origin,
+plus an independent green `DEPTH_TESTED` plan for build sites. The two consumers
+therefore prove both modes without Core learning either feature's semantics.
 
 Automata's planned area-job selection marker is a future consumer of the same
 primitive. This change does not implement that area-job or select its occlusion
@@ -102,7 +106,7 @@ has discovered the source and may view it. The server revalidates all of these
 facts for every visualization request. Observer mode never enables the control
 and never sends a visualization packet.
 
-### One authoritative scan, four visual classes
+### One authoritative scan, two outline groups
 
 The visualization authority invokes the same `TeleportArrayMaterialScan.scan`
 path used by registration, calibration and maintenance. The response contains:
@@ -116,14 +120,16 @@ path used by registration, calibration and maintenance. The response contains:
 - the source dimension and enabled-class flags needed to reject a stale
   response.
 
-Ordinary counted structural blocks use the standard array-outline colour.
-Expansion emitters use a distinct colour, and the centre lodestone is rendered
-as an origin marker. Build sites use a lower-noise green outline. A position is
-in at most one transmitted class: placing a valid structural block moves it
-from buildable to counted on the next refresh, and placing an expansion emitter
-may make additional build sites reachable. Unreachable material, unloaded
-cells, the lodestone origin and reached but non-replaceable solid blocks are
-omitted. The response contains no block identifiers or block-state properties.
+Every counted structural position and the centre lodestone form one cyan array
+outline group. Expansion-emitter metadata remains authoritative scan data but
+does not add a per-block colour or box. Build sites form a separate lower-noise
+green group. A position is in at most one transmitted class: placing a valid
+structural block moves it from buildable to counted on the next refresh, and
+placing an expansion emitter may make additional build sites reachable.
+Unreachable material, unloaded cells, the lodestone origin and reached but
+non-replaceable solid blocks are omitted from the transmitted relative list;
+the client adds the trusted payload origin to the counted outline group. The
+response contains no block identifiers or block-state properties.
 
 ### Bounded protocol and request policy
 
@@ -176,13 +182,19 @@ source-open radius. Clearing rather than retaining a remote paused snapshot is
 the chosen anti-disclosure policy; returning later requires an explicit new
 enable.
 
-The renderer submits one cuboid per returned block through TotemCore's shared
-outline API during the module-owned normal level gizmo phase. Counted material
-uses cyan `THROUGH_WALLS`, expansion emitters use gold `THROUGH_WALLS`, and the
-origin uses purple `THROUGH_WALLS`. Build sites use green `DEPTH_TESTED` so
-terrain suppresses distant clutter. Normal frustum and distance bounds still
-apply. The implementation must not use particles as a substitute for exact
-membership and must not access a framebuffer.
+On each accepted changed payload, the client independently derives two immutable
+TotemCore voxel-union plans. The counted plan includes the trusted lodestone
+origin and every non-buildable returned position, and uses cyan
+`THROUGH_WALLS`. The build-site plan includes every buildable position and uses
+green `DEPTH_TESTED` so terrain suppresses distant clutter. Each plan removes
+face-shared internal edges and coplanar surface seams, ignores fully enclosed
+cavities, preserves true irregular and disconnected geometry, and merges
+contiguous collinear unit edges into maximal line segments. It must not replace
+the set with an inaccurate global bounding box. The plans are cached until the
+next accepted payload and cleared with all existing preview lifecycle cleanup;
+render frames only submit cached lines through the shared API. Normal frustum
+and distance bounds still apply. The implementation must not use particles as a
+substitute for exact membership and must not access a framebuffer.
 
 ### Screen ownership and Observer safety
 
@@ -197,10 +209,11 @@ sufficient and that clicks cannot send packets.
 
 ## Risks / Trade-offs
 
-- A 1,330-position preview can be visually dense and dynamic scans cost more
-  than the common small array. The shared 1,330 union cap, one-source client
-  limit, depth-tested build sites, eight-block authority radius, 20-tick request
-  cadence and unchanged-snapshot suppression bound network/render work.
+- A 1,330-position preview can still have a complex outer surface and dynamic
+  scans cost more than the common small array. Cached maximal boundary lines,
+  the shared 1,330 union cap, one-source client limit, depth-tested build sites,
+  eight-block authority radius, 20-tick request cadence and unchanged-snapshot
+  suppression bound geometry, network and render work.
 - Through-wall display reveals the counted positions behind nearby terrain.
   Source-only authority, the existing eight-block request radius and
   non-persistent per-player session state prevent it from becoming a remote

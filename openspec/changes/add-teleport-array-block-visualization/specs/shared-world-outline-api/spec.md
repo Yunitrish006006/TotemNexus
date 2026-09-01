@@ -2,10 +2,11 @@
 
 ### Requirement: Versioned client-only outline primitive
 
-TotemCore SHALL expose a client-only API v1 primitive that submits block or
-cuboid outlines with an immutable ARGB colour, finite positive line width and
-an explicit occlusion mode. The API MUST provide `DEPTH_TESTED` and
-`THROUGH_WALLS` modes and MUST NOT expose mutable internal renderer state.
+TotemCore SHALL expose a client-only API v1 primitive that submits block,
+cuboid, line or immutable voxel-union outlines with an immutable ARGB colour,
+finite positive line width and an explicit occlusion mode. The API MUST provide
+`DEPTH_TESTED` and `THROUGH_WALLS` modes and MUST NOT expose mutable internal
+renderer state.
 
 #### Scenario: Depth-tested outline is submitted
 
@@ -25,6 +26,28 @@ an explicit occlusion mode. The API MUST provide `DEPTH_TESTED` and
 - **WHEN** a caller supplies a non-finite or non-positive line width
 - **THEN** the immutable style value rejects it before submitting a gizmo
 
+#### Scenario: Adjacent voxels form one outer boundary
+
+- **WHEN** a feature derives a voxel-union outline from adjacent block
+  positions
+- **THEN** Core omits face-shared edges and coplanar surface grid seams
+- **AND** it merges contiguous collinear unit edges into deterministic maximal
+  segments
+
+#### Scenario: Irregular or disconnected voxels are submitted
+
+- **WHEN** a feature derives an outline from concave or disconnected block
+  positions
+- **THEN** Core preserves every true exterior turn and component without
+  replacing them with one global bounding box
+- **AND** fully enclosed cavity surfaces do not produce internal wireframes
+
+#### Scenario: A connected component has a pathological envelope
+
+- **WHEN** one face-connected voxel component's padded exterior envelope would
+  exceed the documented fixed cell bound
+- **THEN** Core rejects derivation before starting an unbounded flood fill
+
 ### Requirement: Feature ownership and server isolation
 
 The shared outline API SHALL remain a stateless client presentation primitive.
@@ -35,11 +58,11 @@ client-only API or Minecraft client rendering types.
 
 #### Scenario: A feature renders its current snapshot
 
-- **WHEN** a feature's module-owned render callback submits outlines for its
-  current immutable snapshot
+- **WHEN** a feature derives and caches an outline for its current immutable
+  snapshot, then its module-owned render callback submits that plan
 - **THEN** Core applies only the requested generic style and occlusion behavior
 - **AND** the feature remains responsible for changing or clearing that
-  snapshot
+  snapshot and cached plan
 
 #### Scenario: Dedicated server starts with Core installed
 

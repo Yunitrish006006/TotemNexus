@@ -10,6 +10,10 @@
 - [ ] 1.3 Run Core's required unit, build, Client GameTest, dedicated three-JVM
   E2E and Production Runtime checks, then assign/publish the compatible 0.7.x
   patch before consumers require it.
+- [x] 1.4 Add a reusable immutable voxel-union outer-boundary plan that removes
+  shared/coplanar seams and enclosed cavities, preserves disconnected geometry,
+  merges maximal lines, bounds pathological component floods and submits only
+  through the existing Core line API; cover it with deterministic unit tests.
 
 ## 2. Excavation migration
 
@@ -52,6 +56,9 @@
   disable either mode.
 - [x] 4.6 Add the independent localized build-site toggle and green
   `DEPTH_TESTED` rendering with collision-free normal and narrow layouts.
+- [x] 4.7 Replace per-block cyan/gold/purple boxes with cached outer-only plans:
+  one cyan `THROUGH_WALLS` counted/origin union and one independent green
+  `DEPTH_TESTED` build-site union, with all lifecycle cleanup preserved.
 
 ## 5. Nexus verification
 
@@ -80,6 +87,10 @@
   after switching to building materials, changed place/break snapshots, source
   switch rejection, distance/permission invalidation and disable/disconnect/
   server-lifecycle session cleanup without sleeps.
+- [x] 5.9 Cover adjacent cuboid collapse, coplanar seam removal, irregular and
+  disconnected exteriors, cavity suppression, maximal segment merging,
+  independent dual-mode styles, accepted-payload caching and cleanup, plus
+  material submission reduction against twelve per-block edges.
 
 ## 6. Documentation and completion
 
@@ -91,3 +102,5 @@
 - [x] 6.3 Update English/Traditional Chinese manual and README guidance for
   persistent dynamic modes, colour/occlusion meaning and secure cleanup, then
   rerun strict OpenSpec validation.
+- [x] 6.4 Update current design/spec guidance for outer-only merged boundaries
+  while retaining historical release evidence as historical records.
