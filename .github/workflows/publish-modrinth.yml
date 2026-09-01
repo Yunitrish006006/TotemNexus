@@ -123,17 +123,42 @@ jobs:
 
           api='https://api.modrinth.com/v2'
           ua="Yunitrish006006/${MODULE_ID}-publisher/2.0"
-          args=(--fail --silent --show-error --retry 3 -H "Authorization: ${MODRINTH_TOKEN}" -H "User-Agent: ${ua}")
-          curl "${args[@]}" "$api/project/${MODRINTH_PROJECT_ID}" >/tmp/project.json
+          args=(--silent --show-error --retry 3 -H "Authorization: ${MODRINTH_TOKEN}" -H "User-Agent: ${ua}")
+          modrinth_request() {
+            local output="$1"
+            shift
+            local status
+            status="$(curl "${args[@]}" --output "$output" --write-out '%{http_code}' "$@")"
+            if [[ ! "$status" =~ ^2 ]]; then
+              echo "Modrinth API request failed with HTTP ${status}." >&2
+              jq -r 'if type == "object" then "\(.error // "unknown_error"): \(.description // .message // "No description returned")" else "No structured error returned" end' "$output" >&2 || true
+              return 1
+            fi
+          }
+
+          project_ref="$(printf '%s' "$MODRINTH_PROJECT_ID" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          project_ref="${project_ref#https://modrinth.com/project/}"
+          project_ref="${project_ref#https://modrinth.com/mod/}"
+          project_ref="${project_ref%/}"
+          if ! modrinth_request /tmp/project.json "$api/project/${project_ref}"; then
+            previous_marker="$(find .github/staging -maxdepth 1 -name 'modrinth-published-*.json' -print | sort -V | tail -1)"
+            test -n "$previous_marker"
+            previous_version_id="$(jq -er '.modrinth_version_id' "$previous_marker")"
+            echo "Configured project reference failed; resolving it from ${previous_marker}." >&2
+            modrinth_request /tmp/previous-version.json "$api/version/${previous_version_id}"
+            project_ref="$(jq -er '.project_id' /tmp/previous-version.json)"
+            modrinth_request /tmp/project.json "$api/project/${project_ref}"
+          fi
           project="$(jq -er '.id' /tmp/project.json)"
           sha="$(sha512sum "$artifact" | awk '{print $1}')"
           if [[ "$DRY_RUN" == true ]]; then
             echo "version=$version" >> "$GITHUB_OUTPUT"
+            echo "project_id=$project" >> "$GITHUB_OUTPUT"
             echo "sha512=$sha" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          curl "${args[@]}" "$api/project/${project}/version?include_changelog=false" >/tmp/versions.json
+          curl --fail-with-body "${args[@]}" "$api/project/${project}/version?include_changelog=false" >/tmp/versions.json
           count="$(jq --arg v "$version" '[.[] | select(.version_number == $v)] | length' /tmp/versions.json)"
           if [[ "$count" != 0 ]]; then
             test "$count" = '1'
@@ -144,12 +169,13 @@ jobs:
           else
             changelog="$(git log -1 --format=%B)"
             data="$(jq -nc --arg name "${MODULE_ID} ${version}" --arg version "$version" --arg changelog "$changelog" --arg project "$project" --arg minecraft "$minecraft" '{name:$name,version_number:$version,changelog:$changelog,dependencies:[],game_versions:[$minecraft],version_type:"release",loaders:["fabric"],featured:false,status:"listed",project_id:$project,file_parts:["primary"],primary_file:"primary",environment:"client_and_server"}')"
-            curl "${args[@]}" -X POST "$api/version" -F "data=${data};type=application/json" -F "primary=@${artifact};filename=$(basename "$artifact");type=application/java-archive" >/tmp/version.json
+            curl --fail-with-body "${args[@]}" -X POST "$api/version" -F "data=${data};type=application/json" -F "primary=@${artifact};filename=$(basename "$artifact");type=application/java-archive" >/tmp/version.json
             version_id="$(jq -er '.id' /tmp/version.json)"
           fi
-          curl "${args[@]}" "$api/version/${version_id}" >/tmp/remote.json
+          curl --fail-with-body "${args[@]}" "$api/version/${version_id}" >/tmp/remote.json
           jq -e --arg project "$project" --arg version "$version" --arg minecraft "$minecraft" --arg filename "$(basename "$artifact")" --arg sha "$sha" '.project_id == $project and .version_number == $version and .game_versions == [$minecraft] and .loaders == ["fabric"] and (([.files[] | select(.primary == true)][0] // .files[0]).filename == $filename) and (([.files[] | select(.primary == true)][0] // .files[0]).hashes.sha512 == $sha)' /tmp/remote.json >/dev/null
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "project_id=$project" >> "$GITHUB_OUTPUT"
           echo "version_id=$version_id" >> "$GITHUB_OUTPUT"
           echo "sha512=$sha" >> "$GITHUB_OUTPUT"
 
@@ -158,11 +184,11 @@ jobs:
         shell: bash
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
-          MODRINTH_PROJECT_ID: ${{ secrets.MODRINTH_PROJECT_ID }}
+          MODRINTH_PROJECT_ID: ${{ steps.modrinth.outputs.project_id }}
         run: |
           set -euo pipefail
           api='https://api.modrinth.com/v2'
-          args=(--fail --silent --show-error --retry 3 -H "Authorization: ${MODRINTH_TOKEN}" -H 'User-Agent: Yunitrish006006/totem-nexus-publisher/2.0')
+          args=(--fail-with-body --silent --show-error --retry 3 -H "Authorization: ${MODRINTH_TOKEN}" -H 'User-Agent: Yunitrish006006/totem-nexus-publisher/2.0')
           curl "${args[@]}" "$api/project/${MODRINTH_PROJECT_ID}" >/tmp/project-before-review.json
           status="$(jq -er '.status' /tmp/project-before-review.json)"
           if [[ "$status" != 'approved' && "$status" != 'processing' ]]; then
