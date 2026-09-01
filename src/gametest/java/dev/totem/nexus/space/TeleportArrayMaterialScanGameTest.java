@@ -7,6 +7,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -16,6 +19,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.gamerules.GameRuleType;
+import net.minecraft.world.level.gamerules.GameRules;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -48,6 +52,58 @@ public final class TeleportArrayMaterialScanGameTest {
                 || !"local".equals(NexusTeleportArrayExpansionRules.ExpansionMode.LOCAL.toString())
                 || !"centered".equals(NexusTeleportArrayExpansionRules.ExpansionMode.CENTERED.toString())) {
             helper.fail("Expansion gamerule registration, default, or command values changed");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(
+            environment = "totem-nexus-gametest:gamerule_persistence",
+            maxTicks = 30)
+    public void expansionModeRuleAcceptsScreenTransportAndSurvivesCodecRestart(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        var rule = NexusTeleportArrayExpansionRules.EXPANSION_MODE;
+
+        for (NexusTeleportArrayExpansionRules.ExpansionMode mode
+                : NexusTeleportArrayExpansionRules.ExpansionMode.values()) {
+            NexusTeleportArrayExpansionRules.ExpansionMode screenValue =
+                    rule.deserialize(rule.serialize(mode)).result().orElse(null);
+            if (screenValue != mode) {
+                helper.fail("Expansion gamerule rejected the in-world screen value for " + mode.name());
+                return;
+            }
+        }
+        NexusTeleportArrayExpansionRules.ExpansionMode upperCaseLegacyValue =
+                rule.deserialize("CENTERED").result().orElse(null);
+        Tag encodedValue = rule.valueCodec()
+                .encodeStart(NbtOps.INSTANCE, NexusTeleportArrayExpansionRules.ExpansionMode.CENTERED)
+                .getOrThrow(error -> helper.assertionException("Could not encode expansion gamerule: " + error));
+
+        if (upperCaseLegacyValue != NexusTeleportArrayExpansionRules.ExpansionMode.CENTERED) {
+            helper.fail("Expansion gamerule rejected its legacy upper-case enum name");
+            return;
+        }
+        if (!(encodedValue instanceof StringTag stringTag) || !"CENTERED".equals(stringTag.value())) {
+            helper.fail("Expansion gamerule storage codec no longer writes the compatible upper-case name");
+            return;
+        }
+        if (rule.deserialize("invalid").error().isEmpty()) {
+            helper.fail("Expansion gamerule accepted an unknown serialized value");
+            return;
+        }
+
+        var features = level.getServer().getWorldData().enabledFeatures();
+        GameRules beforeRestart = level.getGameRules().copy(features);
+        beforeRestart.set(rule, NexusTeleportArrayExpansionRules.ExpansionMode.CENTERED, null);
+        beforeRestart.set(NexusDistributedSpawnAuthority.DISTRIBUTED_SPAWNING, true, null);
+        Tag encodedRules = GameRules.codec(features).encodeStart(NbtOps.INSTANCE, beforeRestart)
+                .getOrThrow(error -> helper.assertionException("Could not encode game rules: " + error));
+        GameRules afterRestart = GameRules.codec(features).parse(NbtOps.INSTANCE, encodedRules)
+                .getOrThrow(error -> helper.assertionException("Could not decode game rules: " + error));
+
+        if (afterRestart.get(rule) != NexusTeleportArrayExpansionRules.ExpansionMode.CENTERED
+                || !afterRestart.get(NexusDistributedSpawnAuthority.DISTRIBUTED_SPAWNING)) {
+            helper.fail("Nexus enum or boolean gamerule did not survive a storage-codec restart round trip");
             return;
         }
         helper.succeed();
