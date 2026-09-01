@@ -75,3 +75,59 @@ Executed locally on 2026-08-31 with Minecraft 26.2, Java 25, Fabric Loader
   still returned HTTP 404 immediately after their review-submission runs. The
   artifacts are uploaded, but public availability remains moderation-dependent
   and is not claimed by this evidence.
+
+### TotemNexus 0.3.8 working-tree validation (persistent dual-mode extension)
+
+Executed locally on 2026-09-01 with Minecraft 26.2, Java 25, Fabric Loader
+0.19.3, Fabric API 0.154.2+26.2 and the unmodified local TotemCore 0.7.14 JAR.
+This section records implementation evidence only; no commit, push or release
+is claimed.
+
+- `../TotemCore/gradlew test compileJava compileGametestJava --console=plain`
+  with the isolated Gradle home and explicit Core JAR override passed.
+- A clean `../TotemCore/gradlew runGameTest --console=plain` run passed all 70
+  required server GameTests. This includes strict initial held-interface
+  authorization, same-source refresh after switching to building materials,
+  changed place/break snapshots, rejection/invalidation and lifecycle cleanup.
+- `xvfb-run -a ../TotemCore/gradlew runClientGameTest --console=plain` passed.
+  An earlier invocation without Xvfb stopped at GLFW initialization because
+  the host had no `DISPLAY`; it did not enter any client test.
+- JAR inspection found the request, snapshot and status payload classes, the
+  exact material profile resource, structure tag and both locale resources;
+  metadata remains Minecraft 26.2, Nexus 0.3.8 and Core `>=0.7.13 <0.8.0`.
+- `jq empty` passed for the changed profile, tag and both locale resources;
+  the English and Traditional Chinese key sets are identical.
+- Strict OpenSpec validation passed for both
+  `add-material-attribute-teleport-arrays` and
+  `add-teleport-array-block-visualization`; `git diff --check` also passed.
+- Inspected `totem-nexus-array-and-build-sites-live.png`: cyan counted blocks,
+  gold expansion emitters and the purple lodestone remain visible through the
+  opaque wall, while the separate green build-site outline is visible and uses
+  the depth-tested path.
+- Inspected the separate 854x480 world renders
+  `totem-nexus-complex-counted-array.png` and
+  `totem-nexus-complex-build-sites.png`. Both payloads come from the production
+  server material scan rather than a hand-authored client list. The counted-only
+  render covers tuff, obsidian, crying obsidian and gold branches across turns
+  and stepped vertical levels, with exactly 12 profile-backed expansion
+  emitters (four left, four right and four vertical) in gold and the lodestone
+  origin in purple across an opaque partial wall; every counted outline remains
+  `THROUGH_WALLS`. The build-site-only render contains the production scan's
+  exact reached replaceable set in green and `DEPTH_TESTED`: exposed sites
+  remain readable while equivalent sites behind the wall do not bleed through
+  it. The fixture asserts exact emitter offsets and profiles, exact payload/scan
+  equality, opposite-mode suppression and the 1,330-entry payload bound.
+- Inspected `totem-nexus-space-unit-material-overlays-narrow.png`: the material
+  title truncates before Repair and the three controls remain separated from
+  the Block Reference slot. Inspected
+  `totem-nexus-space-unit-material-observer-overlays-disabled.png`: both overlay
+  controls are present but disabled in Observer mode.
+- Inspected English and Traditional Chinese manual spreads 15-16: tuff,
+  obsidian and crying obsidian are visible, with the live-catalog guidance and
+  no clipping at the native fixture size.
+- Unit and GameTest coverage proves exact tuff/obsidian/crying-obsidian profile
+  values and tag membership, mixed/homogeneous bounds, deterministic buildable
+  sets, place/break/expander transitions, 20-tick cadence, unchanged snapshot
+  suppression, status invalidation, dual-mode rendering and Observer controls.
+- The dedicated Nexus three-JVM E2E / Production Runtime harness still does
+  not exist for this path, so task 5.5 deliberately remains open.

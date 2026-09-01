@@ -60,6 +60,10 @@ public final class NexusPayloadRegistration {
                 TeleportArrayVisualizationPayload.TYPE,
                 TeleportArrayVisualizationPayload.CODEC
         );
+        PayloadTypeRegistry.clientboundPlay().register(
+                TeleportArrayVisualizationStatusPayload.TYPE,
+                TeleportArrayVisualizationStatusPayload.CODEC
+        );
     }
 
     /** Activates receivers only when the complete server authority layer is cut over. */

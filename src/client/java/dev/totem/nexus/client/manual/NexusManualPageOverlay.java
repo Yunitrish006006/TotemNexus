@@ -195,12 +195,15 @@ public final class NexusManualPageOverlay {
         int y = context.pageTop() + 38;
         Item[] materials = {
                 Items.STONE_BRICKS,
+                Items.TUFF,
                 Items.DEEPSLATE_BRICKS,
                 Items.NETHER_BRICKS,
-                Items.POLISHED_BLACKSTONE
+                Items.POLISHED_BLACKSTONE,
+                Items.OBSIDIAN,
+                Items.CRYING_OBSIDIAN
         };
         for (int index = 0; index < materials.length; index++) {
-            item(context, materials[index], 43 + index * 27, y);
+            item(context, materials[index], 40 + index * 18, y);
         }
         wrapped(context, "book.deadrecall.nexus_diagram.valid_families", 40, y + 19, 112, MUTED);
 

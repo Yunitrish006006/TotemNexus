@@ -11,22 +11,30 @@ though its distant blocks do not contribute to the array.
   values and explicit `DEPTH_TESTED` and `THROUGH_WALLS` occlusion modes. Core
   owns only the generic cuboid-submission primitive; callers retain feature
   state, render-event registration, networking, authorization and cleanup.
-- Add a local `Show Array` control to the source lodestone's Material view in
-  the Space Unit map.
+- Add independent local `Show Array` and `Show Build Sites` controls to the
+  source lodestone's Material view in the Space Unit map.
 - Re-run the bounded server-authoritative material scan when visualization is
   requested and return only the structural block positions that scan actually
   counted, with the local expansion emitters identified as a subset.
 - Render the counted blocks through the shared Core outline API in
   `THROUGH_WALLS` mode, using a distinct treatment for expansion emitters and
   the lodestone origin so the diagnostic remains visible through walls.
+- Derive buildable positions from the same authoritative scan: reached,
+  loaded, non-structural positions whose current state can be replaced by a
+  placed block. Render those positions as lower-noise green `DEPTH_TESTED`
+  outlines.
 - Migrate Excavation's existing selection outline to the same Core API in
   `DEPTH_TESTED` mode, preserving its rule that selection markers do not show
   through opaque terrain.
 - Establish this API as the required primitive for Automata's later area-job
   selection marker; that follow-up retains Automata-owned state and chooses its
   occlusion mode in its own approved feature spec.
-- Keep visualization temporary and client-local. It is cleared on toggle-off,
-  timeout, dimension/world changes, disconnect, or invalid distance, and is
+- Keep enabled visualization active for the current client session and refresh
+  it dynamically at most once per 20 ticks. Initial enable requires the held,
+  bound interface; the resulting server-only session lets the player put that
+  interface away and build while every same-source refresh continues full
+  source-authority validation. It is cleared on explicit hide, dimension/world
+  changes, disconnect, invalid source/authority, or invalid distance, and is
   never persisted in Space Unit SavedData.
 - Bound and authorize the request and response so the feature cannot inspect a
   remote array, force-load chunks, leak unrelated block state, or create an
@@ -45,10 +53,10 @@ though its distant blocks do not contribute to the array.
   retaining the existing `<0.8.0` compatibility ceiling.
 - Affected server code: material scan result exposure, visualization authority,
   payload registration and request throttling.
-- Affected client code: Space Unit Material view, temporary preview state,
+- Affected client code: Space Unit Material view, session-persistent preview state,
   through-wall world rendering and lifecycle cleanup.
 - Affected resources and validation: English/Traditional Chinese text, unit
   tests, server GameTests, native-scale Client GameTest screenshots, dedicated
   three-JVM E2E and Production Runtime validation.
-- No SavedData migration, gameplay balance change, remote Observer transport,
-  screenshot transport or framebuffer access is introduced.
+- No SavedData migration, remote Observer world-position transport, screenshot
+  transport or framebuffer access is introduced.

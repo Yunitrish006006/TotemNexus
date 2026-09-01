@@ -28,14 +28,18 @@
   payload codecs with deterministic relative offsets, duplicate rejection and
   the 1,330-position limit.
 - [x] 3.3 Register the payload types and implement server authority checks for
-  matching map context, discovery/view permission, active lodestone identity,
-  same dimension, proximity, loaded-only scanning and per-player throttling.
+  strict initial held-interface context, same-source visualization sessions,
+  per-refresh discovery/view permission, active lodestone identity, same
+  dimension, proximity, loaded-only scanning and per-player throttling.
+- [x] 3.4 Extend the request/snapshot contract with independent counted and
+  build-site modes, exact buildable classification, bounded status
+  acknowledgements and unchanged-snapshot suppression.
 
 ## 4. Nexus client visualization and UI
 
-- [x] 4.1 Add one-preview client state with 30-second expiry and cleanup on
+- [x] 4.1 Add one-preview client state with explicit/lifecycle cleanup on
   toggle-off, disconnect, world/dimension transition, invalid source and
-  distance cutoff.
+  distance cutoff, without elapsed-time expiry.
 - [x] 4.2 Add a module-owned level gizmo renderer that submits counted blocks,
   expansion emitters and the lodestone origin through the Core API in
   `THROUGH_WALLS` mode, without framebuffer, screenshot, video or pixel paths.
@@ -43,11 +47,16 @@
   reasons to the production Material view, preserving narrow layouts.
 - [x] 4.4 Keep Observer mode read-only: it may show descriptive material data
   but cannot enable the control, send packets or activate a viewer overlay.
+- [x] 4.5 Replace elapsed expiry with client-session persistence, 20-tick
+  dynamic refresh and authority/lifecycle cleanup; closing the Screen must not
+  disable either mode.
+- [x] 4.6 Add the independent localized build-site toggle and green
+  `DEPTH_TESTED` rendering with collision-free normal and narrow layouts.
 
 ## 5. Nexus verification
 
 - [x] 5.1 Unit-test payload bounds, deterministic ordering, duplicate/offset
-  rejection, request throttling, client expiry and lifecycle cleanup.
+  rejection, request throttling, session persistence and lifecycle cleanup.
 - [x] 5.2 GameTest straight, chained and disconnected expansion layouts to
   prove the visualization set equals the authoritative structural set, marks
   emitters correctly and does not include air or unreachable materials.
@@ -64,11 +73,21 @@
 - [x] 5.6 Update Nexus's minimum Core dependency to the publishing patch and run
   unit tests, assemble, server GameTests, Client GameTests and final JAR
   resource/metadata inspection with that Core build.
+- [x] 5.7 Cover refresh cadence, unchanged suppression, status invalidation,
+  exact buildable sets, place/break transitions, dual-mode rendering and both
+  disabled Observer controls without timer sleeps.
+- [x] 5.8 Cover strict initial held-interface authorization, same-source refresh
+  after switching to building materials, changed place/break snapshots, source
+  switch rejection, distance/permission invalidation and disable/disconnect/
+  server-lifecycle session cleanup without sleeps.
 
 ## 6. Documentation and completion
 
 - [x] 6.1 Update the README and Nexus manual in English and Traditional Chinese
-  with source-local use, colour meaning, timeout, refresh and intentional
-  through-wall behavior.
+  with source-local use, colour meaning, persistent refresh, secure cleanup and
+  intentional through-wall behavior.
 - [x] 6.2 Validate this OpenSpec change strictly, record executed evidence, then
   mark every completed task accurately before release review.
+- [x] 6.3 Update English/Traditional Chinese manual and README guidance for
+  persistent dynamic modes, colour/occlusion meaning and secure cleanup, then
+  rerun strict OpenSpec validation.

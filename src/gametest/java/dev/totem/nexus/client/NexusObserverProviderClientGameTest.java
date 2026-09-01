@@ -40,6 +40,8 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                     "Nexus Death Admin Observer provider entrypoint is missing");
             NexusObserverScreenProvider nexus = new NexusObserverScreenProvider();
             NexusDeathAdminObserverScreenProvider death = new NexusDeathAdminObserverScreenProvider();
+            require(nexus.protocolVersion() == 3,
+                    "Local-only visualization controls must not change the Nexus Observer semantic protocol");
 
             exercise(context, nexus,
                     clientScreen(context, () -> new NexusSpaceUnitMapScreen(map("Home"))),

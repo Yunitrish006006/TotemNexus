@@ -27,7 +27,15 @@ class NexusPlayerGuidanceResourceTest {
             "book.deadrecall.nexus_diagram.exact_center",
             "book.deadrecall.nexus_diagram.scale_anchor",
             "book.deadrecall.nexus_diagram.named_markers",
-            "book.deadrecall.nexus_diagram.no_player_edges"
+            "book.deadrecall.nexus_diagram.no_player_edges",
+            "message.deadrecall.space_unit.array_preview_hint",
+            "message.deadrecall.space_unit.build_sites_show",
+            "message.deadrecall.space_unit.build_sites_hide",
+            "message.deadrecall.space_unit.build_sites_hint",
+            "gamerule.deadrecall.teleport_array_expansion_mode",
+            "gamerule.deadrecall.teleport_array_expansion_mode.description",
+            "gamerule.deadrecall.teleport_array_expansion_mode.local",
+            "gamerule.deadrecall.teleport_array_expansion_mode.centered"
     );
 
     @Test
@@ -61,6 +69,16 @@ class NexusPlayerGuidanceResourceTest {
         assertTrue(text(english, "book.deadrecall.nexus_diagram.scale_anchor").contains("unloaded"));
         assertTrue(text(traditionalChinese, "book.deadrecall.nexus_diagram.scale_anchor")
                 .contains("未載入"));
+        assertTrue(text(english, "message.deadrecall.space_unit.array_preview_hint").contains("until hidden"));
+        assertTrue(text(traditionalChinese, "message.deadrecall.space_unit.array_preview_hint")
+                .contains("直到手動隱藏"));
+        assertTrue(text(english, "message.deadrecall.space_unit.build_sites_hint").contains("green"));
+        assertTrue(text(traditionalChinese, "message.deadrecall.space_unit.build_sites_hint")
+                .contains("綠色"));
+        assertTrue(text(english, "gamerule.deadrecall.teleport_array_expansion_mode.description")
+                .contains("lodestone-centered"));
+        assertTrue(text(traditionalChinese, "gamerule.deadrecall.teleport_array_expansion_mode.description")
+                .contains("磁石為中心"));
     }
 
     private static JsonObject language(String locale) {

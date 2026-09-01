@@ -2,6 +2,29 @@
   "schema_version": 1,
   "profiles": [
     {
+      "id": "deadrecall:tuff",
+      "family": "tuff",
+      "selector": { "blocks": ["minecraft:tuff"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 1, "stability": -1, "maintenance_efficiency": 1 },
+      "dimension_affinity": { "minecraft:overworld": 1 }
+    },
+    {
+      "id": "deadrecall:obsidian",
+      "family": "obsidian",
+      "selector": { "blocks": ["minecraft:obsidian"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 2, "stability": 3, "arrival_safety": 1, "wear_resistance": 3, "interference_resistance": 3, "maintenance_efficiency": -3, "phase_speed": -3 }
+    },
+    {
+      "id": "deadrecall:crying_obsidian",
+      "family": "crying_obsidian",
+      "selector": { "blocks": ["minecraft:crying_obsidian"] },
+      "valid_structure_material": true,
+      "attributes": { "structure_capacity": 2, "stability": -1, "arrival_accuracy": 3, "target_lock": 3, "arrival_safety": -2, "interference_resistance": -2, "phase_speed": -1 },
+      "dimension_affinity": { "minecraft:the_nether": 3 }
+    },
+    {
       "id": "deadrecall:stone_bricks",
       "family": "stone_brick",
       "selector": { "blocks": ["minecraft:stone_bricks"] },

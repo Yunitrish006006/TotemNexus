@@ -61,6 +61,8 @@ public record SpaceStructureSnapshot(
     public int effectiveStructureCapacity() { return material.value("effective_structure_capacity"); }
     public int maximumReachedDistance() { return material.value("maximum_reached_distance"); }
     public int materialProfileRevision() { return material.value("profile_revision"); }
+    public boolean teleportArrayExpansionModeKnown() { return material.hasValue("expansion_mode"); }
+    public int teleportArrayExpansionModeCode() { return material.value("expansion_mode"); }
     public int materialStability() { return material.value("stability"); }
     public int arrivalAccuracy() { return material.value("arrival_accuracy"); }
     public int targetLock() { return material.value("target_lock"); }
@@ -135,6 +137,10 @@ public record SpaceStructureSnapshot(
 
         public int value(String key) {
             return totals.getOrDefault(key, 0);
+        }
+
+        public boolean hasValue(String key) {
+            return totals.containsKey(key);
         }
 
         private static Map<String, Map<String, Integer>> copyNestedMap(Map<String, Map<String, Integer>> values) {

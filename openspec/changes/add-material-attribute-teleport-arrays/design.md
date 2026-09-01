@@ -398,3 +398,21 @@ the Material tab, not the static manual, is authoritative for datapack values.
 
 - Future material families such as End stone, purpur, prismarine and modded
   blocks remain a separate balance review.
+
+## Approved tuff and obsidian extension
+
+The following three exact vanilla blocks extend the built-in catalogue. They
+remain separate families so mixing and datapack diagnostics preserve their
+physical identity. Omitted attributes are zero.
+
+| Material | Family | Final non-zero values | Rationale and trade-off |
+| --- | --- | --- | --- |
+| `minecraft:tuff` | `tuff` | `structure_capacity +1`, `stability -1`, `maintenance_efficiency +1`, `affinity[minecraft:overworld] +1` | Cheap Overworld structure that is easy to service, but less stable than worked stone brick and provides no expansion, precision, safety or traffic bonus. |
+| `minecraft:obsidian` | `obsidian` | `structure_capacity +2`, `stability +3`, `arrival_safety +1`, `wear_resistance +3`, `interference_resistance +3`, `maintenance_efficiency -3`, `phase_speed -3` | Very stable, durable and interference-resistant volcanic glass; its hardness makes phasing slow and repairs expensive. It provides no scan expansion, precision, target lock, load or catalyst benefit. |
+| `minecraft:crying_obsidian` | `crying_obsidian` | `structure_capacity +2`, `stability -1`, `arrival_accuracy +3`, `target_lock +3`, `arrival_safety -2`, `interference_resistance -2`, `phase_speed -1`, `affinity[minecraft:the_nether] +3` | Strong Nether resonance and destination positioning, paid for by interference, unsafe arrival behavior and slower phasing. It provides no scan expansion or catalyst discount. |
+
+These values deliberately avoid a universally best material. Tuff is the
+low-cost baseline; obsidian is defensive but slow and maintenance-heavy;
+crying obsidian specializes in target acquisition while weakening safety and
+interference resistance. All values continue through the existing aggregate
+clamps and server-owned quote formulas.

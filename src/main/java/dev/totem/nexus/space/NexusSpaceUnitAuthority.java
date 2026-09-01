@@ -2492,10 +2492,13 @@ public final class NexusSpaceUnitAuthority {
             return SpaceStructureSnapshot.EMPTY;
         }
         NexusSpaceUnitRecord record = unit.get();
+        ServerLevel level = server.getLevel(record.dimension());
         if (record.isLodestoneAnchor()
                 && (record.structure().materialSnapshotStale()
-                || record.structure().materialProfileRevision() != TeleportArrayMaterialProfiles.revision())) {
-            ServerLevel level = server.getLevel(record.dimension());
+                || record.structure().materialProfileRevision() != TeleportArrayMaterialProfiles.revision()
+                || !record.structure().teleportArrayExpansionModeKnown()
+                || (level != null && record.structure().teleportArrayExpansionModeCode()
+                != NexusTeleportArrayExpansionRules.mode(level).snapshotCode()))) {
             if (level == null || !level.isLoaded(record.pos())) {
                 return SpaceStructureSnapshot.EMPTY;
             }

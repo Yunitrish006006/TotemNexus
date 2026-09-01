@@ -83,6 +83,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     private Button friendsButton;
     private Button materialButton;
     private Button arrayPreviewButton;
+    private Button buildSitesPreviewButton;
     private Button repairButton;
     private Button refreshButton;
     private Button doneButton;
@@ -207,6 +208,12 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
                 .tooltip(Tooltip.create(arrayPreviewTooltip()))
                 .build();
         this.addRenderableWidget(this.arrayPreviewButton);
+
+        this.buildSitesPreviewButton = Button.builder(buildSitesPreviewButtonText(), button -> toggleBuildSitesPreview())
+                .bounds(buildSitesPreviewButtonX(), maintenanceButtonY(), buildSitesPreviewButtonWidth(), 18)
+                .tooltip(Tooltip.create(buildSitesPreviewTooltip()))
+                .build();
+        this.addRenderableWidget(this.buildSitesPreviewButton);
 
         this.favoriteButton = Button.builder(favoriteButtonText(), button -> toggleSelectedFavorite())
                 .bounds(favoriteButtonX(), favoriteButtonY(), favoriteButtonWidth(), 18)
@@ -538,25 +545,44 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         if (observerReadOnly() || !"lodestone".equals(this.payload.sourceType())) {
             return;
         }
-        boolean enabled = NexusArrayVisualizationClient.isActiveFor(this.payload.sourceUnitId());
-        if (enabled) {
-            NexusArrayVisualizationClient.clear();
-        } else if (!this.payload.sourceUnitId().equals(this.selectedUnitId)) {
+        if (!this.payload.sourceUnitId().equals(this.selectedUnitId)) {
             return;
         }
         if (ClientPlayNetworking.canSend(RequestTeleportArrayVisualizationPayload.TYPE)) {
-            ClientPlayNetworking.send(new RequestTeleportArrayVisualizationPayload(
-                    this.payload.sourceType(),
-                    this.payload.sourceUnitId(),
-                    !enabled
-            ));
+            NexusArrayVisualizationClient.toggleArray(this.payload.sourceType(), this.payload.sourceUnitId());
+        }
+    }
+
+    private void toggleBuildSitesPreview() {
+        if (observerReadOnly() || !"lodestone".equals(this.payload.sourceType())
+                || !this.payload.sourceUnitId().equals(this.selectedUnitId)) {
+            return;
+        }
+        if (ClientPlayNetworking.canSend(RequestTeleportArrayVisualizationPayload.TYPE)) {
+            NexusArrayVisualizationClient.toggleBuildSites(this.payload.sourceType(), this.payload.sourceUnitId());
         }
     }
 
     private Component arrayPreviewButtonText() {
-        return Component.translatable(NexusArrayVisualizationClient.isActiveFor(this.payload.sourceUnitId())
+        boolean enabled = NexusArrayVisualizationClient.isArrayEnabledFor(this.payload.sourceUnitId());
+        return Component.translatable(compactOverlayButtons()
+                ? enabled
+                ? "message.deadrecall.space_unit.array_preview_hide_compact"
+                : "message.deadrecall.space_unit.array_preview_show_compact"
+                : enabled
                 ? "message.deadrecall.space_unit.array_preview_hide"
                 : "message.deadrecall.space_unit.array_preview_show");
+    }
+
+    private Component buildSitesPreviewButtonText() {
+        boolean enabled = NexusArrayVisualizationClient.isBuildSitesEnabledFor(this.payload.sourceUnitId());
+        return Component.translatable(compactOverlayButtons()
+                ? enabled
+                ? "message.deadrecall.space_unit.build_sites_hide_compact"
+                : "message.deadrecall.space_unit.build_sites_show_compact"
+                : enabled
+                ? "message.deadrecall.space_unit.build_sites_hide"
+                : "message.deadrecall.space_unit.build_sites_show");
     }
 
     private Component arrayPreviewTooltip() {
@@ -566,14 +592,36 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         if (!"lodestone".equals(this.payload.sourceType())) {
             return Component.translatable("message.deadrecall.space_unit.array_preview_lodestone_only");
         }
-        if (!this.payload.sourceUnitId().equals(this.selectedUnitId)
-                && !NexusArrayVisualizationClient.isActiveFor(this.payload.sourceUnitId())) {
+        if (!this.payload.sourceUnitId().equals(this.selectedUnitId)) {
             return Component.translatable("message.deadrecall.space_unit.array_preview_source_only");
         }
         if (!ClientPlayNetworking.canSend(RequestTeleportArrayVisualizationPayload.TYPE)) {
             return Component.translatable("message.deadrecall.space_unit.array_preview_unavailable");
         }
         return Component.translatable("message.deadrecall.space_unit.array_preview_hint");
+    }
+
+    private Component buildSitesPreviewTooltip() {
+        Component unavailable = visualizationUnavailableTooltip();
+        return unavailable == null
+                ? Component.translatable("message.deadrecall.space_unit.build_sites_hint")
+                : unavailable;
+    }
+
+    private Component visualizationUnavailableTooltip() {
+        if (observerReadOnly()) {
+            return Component.translatable("message.deadrecall.space_unit.array_preview_observer");
+        }
+        if (!"lodestone".equals(this.payload.sourceType())) {
+            return Component.translatable("message.deadrecall.space_unit.array_preview_lodestone_only");
+        }
+        if (!this.payload.sourceUnitId().equals(this.selectedUnitId)) {
+            return Component.translatable("message.deadrecall.space_unit.array_preview_source_only");
+        }
+        if (!ClientPlayNetworking.canSend(RequestTeleportArrayVisualizationPayload.TYPE)) {
+            return Component.translatable("message.deadrecall.space_unit.array_preview_unavailable");
+        }
+        return null;
     }
 
     /** Package-visible visual-test hook; production input still uses the Material button. */
@@ -585,7 +633,26 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     boolean arrayPreviewButtonDisabledForVisualTest() {
         return this.arrayPreviewButton != null
                 && this.arrayPreviewButton.visible
-                && !this.arrayPreviewButton.active;
+                && !this.arrayPreviewButton.active
+                && this.buildSitesPreviewButton != null
+                && this.buildSitesPreviewButton.visible
+                && !this.buildSitesPreviewButton.active;
+    }
+
+    /** Package-visible layout proof for native buttons at reduced GUI width. */
+    boolean overlayButtonsDoNotOverlapForVisualTest() {
+        int panelLeft = panelX() + PANEL_PADDING;
+        int reservedRight = panelX() + panelWidth() - PANEL_PADDING - 94;
+        int materialTitleRight = panelLeft + 10 + this.font.width(trimToWidth(
+                Component.translatable("message.deadrecall.space_unit.material_title",
+                        selectedEntry() == null ? this.payload.sourceName() : selectedEntry().name()).getString(),
+                materialTitleAvailableWidth()));
+        return maintenanceButtonX() >= panelLeft
+                && materialTitleAvailableWidth() > 0
+                && materialTitleRight <= maintenanceButtonX() - 6
+                && maintenanceButtonX() + maintenanceButtonWidth() + 4 <= arrayPreviewButtonX()
+                && arrayPreviewButtonX() + arrayPreviewButtonWidth() + 4 <= buildSitesPreviewButtonX()
+                && buildSitesPreviewButtonX() + buildSitesPreviewButtonWidth() + 4 <= reservedRight;
     }
 
     /** Package-visible semantic proof that a non-map interface exposes only its bound source. */
@@ -638,8 +705,10 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         extractor.outline(x, y, width, height, 0xFF3F4A56);
 
         String selectedName = selectedEntry() == null ? this.payload.sourceName() : selectedEntry().name();
-        extractor.text(this.font, Component.translatable(
-                "message.deadrecall.space_unit.material_title", selectedName), x + 10, y + 9, 0xFFFFFFFF);
+        String materialTitle = Component.translatable(
+                "message.deadrecall.space_unit.material_title", selectedName).getString();
+        extractor.text(this.font, trimToWidth(materialTitle, materialTitleAvailableWidth()),
+                x + 10, y + 9, 0xFFFFFFFF);
         extractor.text(this.font, Component.translatable(
                 "message.deadrecall.space_unit.material_subtitle", material.profileRevision()),
                 x + 10, y + 22, 0xFF9EAFBE);
@@ -1790,7 +1859,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         if (this.repairButton != null) {
             this.repairButton.setX(maintenanceButtonX());
             this.repairButton.setY(maintenanceButtonY());
-            this.repairButton.setWidth(78);
+            this.repairButton.setWidth(maintenanceButtonWidth());
             this.repairButton.visible = this.showMaterials && selectedMaintenanceTarget() != null;
             this.repairButton.active = this.repairButton.visible;
         }
@@ -1798,16 +1867,29 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             this.arrayPreviewButton.setX(arrayPreviewButtonX());
             this.arrayPreviewButton.setY(maintenanceButtonY());
             this.arrayPreviewButton.setWidth(arrayPreviewButtonWidth());
-            boolean previewActive = NexusArrayVisualizationClient.isActiveFor(this.payload.sourceUnitId());
             boolean sourceSelected = this.payload.sourceUnitId().equals(this.selectedUnitId);
             this.arrayPreviewButton.visible = this.showMaterials;
             this.arrayPreviewButton.active = this.arrayPreviewButton.visible
                     && !observerReadOnly()
                     && "lodestone".equals(this.payload.sourceType())
-                    && (previewActive || sourceSelected)
+                    && sourceSelected
                     && ClientPlayNetworking.canSend(RequestTeleportArrayVisualizationPayload.TYPE);
             this.arrayPreviewButton.setMessage(arrayPreviewButtonText());
             this.arrayPreviewButton.setTooltip(Tooltip.create(arrayPreviewTooltip()));
+        }
+        if (this.buildSitesPreviewButton != null) {
+            this.buildSitesPreviewButton.setX(buildSitesPreviewButtonX());
+            this.buildSitesPreviewButton.setY(maintenanceButtonY());
+            this.buildSitesPreviewButton.setWidth(buildSitesPreviewButtonWidth());
+            boolean sourceSelected = this.payload.sourceUnitId().equals(this.selectedUnitId);
+            this.buildSitesPreviewButton.visible = this.showMaterials;
+            this.buildSitesPreviewButton.active = this.buildSitesPreviewButton.visible
+                    && !observerReadOnly()
+                    && "lodestone".equals(this.payload.sourceType())
+                    && sourceSelected
+                    && ClientPlayNetworking.canSend(RequestTeleportArrayVisualizationPayload.TYPE);
+            this.buildSitesPreviewButton.setMessage(buildSitesPreviewButtonText());
+            this.buildSitesPreviewButton.setTooltip(Tooltip.create(buildSitesPreviewTooltip()));
         }
         if (this.favoriteButton != null) {
             this.favoriteButton.setX(favoriteButtonX());
@@ -2098,16 +2180,36 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private int maintenanceButtonX() {
-        return arrayPreviewButtonX() - 4 - 78;
+        return arrayPreviewButtonX() - 4 - maintenanceButtonWidth();
+    }
+
+    private int materialTitleAvailableWidth() {
+        return Math.max(1, maintenanceButtonX() - (panelX() + PANEL_PADDING + 10) - 6);
+    }
+
+    private int maintenanceButtonWidth() {
+        return compactOverlayButtons() ? 58 : 78;
     }
 
     private int arrayPreviewButtonWidth() {
-        return 88;
+        return compactOverlayButtons() ? 64 : 88;
     }
 
     private int arrayPreviewButtonX() {
+        return buildSitesPreviewButtonX() - 4 - arrayPreviewButtonWidth();
+    }
+
+    private int buildSitesPreviewButtonWidth() {
+        return compactOverlayButtons() ? 68 : 108;
+    }
+
+    private int buildSitesPreviewButtonX() {
         // The module's material-reference mixin owns the rightmost 94-pixel slot.
-        return panelX() + panelWidth() - PANEL_PADDING - 94 - 4 - arrayPreviewButtonWidth();
+        return panelX() + panelWidth() - PANEL_PADDING - 94 - 4 - buildSitesPreviewButtonWidth();
+    }
+
+    private boolean compactOverlayButtons() {
+        return panelWidth() < 480;
     }
 
     private int maintenanceButtonY() {

@@ -1,6 +1,9 @@
 {
   "replace": false,
   "values": [
+    "minecraft:tuff",
+    "minecraft:obsidian",
+    "minecraft:crying_obsidian",
     "minecraft:stone_bricks",
     "minecraft:mossy_stone_bricks",
     "minecraft:chiseled_stone_bricks",

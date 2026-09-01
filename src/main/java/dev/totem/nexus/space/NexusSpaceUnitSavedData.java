@@ -552,6 +552,7 @@ public class NexusSpaceUnitSavedData extends SavedData {
         materialTotals.put("effective_structure_capacity", effectiveCapacity);
         materialTotals.put("maximum_reached_distance", scan.maximumReachedDistance());
         materialTotals.put("profile_revision", (int) Math.min(Integer.MAX_VALUE, TeleportArrayMaterialProfiles.revision()));
+        materialTotals.put("expansion_mode", NexusTeleportArrayExpansionRules.mode(level).snapshotCode());
         materialTotals.put("stability", totals.stability());
         materialTotals.put("arrival_accuracy", totals.arrivalAccuracy());
         materialTotals.put("target_lock", totals.targetLock());

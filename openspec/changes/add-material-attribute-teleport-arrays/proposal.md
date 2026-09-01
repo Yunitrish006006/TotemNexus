@@ -21,6 +21,8 @@ a route while making another worse.
 - Establish the first built-in balance table for brick, metal, mineral, raw
   material and ore families, including the complete copper oxidation and wax
   matrix.
+- Extend that built-in catalogue with exact profiles for vanilla tuff,
+  obsidian and crying obsidian while preserving material-identity trade-offs.
 - Show the final material breakdown and its effects in the Space Unit map and
   the in-game Nexus manual.
 
@@ -31,6 +33,8 @@ a route while making another worse.
   calculation, data reloads, SavedData migration and network payloads.
 - Affected client/documentation systems: Space Unit map metrics and the Nexus
   teleport manual.
+- Affected resources: the structure-material block tag, built-in vanilla
+  profile catalogue and material documentation.
 - **BREAKING gameplay change:** material-array detection now begins with the
   3x3x3 cube immediately surrounding the lodestone. Blocks farther away only
   contribute when a previously scanned material explicitly expands detection

@@ -144,7 +144,9 @@ ore block profiles documented in the change design. It SHALL make the
 documented metal, mineral, raw-material and ore families valid teleport-array
 materials without invalidating any existing valid block. Every copper shape,
 oxidation state and waxed state SHALL resolve to exactly one shape profile plus
-the documented state adjustment.
+the documented state adjustment. Vanilla tuff, obsidian and crying obsidian
+SHALL also be valid exact-block materials with the final signed values and
+distinct families documented in the change design.
 
 #### Scenario: A new mineral storage block is used in an array
 
@@ -168,6 +170,22 @@ the documented state adjustment.
   effects
 - **AND THEN** its interference and maintenance penalties remain visible in
   the material breakdown
+
+#### Scenario: Tuff provides a cheap Overworld baseline
+
+- **WHEN** an array contains vanilla tuff
+- **THEN** each tuff contributes capacity, easy maintenance and Overworld
+  affinity with the documented stability penalty
+- **AND THEN** it does not gain scan expansion, precision, safety or route-load
+  benefits merely because it is inexpensive
+
+#### Scenario: Obsidian variants retain different identities
+
+- **WHEN** an array contains obsidian and crying obsidian
+- **THEN** obsidian supplies the documented stability, durability and
+  interference resistance together with slow phasing and difficult maintenance
+- **AND THEN** crying obsidian instead supplies the documented targeting and
+  Nether affinity together with interference, safety and phase-speed penalties
 
 ### Requirement: Built-in profiles respect block identity and state
 

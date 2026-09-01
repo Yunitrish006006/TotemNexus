@@ -21,10 +21,11 @@ submission and occlusion style, not either feature's selection or array state.
 
 - Show exactly the structural positions returned by the live authoritative
   scan for the local source lodestone.
+- Independently show every currently replaceable build site reached by that
+  same scan, so builders can see where a valid next block may be placed.
 - Make expansion-emitting blocks distinguishable so a builder can understand
   why the scan reaches a distant block.
-- Keep rendering local, deliberately visible through terrain, bounded and
-  lifecycle-safe.
+- Keep rendering local, dynamically refreshed, bounded and lifecycle-safe.
 - Give Totem modules one versioned client-only outline primitive with an
   explicit occlusion choice instead of duplicating raw gizmo setup.
 - Reuse the production scan and authorization rules rather than reproducing
@@ -32,8 +33,9 @@ submission and occlusion style, not either feature's selection or array state.
 
 ### Non-Goals
 
-- Do not visualize every empty `visitedPositions` cell or draw a global 11x11x11
-  shell; the requested view is the set of blocks actually used by the array.
+- Do not draw a global 11x11x11 shell. A build site must be reached, loaded,
+  non-structural and currently replaceable; unreachable, unloaded and solid
+  non-material positions remain omitted.
 - Do not allow remote target inspection from the map, reveal unloaded chunks,
   or force chunks to load.
 - Do not persist a per-array display setting or change material attributes,
@@ -82,12 +84,17 @@ primitive. This change does not implement that area-job or select its occlusion
 policy; its eventual approved spec must keep Automata state and lifecycle in
 Automata while using the Core submission contract.
 
-### Source-local Material control
+### Source-local independent controls
 
-The production Space Unit map Material view gains a `Show Array` / `Hide Array`
-control. It applies only when the Material view is showing the map's source
-lodestone. A remote selected entry keeps its existing aggregate diagnostics but
-cannot request a world preview; the control is disabled with a localized reason.
+The production Space Unit map Material view gains independent `Show Array` /
+`Hide Array` and `Show Build Sites` / `Hide Build Sites` controls. Either or
+both may be active. They apply only while the Material view is showing the
+map's source lodestone. A remote selected entry keeps its existing aggregate
+diagnostics but cannot request a world preview; both controls are disabled with
+a localized reason. Native buttons, font, narration, tooltips and integer
+spacing are retained. Full labels are used at normal width and concise
+localized labels are used at narrow width so the repair and overlay controls
+never overlap.
 
 The source-only rule matches the existing map authority: opening a lodestone map
 already proves that the player is in the same dimension, within eight blocks,
@@ -95,7 +102,7 @@ has discovered the source and may view it. The server revalidates all of these
 facts for every visualization request. Observer mode never enables the control
 and never sends a visualization packet.
 
-### One authoritative scan, two visual classes
+### One authoritative scan, four visual classes
 
 The visualization authority invokes the same `TeleportArrayMaterialScan.scan`
 path used by registration, calibration and maintenance. The response contains:
@@ -103,15 +110,20 @@ path used by registration, calibration and maintenance. The response contains:
 - the source unit identifier and lodestone origin;
 - every position in `structuralPositions`, encoded as a relative offset;
 - a flag for positions whose effective local scan-expansion radius is positive;
-  and
-- a short bounded client expiry time.
+- every position in `buildablePositions`, defined as a loaded position in
+  `visitedPositions` that is not structural and whose current block state can
+  be replaced by block placement; and
+- the source dimension and enabled-class flags needed to reject a stale
+  response.
 
 Ordinary counted structural blocks use the standard array-outline colour.
 Expansion emitters use a distinct colour, and the centre lodestone is rendered
-as an origin marker. Air, non-structural visited cells and unreachable material
-blocks are omitted. The response contains no block identifiers or block-state
-properties because the client already renders the physical world and needs only
-the authoritative membership/classification result.
+as an origin marker. Build sites use a lower-noise green outline. A position is
+in at most one transmitted class: placing a valid structural block moves it
+from buildable to counted on the next refresh, and placing an expansion emitter
+may make additional build sites reachable. Unreachable material, unloaded
+cells, the lodestone origin and reached but non-replaceable solid blocks are
+omitted. The response contains no block identifiers or block-state properties.
 
 ### Bounded protocol and request policy
 
@@ -119,53 +131,83 @@ Offsets are limited to `TeleportArrayMaterialScan.MAX_DISTANCE` on every axis,
 the lodestone origin offset is forbidden, duplicates are rejected, and the
 response count cannot exceed the scan envelope maximum of 1,330 positions. The
 server sorts offsets deterministically before encoding. Requests contain the
-active map source type, source unit ID and an enable/disable action; they contain
-no client-provided radius, position set, material value or duration.
+active map source type, source unit ID and the two enabled-class flags; they
+contain no client-provided radius, position set, material value or duration. A
+request with both flags false disables the session without scanning.
 
-The server rejects a request unless the unit remains an active lodestone, the
-active map/interface context matches that source, the player still has view and
-discovery authority, the player is in the source dimension and within the
-existing eight-block source-open radius, and the lodestone block still exists.
+An initial enable is rejected unless a currently held bound interface has a
+live map/interface context matching that source and the unit is still an active
+lodestone that passes discovery, view, dimension, eight-block proximity,
+loaded-only and physical-lodestone validation. A successful initial enable
+creates one non-persistent, server-only per-player visualization session holding
+the exact source type and unit ID. Later requests for that same source may
+update the enabled classes without requiring the interface item to remain held,
+so the player can close the Screen, switch to building materials and work from
+the live overlay. Those requests do not renew or reuse the general teleport
+interface context: every accepted refresh independently repeats the active
+lodestone, discovery, view/friend, dimension, proximity, loaded and physical
+block checks through the map-source authority. A different source always
+requires a new held-interface validation.
+
 The scan reads only loaded positions. Enable/refresh requests are rate-limited
-per player; disable is always cheap and clears client state without scanning.
+per player to at most one accepted scan every 20 server ticks; disable is always
+cheap and clears server session state without scanning. Each accepted refresh
+returns a small status acknowledgement. A full position snapshot is sent only
+when the source, enabled classes, origin/dimension or deterministically sorted
+position/class content differs from the player's last accepted snapshot. A
+rejected active session returns only an invalid status and no positions, and
+clears its server session and cached snapshot so the client removes stale data
+without learning remote structure. Disconnect and server lifecycle cleanup also
+drop this non-persistent state.
 
-### Temporary client preview
+### Session-persistent dynamic client preview
 
-At most one array preview is active per client. A successful enable replaces
-the old preview and lasts 30 seconds. Pressing the control again hides it;
-pressing `Show Array` after expiry or after returning to the Material view gets
-a fresh server scan. The client also clears the preview immediately on world or
-dimension change, disconnect, source invalidation, or moving more than 16
-blocks from the lodestone. This wider client display cutoff avoids flicker near
-the eight-block request boundary without granting another scan.
+At most one source preview is active per client. Enabling either control
+replaces any preview for another source and persists for that client session;
+there is no elapsed-time expiry, and closing the map Screen does not disable it.
+After the initial held-interface authorization, the player may put the interface
+away and select building materials without losing the preview. While enabled,
+the client requests one refresh no more frequently than every 20 client ticks.
+The server remains authoritative and applies its own 20-tick rate limit. The
+client clears both modes immediately on explicit final disable, world or
+dimension change, disconnect, missing/replaced lodestone, server invalidation,
+acknowledgement loss, or moving outside the authoritative eight-block
+source-open radius. Clearing rather than retaining a remote paused snapshot is
+the chosen anti-disclosure policy; returning later requires an explicit new
+enable.
 
 The renderer submits one cuboid per returned block through TotemCore's shared
-outline API during the module-owned normal level gizmo phase and selects
-`THROUGH_WALLS`. This intentionally bypasses terrain depth occlusion so a
-builder can follow a counted extension path through walls. Normal frustum and
-distance bounds still apply. The implementation must not use particles as a
-substitute for exact membership and must not access a framebuffer.
+outline API during the module-owned normal level gizmo phase. Counted material
+uses cyan `THROUGH_WALLS`, expansion emitters use gold `THROUGH_WALLS`, and the
+origin uses purple `THROUGH_WALLS`. Build sites use green `DEPTH_TESTED` so
+terrain suppresses distant clutter. Normal frustum and distance bounds still
+apply. The implementation must not use particles as a substitute for exact
+membership and must not access a framebuffer.
 
 ### Screen ownership and Observer safety
 
-The control remains part of `NexusSpaceUnitMapScreen`, including its production
+Both controls remain part of `NexusSpaceUnitMapScreen`, including its production
 layout and native Observer reconstruction. Observer mode exposes the same
-descriptive Material contents but the preview control is non-interactive and
-cannot create request packets or a world overlay for the viewer. The semantic
-Observer payload is not expanded with world positions because visualization is
-local gameplay context, not remote screen state.
+descriptive Material contents but both controls are non-interactive and cannot
+create request packets or a world overlay for the viewer. The semantic Observer
+payload remains format/protocol 3 and is not expanded with world positions or
+local toggle state because visualization is local gameplay context, not remote
+screen state. Provider tests must prove that the unchanged semantic contract is
+sufficient and that clicks cannot send packets.
 
 ## Risks / Trade-offs
 
-- A 1,330-block through-wall outline is visually dense and costs more than the
-  common small array. The hard scan cap, one-preview client limit, frustum and
-  distance bounds, distinct colours and 30-second lifetime bound the work.
+- A 1,330-position preview can be visually dense and dynamic scans cost more
+  than the common small array. The shared 1,330 union cap, one-source client
+  limit, depth-tested build sites, eight-block authority radius, 20-tick request
+  cadence and unchanged-snapshot suppression bound network/render work.
 - Through-wall display reveals the counted positions behind nearby terrain.
-  Source-only authority, the existing eight-block request radius and temporary
-  local state prevent it from becoming a remote structure-inspection tool.
-- A temporary snapshot can become stale after a block change. Reopening or
-  pressing `Show Array` obtains a new authoritative scan; continuous polling is
-  deliberately excluded from this change.
+  Source-only authority, the existing eight-block request radius and
+  non-persistent per-player session state prevent it from becoming a remote
+  structure-inspection tool.
+- A block change can occur between scans. The next accepted refresh is targeted
+  within about one second; neither side scans every tick and tests use
+  deterministic tick advancement rather than sleeps.
 - Source-only inspection does not preview a distant selected destination. This
   prevents remote structure disclosure and ensures the player can compare the
   overlay with blocks physically present in loaded chunks.
@@ -176,12 +218,13 @@ No persisted schema changes are required. First publish and validate the
 backward-compatible TotemCore 0.7.x client API. Then migrate Excavation to its
 `DEPTH_TESTED` mode and implement Nexus with `THROUGH_WALLS`, raising only those
 two modules' minimum Core patch to the release that contains the API. Ship the
-Nexus request/response codecs and server receiver together with the client
-state, renderer and UI control. Older Nexus clients do not advertise the new
-serverbound payload and therefore cannot request the preview; the existing map
-and material diagnostics remain usable.
+Nexus request/snapshot/status codecs and server receiver together with the
+client state, renderer and UI controls. Older Nexus clients do not encode the
+added dual-mode fields, so Nexus clients and servers must upgrade together
+for this feature. The established payload identifiers remain stable; the
+existing map and material diagnostics are otherwise unchanged.
 
 ## Open Questions
 
-- None for the initial implementation. Continuous live refresh and empty scan
-  envelope visualization require separate performance and UX approval.
+- None. Session persistence, bounded live refresh and reached replaceable build
+  sites are approved extensions of this active change.

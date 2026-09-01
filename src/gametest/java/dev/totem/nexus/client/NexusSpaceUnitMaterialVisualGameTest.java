@@ -15,6 +15,7 @@ import java.util.UUID;
 public final class NexusSpaceUnitMaterialVisualGameTest implements FabricClientGameTest {
     @Override
     public void runTest(ClientGameTestContext context) {
+        context.getInput().resizeWindow(1280, 720);
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
             singleplayer.getClientLevel().waitForChunksRender();
             context.setScreen(() -> {
@@ -27,6 +28,20 @@ public final class NexusSpaceUnitMaterialVisualGameTest implements FabricClientG
             context.takeScreenshot("totem-nexus-space-unit-material-diagnostics");
             context.setScreen(() -> null);
 
+            context.getInput().resizeWindow(854, 480);
+            context.setScreen(() -> {
+                NexusSpaceUnitMapScreen screen = new NexusSpaceUnitMapScreen(materialPayload());
+                screen.showMaterialDiagnosticsForVisualTest();
+                return screen;
+            });
+            context.waitForScreen(NexusSpaceUnitMapScreen.class);
+            context.waitFor(client -> ((NexusSpaceUnitMapScreen) client.gui.screen())
+                    .overlayButtonsDoNotOverlapForVisualTest());
+            context.takeScreenshot("totem-nexus-space-unit-material-overlays-narrow");
+            context.setScreen(() -> null);
+
+            context.getInput().resizeWindow(1280, 720);
+
             context.setScreen(() -> {
                 NexusSpaceUnitMapScreen screen = new NexusSpaceUnitMapScreen(materialPayload(), true, () -> { });
                 screen.showMaterialDiagnosticsForVisualTest();
@@ -35,6 +50,7 @@ public final class NexusSpaceUnitMaterialVisualGameTest implements FabricClientG
             context.waitForScreen(NexusSpaceUnitMapScreen.class);
             context.waitFor(client -> ((NexusSpaceUnitMapScreen) client.gui.screen())
                     .arrayPreviewButtonDisabledForVisualTest());
+            context.takeScreenshot("totem-nexus-space-unit-material-observer-overlays-disabled");
             context.setScreen(() -> null);
         }
     }

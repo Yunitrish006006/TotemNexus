@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SpaceStructureSnapshotTest {
@@ -33,5 +34,27 @@ class SpaceStructureSnapshotTest {
         assertEquals(false, snapshot.materialSnapshotStale());
         assertEquals(2, snapshot.localExpansionPathCounts().get("minecraft:iron_block"));
         assertEquals(4, snapshot.materialFamilyContributions().get("iron").get("structure_capacity"));
+        assertFalse(snapshot.teleportArrayExpansionModeKnown());
+    }
+
+    @Test
+    void expansionModeMustBeExplicitEvenThoughLegacyMissingValuesDecodeAsZero() {
+        SpaceStructureSnapshot local = new SpaceStructureSnapshot(
+                0, 0, 0, 0, 0, 0, 0, 0,
+                new SpaceStructureSnapshot.MaterialState(
+                        SpaceStructureSnapshot.MaterialState.CURRENT_SCHEMA_VERSION,
+                        Map.of("profile_revision", 3, "expansion_mode", 0),
+                        Map.of(), Map.of(), Map.of(), Map.of(), false));
+        SpaceStructureSnapshot missing = new SpaceStructureSnapshot(
+                0, 0, 0, 0, 0, 0, 0, 0,
+                new SpaceStructureSnapshot.MaterialState(
+                        SpaceStructureSnapshot.MaterialState.CURRENT_SCHEMA_VERSION,
+                        Map.of("profile_revision", 3),
+                        Map.of(), Map.of(), Map.of(), Map.of(), false));
+
+        assertTrue(local.teleportArrayExpansionModeKnown());
+        assertEquals(0, local.teleportArrayExpansionModeCode());
+        assertFalse(missing.teleportArrayExpansionModeKnown());
+        assertEquals(0, missing.teleportArrayExpansionModeCode());
     }
 }

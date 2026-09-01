@@ -15,9 +15,11 @@ import dev.totem.nexus.space.NexusGameplayAuthority;
 import dev.totem.nexus.space.NexusSpaceUnitAuthority;
 import dev.totem.nexus.space.NexusSpaceUnitRefreshNetworking;
 import dev.totem.nexus.space.NexusSoulboundTeleportItem;
+import dev.totem.nexus.space.NexusTeleportArrayExpansionRules;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -45,6 +47,7 @@ public final class NexusAuthorityBootstrap {
         DeathBackpackNodeLifecycle.register(new NexusDeathBackpackNodeAdapter(new NexusDeathNodeAuthority()));
         DeathRetainedItemPolicy.register(NexusSoulboundTeleportItem::isEligibleForDeathRetention);
         NexusDistributedSpawnAuthority.register();
+        NexusTeleportArrayExpansionRules.register();
         NexusSpaceUnitAuthority.register();
         NexusPayloadRegistration.registerServerboundTypes();
         NexusPayloadRegistration.registerClientboundTypes();
@@ -63,6 +66,7 @@ public final class NexusAuthorityBootstrap {
         });
         ServerTickEvents.END_SERVER_TICK.register(authority::tickTeleportSessions);
         ServerTickEvents.END_SERVER_TICK.register(authority::tickLodestoneIntegrity);
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> NexusArrayVisualizationAuthority.shutdown());
         ServerPlayConnectionEvents.DISCONNECT.register((listener, server) -> {
             NexusDeathNodeAdminService.clearSession(listener.getPlayer().getUUID());
             NexusArrayVisualizationAuthority.disconnect(listener.getPlayer().getUUID());

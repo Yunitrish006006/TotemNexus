@@ -278,6 +278,9 @@ public final class TeleportArrayMaterialCombinationGameTest {
     private static List<MaterialSample> representativeProfiles() {
         List<MaterialSample> samples = new ArrayList<>();
         samples.add(new MaterialSample("stone_bricks", Blocks.STONE_BRICKS));
+        samples.add(new MaterialSample("tuff", Blocks.TUFF));
+        samples.add(new MaterialSample("obsidian", Blocks.OBSIDIAN));
+        samples.add(new MaterialSample("crying_obsidian", Blocks.CRYING_OBSIDIAN));
         samples.add(new MaterialSample("stone_detail", Blocks.CHISELED_STONE_BRICKS));
         samples.add(new MaterialSample("cracked_stone", Blocks.CRACKED_STONE_BRICKS));
         samples.add(new MaterialSample("deepslate", Blocks.DEEPSLATE_BRICKS));

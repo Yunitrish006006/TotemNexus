@@ -28,6 +28,8 @@
   oxidation state and waxed state resolves once.
 - [x] 1.7 Keep neutral compatibility profiles for pre-existing valid blocks
   outside the approved catalogue and log a clear fallback diagnostic.
+- [x] 1.8 Add exact built-in profiles and structure-tag entries for tuff,
+  obsidian and crying obsidian using the approved material-identity values.
 
 ## 2. Bounded array evaluation and persistence
 
@@ -110,6 +112,9 @@
   arrays remain readable before recalculation.
 
 ## 7. Verification
+
+- [x] 7.0 Verify the tuff/obsidian/crying-obsidian profiles, tag membership,
+  data reload and representative mixed/homogeneous array bounds.
 
 - [x] 7.1 Unit-test codecs, schema bounds, selector precedence, tie rejection,
   copper layer order, compiled-profile caching and neutral fallback.
