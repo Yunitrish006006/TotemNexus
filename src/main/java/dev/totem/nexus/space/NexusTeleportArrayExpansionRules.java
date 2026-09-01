@@ -1,12 +1,12 @@
 package dev.totem.nexus.space;
 
+import dev.totem.core.api.v1.gamerule.TotemGameRuleCategories;
 import net.fabricmc.fabric.api.gamerule.v1.GameRuleBuilder;
 import net.fabricmc.fabric.api.gamerule.v1.GameRuleEvents;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.gamerules.GameRule;
-import net.minecraft.world.level.gamerules.GameRuleCategory;
 import net.minecraft.world.level.block.Blocks;
 
 import java.util.Locale;
@@ -17,7 +17,7 @@ public final class NexusTeleportArrayExpansionRules {
             Identifier.fromNamespaceAndPath("deadrecall", "teleport_array_expansion_mode");
     public static final GameRule<ExpansionMode> EXPANSION_MODE =
             GameRuleBuilder.forEnum(ExpansionMode.DEFAULT)
-                    .category(GameRuleCategory.MISC)
+                    .category(TotemGameRuleCategories.TOTEM)
                     .buildAndRegister(EXPANSION_MODE_ID);
 
     private NexusTeleportArrayExpansionRules() {

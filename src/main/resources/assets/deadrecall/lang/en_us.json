@@ -9,6 +9,8 @@
   "container.deadrecall.death_node_owner": "My Death Teleport Points",
   "container.deadrecall.space_unit.map": "Space Unit Map",
   "container.deadrecall.space_unit.management": "Nexus Management",
+  "gamerule.deadrecall.dead_recall_distributed_spawning": "Distribute players across safe spawn points",
+  "gamerule.deadrecall.dead_recall_distributed_spawning.description": "Give players without a personal respawn point a persistent, separated safe spawn location.",
   "gamerule.deadrecall.teleport_array_expansion_mode": "Teleport Array Expansion",
   "gamerule.deadrecall.teleport_array_expansion_mode.description": "Choose whether expansion follows each material locally or grows complete lodestone-centered cubes.",
   "gamerule.deadrecall.teleport_array_expansion_mode.local": "Local",

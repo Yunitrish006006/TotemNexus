@@ -4,26 +4,33 @@ TotemNexus 是 Totem 系列的 Space Unit、好友、地圖、安全傳送、死
 與分散出生點模組。所有座標、權限、成本與安全落點都由 Server 重新
 驗證，Client 只顯示經過篩選的資訊。
 
-目前模組版本為 **0.3.9**，需要 TotemCore **0.7.14 以上、0.8.0 以下**。
+目前模組版本為 **0.3.10**，需要 TotemCore **0.7.15 以上、0.8.0 以下**。
 
 ## 安裝
 
 Client 與 Server 都放入：
 
 1. Fabric API `0.154.2+26.2`
-2. TotemCore `>=0.7.14 <0.8.0`
-3. TotemNexus `0.3.9`
+2. TotemCore `>=0.7.15 <0.8.0`
+3. TotemNexus `0.3.10`
 
 | 項目 | 需求 |
 | --- | --- |
 | Minecraft | 26.2 |
 | Fabric Loader | 0.19.3+ |
 | Java | 25+ |
-| 必要 Totem 模組 | `totem-core >=0.7.14 <0.8.0` |
+| 必要 Totem 模組 | `totem-core >=0.7.15 <0.8.0` |
 | 選配 | TotemRemnant（死亡背包 ↔ Death Node 整合） |
 
 Nexus standalone 不要求 DeadRecall、Remnant 或 Discord Bridge。使用
 DeadRecall 2.4.11 整合 JAR 時不要再安裝獨立 TotemNexus。
+
+## 世界規則
+
+Nexus 的「分散安全重生點」與「傳送陣擴張模式」現在會集中顯示在
+Minecraft 原生世界規則介面的「圖騰世界規則」分類，名稱、說明與擴張模式
+選項皆有繁體中文。既有 `deadrecall:*` 規則 ID、預設值、世界存檔資料及
+伺服器權威更新流程維持不變。
 
 ## 遊戲內 Totem 手冊
 

@@ -1,5 +1,6 @@
 package dev.totem.nexus.space;
 
+import dev.totem.core.api.v1.gamerule.TotemGameRuleCategories;
 import net.fabricmc.fabric.api.gamerule.v1.GameRuleBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
@@ -13,7 +14,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.border.WorldBorder;
 import net.minecraft.world.level.gamerules.GameRule;
-import net.minecraft.world.level.gamerules.GameRuleCategory;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.portal.TeleportTransition;
 import net.minecraft.world.phys.Vec3;
@@ -23,7 +23,7 @@ import java.util.Optional;
 public final class NexusDistributedSpawnAuthority {
     public static final GameRule<Boolean> DISTRIBUTED_SPAWNING =
             GameRuleBuilder.forBoolean(false)
-                    .category(GameRuleCategory.SPAWNING)
+                    .category(TotemGameRuleCategories.TOTEM)
                     .buildAndRegister(Identifier.fromNamespaceAndPath("deadrecall", "dead_recall_distributed_spawning"));
 
     private static final int CANDIDATE_SAMPLES = 56;

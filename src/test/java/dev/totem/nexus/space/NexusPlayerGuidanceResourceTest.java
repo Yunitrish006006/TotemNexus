@@ -32,6 +32,8 @@ class NexusPlayerGuidanceResourceTest {
             "message.deadrecall.space_unit.build_sites_show",
             "message.deadrecall.space_unit.build_sites_hide",
             "message.deadrecall.space_unit.build_sites_hint",
+            "gamerule.deadrecall.dead_recall_distributed_spawning",
+            "gamerule.deadrecall.dead_recall_distributed_spawning.description",
             "gamerule.deadrecall.teleport_array_expansion_mode",
             "gamerule.deadrecall.teleport_array_expansion_mode.description",
             "gamerule.deadrecall.teleport_array_expansion_mode.local",
@@ -75,6 +77,10 @@ class NexusPlayerGuidanceResourceTest {
         assertTrue(text(english, "message.deadrecall.space_unit.build_sites_hint").contains("green"));
         assertTrue(text(traditionalChinese, "message.deadrecall.space_unit.build_sites_hint")
                 .contains("綠色"));
+        assertTrue(text(english, "gamerule.deadrecall.dead_recall_distributed_spawning.description")
+                .contains("safe spawn"));
+        assertTrue(text(traditionalChinese, "gamerule.deadrecall.dead_recall_distributed_spawning.description")
+                .contains("安全重生位置"));
         assertTrue(text(english, "gamerule.deadrecall.teleport_array_expansion_mode.description")
                 .contains("lodestone-centered"));
         assertTrue(text(traditionalChinese, "gamerule.deadrecall.teleport_array_expansion_mode.description")

@@ -1,5 +1,6 @@
 package dev.totem.nexus.space;
 
+import dev.totem.core.api.v1.gamerule.TotemGameRuleCategories;
 import dev.totem.nexus.network.TeleportArrayVisualizationPayload;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
@@ -14,6 +15,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.gamerules.GameRuleType;
 
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -29,17 +31,38 @@ public final class TeleportArrayMaterialScanGameTest {
     @GameTest(maxTicks = 30)
     public void expansionModeRuleIsRegisteredWithStableDefaultAndCommandValues(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
-        if (!NexusTeleportArrayExpansionRules.EXPANSION_MODE_ID.equals(
+        if (NexusTeleportArrayExpansionRules.EXPANSION_MODE.category()
+                != TotemGameRuleCategories.TOTEM
+                || !NexusTeleportArrayExpansionRules.EXPANSION_MODE_ID.equals(
                 NexusTeleportArrayExpansionRules.EXPANSION_MODE.getIdentifier())
                 || !"gamerule.deadrecall.teleport_array_expansion_mode".equals(
                 NexusTeleportArrayExpansionRules.EXPANSION_MODE.getDescriptionId())
                 || NexusTeleportArrayExpansionRules.EXPANSION_MODE.defaultValue()
                 != NexusTeleportArrayExpansionRules.ExpansionMode.LOCAL
+                || NexusTeleportArrayExpansionRules.EXPANSION_MODE.valueClass()
+                != NexusTeleportArrayExpansionRules.ExpansionMode.class
+                || NexusTeleportArrayExpansionRules.EXPANSION_MODE.gameRuleType()
+                != GameRuleType.INT
                 || level.getGameRules().get(NexusTeleportArrayExpansionRules.EXPANSION_MODE)
                 != NexusTeleportArrayExpansionRules.ExpansionMode.LOCAL
                 || !"local".equals(NexusTeleportArrayExpansionRules.ExpansionMode.LOCAL.toString())
                 || !"centered".equals(NexusTeleportArrayExpansionRules.ExpansionMode.CENTERED.toString())) {
             helper.fail("Expansion gamerule registration, default, or command values changed");
+            return;
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void distributedSpawnRuleUsesSharedCategoryAndStableContract(GameTestHelper helper) {
+        var rule = NexusDistributedSpawnAuthority.DISTRIBUTED_SPAWNING;
+        if (rule.category() != TotemGameRuleCategories.TOTEM
+                || !Identifier.fromNamespaceAndPath("deadrecall", "dead_recall_distributed_spawning")
+                .equals(rule.getIdentifier())
+                || rule.defaultValue()
+                || rule.valueClass() != Boolean.class
+                || rule.gameRuleType() != GameRuleType.BOOL) {
+            helper.fail("Distributed-spawn gamerule category, identifier, default, or type changed");
             return;
         }
         helper.succeed();

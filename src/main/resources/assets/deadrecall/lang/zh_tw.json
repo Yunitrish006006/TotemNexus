@@ -9,6 +9,8 @@
   "container.deadrecall.death_node_owner": "我的死亡傳送點",
   "container.deadrecall.space_unit.map": "Space Unit 地圖",
   "container.deadrecall.space_unit.management": "Nexus 管理",
+  "gamerule.deadrecall.dead_recall_distributed_spawning": "將玩家分散至安全重生點",
+  "gamerule.deadrecall.dead_recall_distributed_spawning.description": "為沒有個人重生點的玩家分配並保留彼此分散的安全重生位置。",
   "gamerule.deadrecall.teleport_array_expansion_mode": "傳送陣擴張模式",
   "gamerule.deadrecall.teleport_array_expansion_mode.description": "選擇擴張沿各材料局部延伸，或以磁石為中心擴大完整立方範圍。",
   "gamerule.deadrecall.teleport_array_expansion_mode.local": "局部路徑",
