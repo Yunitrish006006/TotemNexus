@@ -16,12 +16,17 @@ final class NexusInterfacePayloadPolicy {
             Collection<NexusSpaceUnitRecord> serverAuthorizedUnits,
             MapItemSavedData mapData) {
         if (interfaceType == null || boundUnitId == null || serverAuthorizedUnits == null) return List.of();
-        if (!interfaceType.hasMapVisualization()) {
+        if (!interfaceType.canSelectTeleportDestination()) {
             return serverAuthorizedUnits.stream()
                     .filter(unit -> unit.status() == SpaceUnitStatus.ACTIVE)
                     .filter(NexusSpaceUnitRecord::isLodestoneAnchor)
                     .filter(unit -> unit.id().equals(boundUnitId))
                     .limit(1)
+                    .toList();
+        }
+        if (!interfaceType.hasMapVisualization()) {
+            return serverAuthorizedUnits.stream()
+                    .filter(unit -> unit.status() == SpaceUnitStatus.ACTIVE)
                     .toList();
         }
         if (mapData == null) return List.of();

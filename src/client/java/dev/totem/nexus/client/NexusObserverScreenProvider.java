@@ -15,12 +15,19 @@ import net.minecraft.network.codec.StreamCodec;
 
 import java.util.Set;
 import java.util.Optional;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /** Nexus-owned factories for modern and compatibility production screens. */
 public final class NexusObserverScreenProvider implements ObserverScreenProvider {
     private static final Set<String> VARIANTS = Set.of(
-            "map", "map_legacy", "friends", "friends_legacy", "registration", "registration_legacy");
+            "compass", "map", "management", "map_legacy", "friends", "friends_legacy",
+            "registration", "registration_legacy");
+    private static final String SELECTED_UNIT_ID = "selected_unit_id";
+    private static final String MAP_ZOOM = "map_zoom";
+    private static final String MAP_PAN_X = "map_pan_x";
+    private static final String MAP_PAN_Y = "map_pan_y";
 
     @Override public String familyId() { return "nexus"; }
     @Override public int protocolVersion() { return 3; }
@@ -30,8 +37,20 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
         String variant;
         Object payload;
         StreamCodec<FriendlyByteBuf, ?> codec;
+        Map<String, String> metadata = Map.of();
         if (screen instanceof NexusSpaceUnitMapScreen owned && !owned.totem$isObserverReadOnly()) {
-            variant = "map"; payload = owned.observerPayload(); codec = SpaceUnitMapPayload.CODEC;
+            variant = owned.observerVariant(); payload = owned.observerPayload(); codec = SpaceUnitMapPayload.CODEC;
+            LinkedHashMap<String, String> values = new LinkedHashMap<>();
+            UUID selectedUnitId = owned.observerSelectedUnitId();
+            if (selectedUnitId != null) {
+                values.put(SELECTED_UNIT_ID, selectedUnitId.toString());
+            }
+            if ("map".equals(variant)) {
+                values.put(MAP_ZOOM, Integer.toString(owned.observerMapZoom()));
+                values.put(MAP_PAN_X, Integer.toString(owned.observerMapPanX()));
+                values.put(MAP_PAN_Y, Integer.toString(owned.observerMapPanY()));
+            }
+            metadata = Map.copyOf(values);
         } else if (screen instanceof NexusMapScreen owned && !owned.totem$isObserverReadOnly()) {
             variant = "map_legacy"; payload = owned.observerPayload(); codec = SpaceUnitMapPayload.CODEC;
         } else if (screen instanceof NexusSpaceUnitFriendsScreen owned && !owned.totem$isObserverReadOnly()) {
@@ -45,14 +64,13 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
         } else return Optional.empty();
         if (payload == null) return Optional.empty();
         return Optional.of(new ObserverScreenSnapshot(familyId(), variant, protocolVersion(), sequence,
-                screen.getTitle(), java.util.List.of(), new int[0], Map.of(), encodeUnchecked(codec, payload)));
+                screen.getTitle(), java.util.List.of(), new int[0], metadata, encodeUnchecked(codec, payload)));
     }
 
     @Override public ObserverScreenHandle create(ObserverScreenContext context, ObserverScreenSnapshot snapshot) {
         if (!supports(snapshot)) throw new IllegalArgumentException("Incompatible Nexus Observer snapshot");
         Screen screen = switch (snapshot.variant()) {
-            case "map" -> new NexusSpaceUnitMapScreen(decode(snapshot, SpaceUnitMapPayload.CODEC), true,
-                    context.stopObserving());
+            case "compass", "map", "management" -> createMapScreen(context, snapshot);
             case "map_legacy" -> new NexusMapScreen(decode(snapshot, SpaceUnitMapPayload.CODEC), true,
                     context.stopObserving());
             case "friends" -> new NexusSpaceUnitFriendsScreen(null,
@@ -66,6 +84,68 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
             default -> throw new IllegalArgumentException("Unsupported Nexus Observer variant");
         };
         return new Handle(screen, snapshot.variant(), snapshot.sequence());
+    }
+
+    private static NexusSpaceUnitMapScreen createMapScreen(
+            ObserverScreenContext context,
+            ObserverScreenSnapshot snapshot) {
+        SpaceUnitMapPayload payload = decode(snapshot, SpaceUnitMapPayload.CODEC);
+        if (!snapshot.variant().equals(variantFor(payload.interfaceType()))) {
+            throw new IllegalArgumentException("Nexus Observer interface type does not match its variant");
+        }
+        Optional<UUID> selectedUnitId = selectedUnitId(snapshot);
+        MapViewState mapView = mapViewState(snapshot);
+        NexusSpaceUnitMapScreen screen = new NexusSpaceUnitMapScreen(payload, true, context.stopObserving());
+        selectedUnitId.ifPresent(screen::applyObserverSelection);
+        screen.applyObserverMapView(mapView.zoom(), mapView.panX(), mapView.panY());
+        return screen;
+    }
+
+    private static String variantFor(dev.totem.nexus.space.TeleportInterfaceType interfaceType) {
+        return switch (interfaceType) {
+            case COMPASS -> "compass";
+            case FILLED_MAP -> "map";
+            case RECOVERY_COMPASS, BOOK -> "management";
+        };
+    }
+
+    private static Optional<UUID> selectedUnitId(ObserverScreenSnapshot snapshot) {
+        String value = snapshot.metadata().get(SELECTED_UNIT_ID);
+        if (value == null || value.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(UUID.fromString(value));
+        } catch (IllegalArgumentException invalid) {
+            throw new IllegalArgumentException("Invalid Nexus Observer selected Space Unit identity", invalid);
+        }
+    }
+
+    private static MapViewState mapViewState(ObserverScreenSnapshot snapshot) {
+        if (!"map".equals(snapshot.variant())) {
+            return MapViewState.DEFAULT;
+        }
+        return new MapViewState(
+                boundedInt(snapshot.metadata(), MAP_ZOOM, 1, 1, 4),
+                boundedInt(snapshot.metadata(), MAP_PAN_X, 0, -4096, 4096),
+                boundedInt(snapshot.metadata(), MAP_PAN_Y, 0, -4096, 4096));
+    }
+
+    private static int boundedInt(
+            Map<String, String> metadata, String key, int fallback, int minimum, int maximum) {
+        String value = metadata.get(key);
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        try {
+            int parsed = Integer.parseInt(value);
+            if (parsed < minimum || parsed > maximum) {
+                throw new IllegalArgumentException("Nexus Observer " + key + " is outside its legal range");
+            }
+            return parsed;
+        } catch (NumberFormatException invalid) {
+            throw new IllegalArgumentException("Invalid Nexus Observer " + key, invalid);
+        }
     }
 
     private static <T> T decode(ObserverScreenSnapshot snapshot, StreamCodec<FriendlyByteBuf, T> codec) {
@@ -92,6 +172,7 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
         private final Screen screen;
         private final String variant;
         private long sequence;
+        private long cursorSequence = -1L;
         private Handle(Screen screen, String variant, long sequence) {
             this.screen = screen;
             this.variant = variant;
@@ -102,9 +183,15 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
             if (!NexusObserverScreenProvider.this.supports(snapshot)
                     || !variant.equals(snapshot.variant())
                     || snapshot.sequence() <= sequence) return;
-            if (screen instanceof NexusSpaceUnitMapScreen modernMap)
-                modernMap.applyPayload(decode(snapshot, SpaceUnitMapPayload.CODEC));
-            else if (screen instanceof NexusMapScreen legacyMap)
+            if (screen instanceof NexusSpaceUnitMapScreen modernMap) {
+                SpaceUnitMapPayload payload = decode(snapshot, SpaceUnitMapPayload.CODEC);
+                if (!variant.equals(variantFor(payload.interfaceType()))) return;
+                Optional<UUID> selectedUnitId = selectedUnitId(snapshot);
+                MapViewState mapView = mapViewState(snapshot);
+                modernMap.applyPayload(payload);
+                selectedUnitId.ifPresent(modernMap::applyObserverSelection);
+                modernMap.applyObserverMapView(mapView.zoom(), mapView.panX(), mapView.panY());
+            } else if (screen instanceof NexusMapScreen legacyMap)
                 legacyMap.apply(decode(snapshot, SpaceUnitMapPayload.CODEC));
             else if (screen instanceof NexusSpaceUnitFriendsScreen modernFriends)
                 modernFriends.applyPayload(decode(snapshot, SpaceUnitFriendsPayload.CODEC));
@@ -116,6 +203,14 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
                 legacyRegistration.apply(decode(snapshot, SpaceUnitRegistrationPreviewPayload.CODEC));
             sequence = snapshot.sequence();
         }
-        @Override public void applyCursor(ObserverRemoteCursor ignored) { }
+        @Override public void applyCursor(ObserverRemoteCursor cursor) {
+            if (cursor.sequence() <= cursorSequence) return;
+            cursorSequence = cursor.sequence();
+            // TotemVanillaTweaks owns normalized cursor rendering and carried-stack transport.
+        }
+    }
+
+    private record MapViewState(int zoom, int panX, int panY) {
+        private static final MapViewState DEFAULT = new MapViewState(1, 0, 0);
     }
 }

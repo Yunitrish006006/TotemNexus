@@ -60,12 +60,14 @@ class NexusInterfaceBindingTest {
     }
 
     @Test
-    void resolverCapabilitiesCoverEveryDurableInterfaceButOnlyMapsVisualize() {
+    void resolverCapabilitiesSeparateTeleportSelectionFromMapVisualization() {
         for (TeleportInterfaceType type : TeleportInterfaceType.values()) {
             assertTrue(type.canBind());
             assertTrue(type.canDiscover());
             assertTrue(type.canManage());
             assertTrue(type.canManageFriends());
+            assertEquals(type == TeleportInterfaceType.COMPASS || type == TeleportInterfaceType.FILLED_MAP,
+                    type.canSelectTeleportDestination());
             assertEquals(type == TeleportInterfaceType.FILLED_MAP, type.hasMapVisualization());
         }
         assertEquals(TeleportInterfaceType.COMPASS,

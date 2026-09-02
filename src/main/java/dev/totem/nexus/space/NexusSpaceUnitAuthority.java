@@ -315,6 +315,10 @@ public final class NexusSpaceUnitAuthority {
         if (interfaceContext.isEmpty()) {
             return;
         }
+        if (!interfaceContext.orElseThrow().interfaceType().canSelectTeleportDestination()) {
+            notify(player, Component.translatable("message.deadrecall.space_unit.management_only"));
+            return;
+        }
 
         Optional<MapSource> source = resolveMapSource(player, sourceType, sourceUnitId, true, true);
         if (source.isEmpty()) {
@@ -905,6 +909,10 @@ public final class NexusSpaceUnitAuthority {
         }
     }
 
+    static boolean hasActiveTeleportSession(UUID playerId) {
+        return teleportSessions.containsKey(playerId) || landingSearchSessions.containsKey(playerId);
+    }
+
     private static boolean closeLandingSearch(UUID playerId) {
         LandingSearchSession pending = landingSearchSessions.remove(playerId);
         if (pending == null) {
@@ -1411,12 +1419,13 @@ public final class NexusSpaceUnitAuthority {
     }
 
     public static void sendSpaceUnitMap(ServerPlayer player, UUID sourceUnitId) {
-        if (requireInterfaceContext(
+        Optional<TeleportInterfaceContext> interfaceContext = requireInterfaceContext(
                 player,
                 SOURCE_TYPE_LODESTONE,
                 sourceUnitId,
                 true
-        ).isEmpty()) {
+        );
+        if (interfaceContext.isEmpty()) {
             return;
         }
 
@@ -1459,7 +1468,26 @@ public final class NexusSpaceUnitAuthority {
             return;
         }
 
+        synchronizeHeldVanillaMap(player, interfaceContext.orElseThrow());
         ServerPlayNetworking.send(player, buildMapPayload(player, mapSource(source), visibleDiscoveredUnits(player)));
+    }
+
+    /** Sends the held Nexus map through Mojang's normal map-data packet before opening its Screen. */
+    private static void synchronizeHeldVanillaMap(
+            ServerPlayer player,
+            TeleportInterfaceContext interfaceContext) {
+        if (interfaceContext.interfaceType() != TeleportInterfaceType.FILLED_MAP
+                || interfaceContext.mapId() == null) {
+            return;
+        }
+        MapItemSavedData mapData = MapItem.getSavedData(interfaceContext.mapId(), player.level());
+        if (mapData == null) {
+            return;
+        }
+        var updatePacket = mapData.getUpdatePacket(interfaceContext.mapId(), player);
+        if (updatePacket != null) {
+            player.connection.send(updatePacket);
+        }
     }
 
     private static void completeTeleport(

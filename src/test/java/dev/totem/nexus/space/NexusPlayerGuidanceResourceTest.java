@@ -65,6 +65,14 @@ class NexusPlayerGuidanceResourceTest {
         assertTrue(text(english, "message.deadrecall.space_unit.map_need_interface").contains("Nexus map"));
         assertTrue(text(traditionalChinese, "message.deadrecall.space_unit.map_need_interface")
                 .contains("Nexus 地圖"));
+        assertTrue(text(english, "book.deadrecall.nexus_diagram.interfaces_bind_manage")
+                .contains("Compass: list + teleport"));
+        assertTrue(text(english, "book.deadrecall.nexus_diagram.interfaces_bind_manage")
+                .contains("no list"));
+        assertTrue(text(traditionalChinese, "book.deadrecall.nexus_diagram.interfaces_bind_manage")
+                .contains("羅盤：清單選點傳送"));
+        assertTrue(text(traditionalChinese, "book.deadrecall.nexus_diagram.interfaces_bind_manage")
+                .contains("沒有清單"));
         assertTrue(text(english, "book.deadrecall.nexus_diagram.empty_map_create").contains("new MapId"));
         assertTrue(text(traditionalChinese, "book.deadrecall.nexus_diagram.empty_map_create")
                 .contains("新 MapId"));

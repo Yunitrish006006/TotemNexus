@@ -17,6 +17,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.state.MapRenderState;
 import net.minecraft.network.chat.Component;
@@ -43,8 +44,6 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     private static final int HEADER_HEIGHT = 34;
     private static final int CONTROL_HEIGHT = 24;
     private static final int FOOTER_HEIGHT = 46;
-    private static final int GAP = 10;
-    private static final int LIST_WIDTH = 196;
     private static final int LIST_HEADER_HEIGHT = 24;
     private static final int LIST_ROW_BOTTOM_GAP = 4;
     private static final int ROW_HEIGHT = 30;
@@ -57,6 +56,9 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     private static final String ACCESS_ROLE_ALLOWED = "allowed";
     private static final int MIN_MAP_SIZE = 32;
     private static final int VANILLA_MAP_SIZE = 128;
+    private static final int MIN_MAP_ZOOM = 1;
+    private static final int MAX_MAP_ZOOM = 4;
+    private static final double MAP_CLICK_DRAG_THRESHOLD = 3.0D;
 
     private SpaceUnitMapPayload payload;
     private List<String> dimensions;
@@ -65,6 +67,12 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     private int listScrollIndex = 0;
     private final MapRenderState mapRenderState = new MapRenderState();
     private List<MapLabelLayout> renderedMapLabels = List.of();
+    private int mapZoom = MIN_MAP_ZOOM;
+    private int mapPanX;
+    private int mapPanY;
+    private boolean mapDragging;
+    private double mapDragDistance;
+    private UUID pendingMapClickId;
     private String searchQuery = "";
     private TypeFilter typeFilter = TypeFilter.ALL;
     private FriendFilter friendFilter = FriendFilter.ALL;
@@ -135,24 +143,72 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         this.selectedUnitId = containsEntry(previousSelection) || payload.sourceUnitId().equals(previousSelection)
                 ? previousSelection
                 : payload.sourceUnitId();
-        if (!hasMapVisualization()) {
+        if (!canSelectTeleportDestination()) {
             this.activeDimension = payload.sourceDimension();
             this.selectedUnitId = payload.sourceUnitId();
         }
         this.listScrollIndex = Math.min(this.listScrollIndex, getMaxListScrollIndex());
+        clampMapPan();
         syncSelectionWithFilters();
     }
 
     SpaceUnitMapPayload observerPayload() { return payload; }
 
+    String observerVariant() {
+        return switch (this.payload.interfaceType()) {
+            case COMPASS -> "compass";
+            case FILLED_MAP -> "map";
+            case RECOVERY_COMPASS, BOOK -> "management";
+        };
+    }
+
+    UUID observerSelectedUnitId() {
+        return this.selectedUnitId;
+    }
+
+    int observerMapZoom() { return this.mapZoom; }
+    int observerMapPanX() { return this.mapPanX; }
+    int observerMapPanY() { return this.mapPanY; }
+
+    void applyObserverMapView(int zoom, int panX, int panY) {
+        if (!observerReadOnly() || !hasMapVisualization()) {
+            return;
+        }
+        this.mapZoom = Math.max(MIN_MAP_ZOOM, Math.min(MAX_MAP_ZOOM, zoom));
+        this.mapPanX = panX;
+        this.mapPanY = panY;
+        clampMapPan();
+    }
+
+    void applyObserverSelection(UUID unitId) {
+        if (!observerReadOnly() || unitId == null || !canSelectTeleportDestination()
+                || !containsEntry(unitId)) {
+            return;
+        }
+        this.selectedUnitId = unitId;
+        if (hasDestinationList()) {
+            ensureSelectedVisible();
+        }
+    }
+
     private static Component screenTitle(SpaceUnitMapPayload payload) {
-        return Component.translatable(payload.interfaceType().hasMapVisualization()
-                ? "container.deadrecall.space_unit.map"
-                : "container.deadrecall.space_unit.management");
+        return Component.translatable(switch (payload.interfaceType()) {
+            case COMPASS -> "container.deadrecall.space_unit.compass";
+            case FILLED_MAP -> "container.deadrecall.space_unit.map";
+            case RECOVERY_COMPASS, BOOK -> "container.deadrecall.space_unit.management";
+        });
     }
 
     private boolean hasMapVisualization() {
         return this.payload.interfaceType().hasMapVisualization();
+    }
+
+    private boolean canSelectTeleportDestination() {
+        return this.payload.interfaceType().canSelectTeleportDestination();
+    }
+
+    private boolean hasDestinationList() {
+        return this.payload.interfaceType() == TeleportInterfaceType.COMPASS;
     }
 
     @Override
@@ -301,11 +357,14 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         if (this.showMaterials) {
             this.renderedMapLabels = List.of();
             drawMaterialPanel(extractor, mouseX, mouseY);
-        } else if (!hasMapVisualization()) {
+        } else if (!canSelectTeleportDestination()) {
             this.renderedMapLabels = List.of();
             drawManagementOnly(extractor, mouseX, mouseY);
-        } else {
+        } else if (hasMapVisualization()) {
             drawMap(extractor, mouseX, mouseY);
+            drawFooter(extractor, mouseX, mouseY);
+        } else {
+            this.renderedMapLabels = List.of();
             drawNodeList(extractor, mouseX, mouseY);
             drawFooter(extractor, mouseX, mouseY);
         }
@@ -325,30 +384,72 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             }
             return super.mouseClicked(event, doubleClick);
         }
-        if (!hasMapVisualization()) {
+        if (!canSelectTeleportDestination()) {
             return super.mouseClicked(event, doubleClick);
         }
 
-        UUID mapHit = mapEntryAt(event.x(), event.y());
-        if (mapHit != null) {
-            this.selectedUnitId = mapHit;
-            ensureSelectedVisible();
-            if (event.button() == 1) {
-                toggleFavorite(mapHit);
+        if (hasMapVisualization()) {
+            if (super.mouseClicked(event, doubleClick)) {
+                return true;
             }
-            return true;
+            UUID mapHit = mapEntryAt(event.x(), event.y());
+            if (event.button() == 0 && isInside(
+                    event.x(), event.y(), mapX(), mapY(), mapWidth(), mapHeight())) {
+                this.mapDragging = true;
+                this.mapDragDistance = 0.0D;
+                this.pendingMapClickId = mapHit;
+                return true;
+            }
+            if (event.button() == 1 && mapHit != null) {
+                selectDestination(mapHit, true);
+                toggleFavorite(mapHit);
+                return true;
+            }
+            return false;
         }
 
-        UUID rowHit = listEntryAt(event.x(), event.y());
-        if (rowHit != null) {
-            this.selectedUnitId = rowHit;
-            if (event.button() == 1) {
-                toggleFavorite(rowHit);
+        if (hasDestinationList()) {
+            UUID rowHit = listEntryAt(event.x(), event.y());
+            if (rowHit != null) {
+                selectDestination(rowHit, true);
+                if (event.button() == 1) {
+                    toggleFavorite(rowHit);
+                }
+                return true;
             }
-            return true;
         }
 
         return super.mouseClicked(event, doubleClick);
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        if (observerReadOnly()) return true;
+        if (this.mapDragging && event.button() == 0 && hasMapVisualization()) {
+            this.mapDragDistance += Math.hypot(dragX, dragY);
+            this.mapPanX += (int) Math.round(dragX);
+            this.mapPanY += (int) Math.round(dragY);
+            clampMapPan();
+            return true;
+        }
+        return super.mouseDragged(event, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (observerReadOnly()) return true;
+        if (this.mapDragging && event.button() == 0) {
+            UUID clickId = this.pendingMapClickId;
+            boolean select = this.mapDragDistance < MAP_CLICK_DRAG_THRESHOLD && clickId != null;
+            this.mapDragging = false;
+            this.mapDragDistance = 0.0D;
+            this.pendingMapClickId = null;
+            if (select) {
+                selectDestination(clickId, true);
+            }
+            return true;
+        }
+        return super.mouseReleased(event);
     }
 
     @Override
@@ -366,7 +467,14 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             }
             return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
         }
-        if (!hasMapVisualization()) {
+        if (hasMapVisualization()
+                && isInside(mouseX, mouseY, mapX(), mapY(), mapWidth(), mapHeight())) {
+            if (verticalAmount != 0.0D) {
+                setMapZoom(this.mapZoom + (verticalAmount > 0.0D ? 1 : -1));
+            }
+            return true;
+        }
+        if (!hasDestinationList()) {
             return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
         }
 
@@ -382,6 +490,110 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         }
 
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (observerReadOnly()) {
+            return super.keyPressed(event);
+        }
+        if (!this.showMaterials && hasMapVisualization()) {
+            if (event.key() == 61 || event.key() == 334) { // GLFW equal / keypad add
+                setMapZoom(this.mapZoom + 1);
+                return true;
+            }
+            if (event.key() == 45 || event.key() == 333) { // GLFW minus / keypad subtract
+                setMapZoom(this.mapZoom - 1);
+                return true;
+            }
+            if ((event.modifiers() & 1) != 0) { // GLFW shift
+                int step = 16;
+                switch (event.key()) {
+                    case 263 -> this.mapPanX += step;
+                    case 262 -> this.mapPanX -= step;
+                    case 265 -> this.mapPanY += step;
+                    case 264 -> this.mapPanY -= step;
+                    default -> step = 0;
+                }
+                if (step != 0) {
+                    clampMapPan();
+                    return true;
+                }
+            }
+        }
+        if (!this.showMaterials && canSelectTeleportDestination()
+                && (this.searchField == null || !this.searchField.isFocused())) {
+            int direction = switch (event.key()) {
+                case 263, 265 -> -1; // GLFW left/up
+                case 262, 264 -> 1;  // GLFW right/down
+                default -> 0;
+            };
+            if (direction != 0 && cycleSelectedDestination(direction)) {
+                return true;
+            }
+        }
+        return super.keyPressed(event);
+    }
+
+    private boolean cycleSelectedDestination(int direction) {
+        List<SpaceUnitMapPayload.Entry> entries = selectionEntries();
+        if (entries.isEmpty()) {
+            return false;
+        }
+        int selectedIndex = -1;
+        for (int index = 0; index < entries.size(); index++) {
+            if (entries.get(index).id().equals(this.selectedUnitId)) {
+                selectedIndex = index;
+                break;
+            }
+        }
+        int nextIndex = Math.floorMod(selectedIndex + direction, entries.size());
+        selectDestination(entries.get(nextIndex).id(), true);
+        if (hasDestinationList()) {
+            ensureSelectedVisible();
+        }
+        return true;
+    }
+
+    private void selectDestination(UUID unitId, boolean narrate) {
+        this.selectedUnitId = unitId;
+        if (!narrate || this.minecraft == null) {
+            return;
+        }
+        SpaceUnitMapPayload.Entry entry = entryById(unitId);
+        if (entry != null) {
+            this.minecraft.getNarrator().saySystemNow(Component.translatable(
+                    "message.deadrecall.space_unit.destination_selected",
+                    nexusName(entry.name())));
+        }
+    }
+
+    private void setMapZoom(int zoom) {
+        this.mapZoom = Math.max(MIN_MAP_ZOOM, Math.min(MAX_MAP_ZOOM, zoom));
+        clampMapPan();
+        if (this.minecraft != null) {
+            this.minecraft.getNarrator().saySystemNow(Component.translatable(
+                    "message.deadrecall.space_unit.map_zoom_narration", this.mapZoom * 100));
+        }
+    }
+
+    private void clampMapPan() {
+        if (!hasMapVisualization()) {
+            this.mapZoom = MIN_MAP_ZOOM;
+            this.mapPanX = 0;
+            this.mapPanY = 0;
+            return;
+        }
+        int baseScale = baseMapScale();
+        int renderedSize = VANILLA_MAP_SIZE * baseScale * this.mapZoom;
+        int maxPanX = Math.max(0, (renderedSize - (mapWidth() - 2)) / 2);
+        int maxPanY = Math.max(0, (renderedSize - (mapHeight() - 2)) / 2);
+        this.mapPanX = Math.max(-maxPanX, Math.min(maxPanX, this.mapPanX));
+        this.mapPanY = Math.max(-maxPanY, Math.min(maxPanY, this.mapPanY));
+    }
+
+    private List<SpaceUnitMapPayload.Entry> selectionEntries() {
+        return hasMapVisualization() ? mapPresentationEntries() : entriesForActiveDimension();
     }
 
     private void requestRefresh() {
@@ -657,12 +869,68 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
 
     /** Package-visible semantic proof that a non-map interface exposes only its bound source. */
     boolean managementOnlyPresentationForVisualTest() {
-        return !hasMapVisualization()
+        return !canSelectTeleportDestination()
                 && this.selectedUnitId.equals(this.payload.sourceUnitId())
                 && entriesForActiveDimension().size() <= 1
                 && this.searchField != null && !this.searchField.visible
                 && this.typeFilterButton != null && !this.typeFilterButton.visible
                 && this.teleportButton != null && !this.teleportButton.visible;
+    }
+
+    /** Package-visible proof that the compass uses the list without entering the map path. */
+    boolean compassTeleportPresentationForVisualTest() {
+        return hasDestinationList()
+                && !hasMapVisualization()
+                && this.searchField != null && this.searchField.visible
+                && this.typeFilterButton != null && this.typeFilterButton.visible
+                && this.teleportButton != null && this.teleportButton.visible;
+    }
+
+    /** Package-visible proof that a Nexus map has no destination-list presentation. */
+    boolean mapOnlyTeleportPresentationForVisualTest() {
+        return hasMapVisualization()
+                && !hasDestinationList()
+                && this.searchField != null && !this.searchField.visible
+                && this.typeFilterButton != null && !this.typeFilterButton.visible
+                && this.teleportButton != null && this.teleportButton.visible
+                && mapWidth() == panelWidth() - PANEL_PADDING * 2;
+    }
+
+    UUID selectedUnitIdForVisualTest() {
+        return this.selectedUnitId;
+    }
+
+    boolean teleportButtonActiveForVisualTest() {
+        return this.teleportButton != null
+                && this.teleportButton.visible
+                && this.teleportButton.active;
+    }
+
+    int[] mapEntryCenterForVisualTest(UUID unitId) {
+        MapItemSavedData mapData = cachedMapData();
+        SpaceUnitMapPayload.Entry entry = entryById(unitId);
+        if (mapData == null || entry == null) {
+            return new int[0];
+        }
+        MapDecorationPosition position = mapDecorationPosition(entry, mapData);
+        if (position == null) {
+            return new int[0];
+        }
+        MapRenderArea area = mapRenderArea();
+        return new int[]{
+                area.x() + (int) Math.round((position.x() / 2.0D + 64.0D) * area.scale()),
+                area.y() + (int) Math.round((position.y() / 2.0D + 64.0D) * area.scale())
+        };
+    }
+
+    /** Package-visible interaction proof for native map zoom and pan state. */
+    int[] mapViewForVisualTest() {
+        return new int[]{this.mapZoom, this.mapPanX, this.mapPanY};
+    }
+
+    /** Package-visible interaction point guaranteed to remain inside the map viewport. */
+    int[] mapViewportCenterForVisualTest() {
+        return new int[]{mapX() + mapWidth() / 2, mapY() + mapHeight() / 2};
     }
 
     /** Package-visible semantic proof for the explicit Observer/client cache-miss presentation. */
@@ -690,9 +958,14 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private Component materialButtonText() {
-        return Component.translatable(this.showMaterials
+        if (!this.showMaterials) {
+            return Component.translatable("message.deadrecall.space_unit.map_materials");
+        }
+        return Component.translatable(hasMapVisualization()
                 ? "message.deadrecall.space_unit.map_view"
-                : "message.deadrecall.space_unit.map_materials");
+                : hasDestinationList()
+                ? "message.deadrecall.space_unit.compass_view"
+                : "message.deadrecall.space_unit.management_view");
     }
 
     private void drawMaterialPanel(GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
@@ -1008,6 +1281,18 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         extractor.pose().popMatrix();
         extractor.disableScissor();
         drawTransientMapLabels(extractor, cached, area);
+        drawMapNavigationHint(extractor);
+    }
+
+    private void drawMapNavigationHint(GuiGraphicsExtractor extractor) {
+        String hint = Component.translatable(
+                "message.deadrecall.space_unit.map_navigation_hint", this.mapZoom * 100).getString();
+        hint = trimToWidth(hint, Math.max(1, mapWidth() - 16));
+        int textWidth = this.font.width(hint);
+        int x = mapX() + 6;
+        int y = mapY() + mapHeight() - this.font.lineHeight - 5;
+        extractor.fill(x - 2, y - 2, x + textWidth + 2, y + this.font.lineHeight, 0xB0000000);
+        extractor.text(this.font, hint, x, y, 0xFFD8E5F2, true);
     }
 
     private void drawManagementOnly(GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
@@ -1098,6 +1383,10 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
 
             int markerX = area.x() + (int) Math.round((position.x() / 2.0D + 64.0D) * area.scale());
             int markerY = area.y() + (int) Math.round((position.y() / 2.0D + 64.0D) * area.scale());
+            if (markerX < bounds.left() || markerX >= bounds.right()
+                    || markerY < bounds.top() || markerY >= bounds.bottom()) {
+                continue;
+            }
             MapLabelLayout label = chooseMapLabelLayout(text, textWidth, markerX, markerY, bounds, result);
             if (label != null) {
                 result.add(label);
@@ -1180,6 +1469,8 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             decorations.add(new MapDecoration(
                     entry.id().equals(this.payload.sourceUnitId())
                             ? MapDecorationTypes.BLUE_MARKER
+                            : entry.id().equals(this.selectedUnitId)
+                            ? MapDecorationTypes.TARGET_POINT
                             : MapDecorationTypes.RED_MARKER,
                     position.x(), position.y(), (byte) 0,
                     Optional.of(nexusName(entry.name()))));
@@ -1208,12 +1499,16 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private MapRenderArea mapRenderArea() {
-        int scale = Math.max(1, Math.min(mapWidth() - 2, mapHeight() - 2) / VANILLA_MAP_SIZE);
+        int scale = baseMapScale() * this.mapZoom;
         int renderedSize = VANILLA_MAP_SIZE * scale;
         return new MapRenderArea(
-                mapX() + (mapWidth() - renderedSize) / 2,
-                mapY() + (mapHeight() - renderedSize) / 2,
+                mapX() + (mapWidth() - renderedSize) / 2 + this.mapPanX,
+                mapY() + (mapHeight() - renderedSize) / 2 + this.mapPanY,
                 scale);
+    }
+
+    private int baseMapScale() {
+        return Math.max(1, Math.min(mapWidth() - 2, mapHeight() - 2) / VANILLA_MAP_SIZE);
     }
 
     private Component nexusName(String name) {
@@ -1494,7 +1789,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         }
         MapRenderArea area = mapRenderArea();
         SpaceUnitMapPayload.Entry best = null;
-        double hitRadius = Math.max(5.0D, 5.0D * area.scale());
+        double hitRadius = Math.max(5.0D, Math.min(12.0D, 5.0D * area.scale()));
         double bestDistance = hitRadius * hitRadius;
         for (SpaceUnitMapPayload.Entry entry : mapPresentationEntries()) {
             MapDecorationPosition position = mapDecorationPosition(entry, mapData);
@@ -1556,13 +1851,16 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private List<SpaceUnitMapPayload.Entry> entriesForActiveDimension() {
-        if (!hasMapVisualization()) {
+        if (!canSelectTeleportDestination()) {
             SpaceUnitMapPayload.Entry source = sourceEntry();
             return source == null ? List.of() : List.of(source);
         }
         List<SpaceUnitMapPayload.Entry> entries = new ArrayList<>();
         for (SpaceUnitMapPayload.Entry entry : this.payload.entries()) {
-            if (entry.dimension().equals(this.activeDimension) && matchesFilters(entry)) {
+            boolean visibleInPresentation = hasMapVisualization()
+                    ? entry.dimension().equals(this.payload.sourceDimension())
+                    : matchesFilters(entry);
+            if (visibleInPresentation) {
                 entries.add(entry);
             }
         }
@@ -1629,7 +1927,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private SpaceUnitMapPayload.Entry selectedEntry() {
-        if (!hasMapVisualization()) {
+        if (!canSelectTeleportDestination()) {
             return sourceEntry();
         }
         return entryById(this.selectedUnitId);
@@ -1822,25 +2120,25 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             this.searchField.setX(searchX());
             this.searchField.setY(controlsY());
             this.searchField.setWidth(searchWidth());
-            this.searchField.visible = !this.showMaterials && hasMapVisualization();
+            this.searchField.visible = !this.showMaterials && hasDestinationList();
         }
         if (this.typeFilterButton != null) {
             this.typeFilterButton.setX(typeFilterX());
             this.typeFilterButton.setY(controlsY());
             this.typeFilterButton.setWidth(typeFilterWidth());
-            this.typeFilterButton.visible = !this.showMaterials && hasMapVisualization();
+            this.typeFilterButton.visible = !this.showMaterials && hasDestinationList();
         }
         if (this.friendFilterButton != null) {
             this.friendFilterButton.setX(friendFilterX());
             this.friendFilterButton.setY(controlsY());
             this.friendFilterButton.setWidth(friendFilterWidth());
-            this.friendFilterButton.visible = !this.showMaterials && hasMapVisualization();
+            this.friendFilterButton.visible = !this.showMaterials && hasDestinationList();
         }
         if (this.sortButton != null) {
             this.sortButton.setX(sortX());
             this.sortButton.setY(controlsY());
             this.sortButton.setWidth(sortWidth());
-            this.sortButton.visible = !this.showMaterials && hasMapVisualization();
+            this.sortButton.visible = !this.showMaterials && hasDestinationList();
         }
         if (this.friendsButton != null) {
             this.friendsButton.setX(friendsButtonX());
@@ -1896,7 +2194,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             this.favoriteButton.setY(favoriteButtonY());
             this.favoriteButton.setWidth(favoriteButtonWidth());
             SpaceUnitMapPayload.Entry selected = selectedEntry();
-            this.favoriteButton.visible = !this.showMaterials && hasMapVisualization();
+            this.favoriteButton.visible = !this.showMaterials && canSelectTeleportDestination();
             this.favoriteButton.active = this.favoriteButton.visible && selected != null && canFavorite(selected);
         }
         if (this.visibilityButton != null) {
@@ -1953,7 +2251,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             this.teleportButton.setY(y);
             this.teleportButton.setWidth(FOOTER_BUTTON_WIDTH);
             SpaceUnitMapPayload.Entry selected = selectedEntry();
-            this.teleportButton.visible = !this.showMaterials && hasMapVisualization();
+            this.teleportButton.visible = !this.showMaterials && canSelectTeleportDestination();
             this.teleportButton.active = this.teleportButton.visible && selected != null && selected.canTeleport();
         }
         if (this.refreshButton != null) {
@@ -2065,19 +2363,20 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private int mapY() {
-        return panelY() + HEADER_HEIGHT + CONTROL_HEIGHT + 8;
+        return panelY() + HEADER_HEIGHT + (hasMapVisualization() ? 6 : CONTROL_HEIGHT + 8);
     }
 
     private int mapWidth() {
-        return Math.max(MIN_MAP_SIZE, panelWidth() - PANEL_PADDING * 2 - listWidth() - GAP);
+        return Math.max(MIN_MAP_SIZE, panelWidth() - PANEL_PADDING * 2);
     }
 
     private int mapHeight() {
-        return Math.max(MIN_MAP_SIZE, panelHeight() - HEADER_HEIGHT - CONTROL_HEIGHT - FOOTER_HEIGHT - 18);
+        int controlsHeight = hasMapVisualization() ? 0 : CONTROL_HEIGHT + 2;
+        return Math.max(MIN_MAP_SIZE, panelHeight() - HEADER_HEIGHT - controlsHeight - FOOTER_HEIGHT - 12);
     }
 
     private int listX() {
-        return mapX() + mapWidth() + GAP;
+        return panelX() + PANEL_PADDING;
     }
 
     private int listY() {
@@ -2085,7 +2384,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private int listWidth() {
-        return Math.min(LIST_WIDTH, Math.max(142, panelWidth() / 3));
+        return Math.max(142, panelWidth() - PANEL_PADDING * 2);
     }
 
     private int listHeight() {
@@ -2142,7 +2441,8 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private int favoriteButtonX() {
-        return listX() + listWidth() - favoriteButtonWidth() - 6;
+        int contentRight = hasDestinationList() ? listX() + listWidth() : mapX() + mapWidth();
+        return contentRight - favoriteButtonWidth() - 6;
     }
 
     private int favoriteButtonY() {
@@ -2154,13 +2454,13 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private int visibilityButtonX() {
-        return hasMapVisualization()
+        return canSelectTeleportDestination()
                 ? favoriteButtonX() - visibilityButtonWidth() - 6
                 : teleportButtonX() + (FOOTER_BUTTON_WIDTH - visibilityButtonWidth()) / 2;
     }
 
     private int visibilityButtonY() {
-        return hasMapVisualization() ? favoriteButtonY() : footerButtonY();
+        return canSelectTeleportDestination() ? favoriteButtonY() : footerButtonY();
     }
 
     private int friendsButtonWidth() {

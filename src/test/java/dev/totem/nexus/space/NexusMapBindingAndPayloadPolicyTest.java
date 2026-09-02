@@ -51,7 +51,7 @@ class NexusMapBindingAndPayloadPolicyTest {
     }
 
     @Test
-    void payloadPolicyKeepsOnlySourceForManagementAndBoundedActiveUnitsForMaps() {
+    void payloadPolicySeparatesManagementCompassAndMapProjection() {
         MapItemSavedData mapData = MapItemSavedData.createFresh(0, 0, (byte) 0, false, false, Level.OVERWORLD);
         BlockPos center = new BlockPos(mapData.centerX, 64, mapData.centerZ);
         UUID sourceId = UUID.fromString("00000000-0000-0000-0000-000000000211");
@@ -68,6 +68,9 @@ class NexusMapBindingAndPayloadPolicyTest {
 
         assertEquals(List.of(source), NexusInterfacePayloadPolicy.selectAuthorizedUnits(
                 TeleportInterfaceType.BOOK, sourceId, authorized, null));
+        assertEquals(List.of(inside, deathInside, edge, crossDimension, source),
+                NexusInterfacePayloadPolicy.selectAuthorizedUnits(
+                        TeleportInterfaceType.COMPASS, sourceId, authorized, null));
         assertEquals(List.of(inside, deathInside, source), NexusInterfacePayloadPolicy.selectAuthorizedUnits(
                 TeleportInterfaceType.FILLED_MAP, sourceId, authorized, mapData));
         assertTrue(NexusInterfacePayloadPolicy.selectAuthorizedUnits(

@@ -28,6 +28,9 @@ import java.util.function.Predicate;
 /** Owner-local runtime proof for every Nexus production Observer Screen variant. */
 @SuppressWarnings("UnstableApiUsage")
 public final class NexusObserverProviderClientGameTest implements FabricClientGameTest {
+    private static final UUID SOURCE = UUID.fromString("00000000-0000-0000-0000-000000008801");
+    private static final UUID TARGET = UUID.fromString("00000000-0000-0000-0000-000000008802");
+
     @Override public void runTest(ClientGameTestContext context) {
         try (TestSingleplayerContext world = context.worldBuilder().create()) {
             world.getClientLevel().waitForChunksRender();
@@ -44,21 +47,32 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                     "Local-only visualization controls must not change the Nexus Observer semantic protocol");
 
             exercise(context, nexus,
-                    clientScreen(context, () -> new NexusSpaceUnitMapScreen(map("Home"))),
-                    clientScreen(context, () -> new NexusSpaceUnitMapScreen(map("Remote Home"))),
-                    "nexus-observer-owner-map", screen ->
-                            "Remote Home".equals(((NexusSpaceUnitMapScreen) screen).observerPayload().sourceName()));
+                    clientScreen(context, () -> compassScreen("Home", false)),
+                    clientScreen(context, () -> compassScreen("Remote Home", true)),
+                    "nexus-observer-owner-compass", screen -> {
+                        NexusSpaceUnitMapScreen compass = (NexusSpaceUnitMapScreen) screen;
+                        return "Remote Home".equals(compass.observerPayload().sourceName())
+                                && TARGET.equals(compass.selectedUnitIdForVisualTest());
+                    });
             exercise(context, nexus,
-                    clientScreen(context, () -> new NexusSpaceUnitMapScreen(filledMap("Map Home", 8801))),
-                    clientScreen(context, () -> new NexusSpaceUnitMapScreen(filledMap("Remote Map Home", 8801))),
+                    clientScreen(context, () -> mapScreen("Map Home", 8801, false)),
+                    clientScreen(context, () -> mapScreen("Remote Map Home", 8801, true)),
                     "nexus-observer-owner-map-data-unavailable", screen -> {
                         NexusSpaceUnitMapScreen map = (NexusSpaceUnitMapScreen) screen;
+                        int[] view = map.mapViewForVisualTest();
                         return "Remote Map Home".equals(map.observerPayload().sourceName())
+                                && TARGET.equals(map.selectedUnitIdForVisualTest())
+                                && view[0] == 2 && view[1] == 0 && view[2] == -16
                                 && map.mapDataUnavailableForVisualTest();
                     });
             exercise(context, nexus,
-                    clientScreen(context, () -> new NexusMapScreen(map("Home"))),
-                    clientScreen(context, () -> new NexusMapScreen(map("Remote Home"))),
+                    clientScreen(context, () -> new NexusSpaceUnitMapScreen(management("Home"))),
+                    clientScreen(context, () -> new NexusSpaceUnitMapScreen(management("Remote Home"))),
+                    "nexus-observer-owner-management", screen ->
+                            "Remote Home".equals(((NexusSpaceUnitMapScreen) screen).observerPayload().sourceName()));
+            exercise(context, nexus,
+                    clientScreen(context, () -> new NexusMapScreen(compass("Home"))),
+                    clientScreen(context, () -> new NexusMapScreen(compass("Remote Home"))),
                     "nexus-observer-owner-map-legacy", screen ->
                             "Remote Home".equals(((NexusMapScreen) screen).observerPayload().sourceName()));
             exercise(context, nexus,
@@ -143,14 +157,54 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
         return context.computeOnClient(client -> factory.get());
     }
 
-    private static SpaceUnitMapPayload map(String name) {
-        return new SpaceUnitMapPayload(UUID.randomUUID(), "local", name, "minecraft:overworld",
-                1, 64, 1, TeleportInterfaceType.COMPASS, SpaceUnitMapPayload.NO_MAP_ID, List.of());
+    private static NexusSpaceUnitMapScreen compassScreen(String name, boolean selectTarget) {
+        NexusSpaceUnitMapScreen screen = new NexusSpaceUnitMapScreen(compass(name));
+        if (selectTarget && !screen.keyPressed(new KeyEvent(264, 0, 0))) {
+            throw new AssertionError("Compass Observer fixture could not select a destination");
+        }
+        return screen;
+    }
+
+    private static NexusSpaceUnitMapScreen mapScreen(String name, int mapId, boolean selectTarget) {
+        NexusSpaceUnitMapScreen screen = new NexusSpaceUnitMapScreen(filledMap(name, mapId));
+        if (selectTarget) {
+            if (!screen.keyPressed(new KeyEvent(262, 0, 0))) {
+                throw new AssertionError("Map Observer fixture could not select a destination");
+            }
+            if (!screen.keyPressed(new KeyEvent(61, 0, 0))
+                    || !screen.keyPressed(new KeyEvent(264, 0, 1))) {
+                throw new AssertionError("Map Observer fixture could not set zoom and pan state");
+            }
+        }
+        return screen;
+    }
+
+    private static SpaceUnitMapPayload compass(String name) {
+        return new SpaceUnitMapPayload(SOURCE, "lodestone", name, "minecraft:overworld",
+                1, 64, 1, TeleportInterfaceType.COMPASS, SpaceUnitMapPayload.NO_MAP_ID,
+                List.of(entry(SOURCE, name, false), entry(TARGET, "Remote Target", true)));
     }
 
     private static SpaceUnitMapPayload filledMap(String name, int mapId) {
-        return new SpaceUnitMapPayload(UUID.randomUUID(), "local", name, "minecraft:overworld",
-                1, 64, 1, TeleportInterfaceType.FILLED_MAP, mapId, List.of());
+        return new SpaceUnitMapPayload(SOURCE, "lodestone", name, "minecraft:overworld",
+                1, 64, 1, TeleportInterfaceType.FILLED_MAP, mapId,
+                List.of(entry(SOURCE, name, false), entry(TARGET, "Remote Target", true)));
+    }
+
+    private static SpaceUnitMapPayload management(String name) {
+        return new SpaceUnitMapPayload(SOURCE, "lodestone", name, "minecraft:overworld",
+                1, 64, 1, TeleportInterfaceType.BOOK, SpaceUnitMapPayload.NO_MAP_ID,
+                List.of(entry(SOURCE, name, false)));
+    }
+
+    private static SpaceUnitMapPayload.Entry entry(UUID id, String name, boolean canTeleport) {
+        return new SpaceUnitMapPayload.Entry(id, "lodestone", name, "private", false,
+                "minecraft:overworld", id.equals(SOURCE) ? 1 : 24, 64, id.equals(SOURCE) ? 1 : 24,
+                0.9D, 2, id.equals(SOURCE) ? 0 : 32, 0, 0, 0, 0, 0, 20,
+                0, 0, 20, 20, 4, 4, 0, 0, 0,
+                false, "message.deadrecall.space_unit.interface_bonus.compass",
+                false, true, true, 0, 0, canTeleport,
+                canTeleport ? "" : "message.deadrecall.space_unit.teleport_blocked.same_source");
     }
 
     private static SpaceUnitFriendsPayload friends(int count) {

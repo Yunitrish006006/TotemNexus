@@ -311,9 +311,10 @@ public final class NexusDistributedSpawnGameTest {
         NexusMapOpenAuthority authority = new NexusMapOpenAuthority(sessions, payloads, new NexusMapQuoteAuthority());
         if (!authority.setFavorite(viewer, "lodestone", sourceId, targetId, true) || sent.size() != 1
                 || !discovery.isFavorite(viewer.getUUID(), targetId)
-                || sent.getFirst().entries().size() != 1
-                || !sent.getFirst().entries().getFirst().id().equals(sourceId)) {
-            helper.fail("Favorite mutation did not persist or leaked non-source map data to a management interface");
+                || sent.getFirst().entries().size() != 2
+                || sent.getFirst().entries().stream().noneMatch(entry -> entry.id().equals(sourceId))
+                || sent.getFirst().entries().stream().noneMatch(entry -> entry.id().equals(targetId))) {
+            helper.fail("Favorite mutation did not persist or compass payload lost an authorized destination");
             return;
         }
         helper.succeed();

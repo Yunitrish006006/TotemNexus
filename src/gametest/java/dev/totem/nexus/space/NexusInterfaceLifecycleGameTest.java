@@ -33,6 +33,68 @@ import java.util.stream.StreamSupport;
 
 /** Server integration coverage for durable interfaces and Nexus-owned vanilla maps. */
 public final class NexusInterfaceLifecycleGameTest {
+    @GameTest(maxTicks = 260, environment = "totem-nexus-gametest:compass_teleport")
+    public void boundCompassStartsAndCompletesServerAuthoritativeTeleport(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.COMPASS));
+    }
+
+    @GameTest(maxTicks = 260, environment = "totem-nexus-gametest:map_teleport")
+    public void previouslyIssuedValidNexusMapStartsAndCompletesServerAuthoritativeTeleport(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP));
+    }
+
+    @GameTest(maxTicks = 30, environment = "totem-nexus-gametest:changed_interface_cancel")
+    public void changingTheInitiatingCompassCancelsItsActiveTeleportSession(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos source = helper.absolutePos(new BlockPos(3, 2, 4));
+        BlockPos target = helper.absolutePos(new BlockPos(13, 2, 4));
+        buildFunctionalArray(level, source);
+        buildFunctionalArray(level, target);
+        var player = helper.makeMockServerPlayerInLevel();
+        player.getAbilities().instabuild = false;
+        player.setNoGravity(true);
+        player.setPos(source.getX() + 0.5D, source.getY() + 1.0D, source.getZ() + 0.5D);
+        UUID sourceId = UUID.randomUUID();
+        UUID targetId = UUID.randomUUID();
+        putLodestone(level, sourceId, player.getUUID(), source, SpaceUnitVisibility.PRIVATE, Set.of());
+        putLodestone(level, targetId, player.getUUID(), target, SpaceUnitVisibility.PRIVATE, Set.of());
+        var discovery = level.getServer().overworld().getDataStorage()
+                .computeIfAbsent(NexusSpaceDiscoverySavedData.TYPE);
+        discovery.markDiscovered(player.getUUID(), sourceId);
+        discovery.markDiscovered(player.getUUID(), targetId);
+        ItemStack compass = bindSingle(helper, player, level, source, sourceId, new ItemStack(Items.COMPASS));
+        player.setItemInHand(InteractionHand.MAIN_HAND, compass);
+        player.getAbilities().instabuild = true;
+        if (NexusSpaceUnitAuthority.establishInterfaceContext(
+                player, InteractionHand.MAIN_HAND, NexusSpaceUnitAuthority.SOURCE_TYPE_LODESTONE, sourceId).isEmpty()) {
+            player.discard();
+            helper.fail("Bound compass did not establish a teleport interface context");
+            return;
+        }
+        NexusSpaceUnitAuthority.startTeleport(
+                player, NexusSpaceUnitAuthority.SOURCE_TYPE_LODESTONE, sourceId, targetId);
+        if (!NexusSpaceUnitAuthority.hasActiveTeleportSession(player.getUUID())) {
+            player.discard();
+            helper.fail("Valid compass teleport did not start before changed-item cancellation");
+            return;
+        }
+        player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STICK));
+        helper.startSequence().thenExecuteAfter(2, () -> {
+            if (NexusSpaceUnitAuthority.hasActiveTeleportSession(player.getUUID())) {
+                player.discard();
+                helper.fail("Teleport session survived replacement of its initiating compass");
+                return;
+            }
+            if (player.blockPosition().closerThan(target, 3.0D)) {
+                player.discard();
+                helper.fail("Changed-item cancellation still moved the player to the target");
+                return;
+            }
+            player.discard();
+            helper.succeed();
+        });
+    }
+
     @GameTest(maxTicks = 20)
     public void allFourInterfacesBindDiscoverManageAndInviteUnderServerAuthority(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
@@ -82,6 +144,14 @@ public final class NexusInterfaceLifecycleGameTest {
                     || !NexusSpaceUnitAuthority.requireManagementCapability(owner)) {
                 helper.fail("A supported bound interface could not establish its management/friend context");
                 return;
+            }
+            if (!resolved.type().canSelectTeleportDestination()) {
+                NexusSpaceUnitAuthority.startTeleport(owner,
+                        NexusSpaceUnitAuthority.SOURCE_TYPE_LODESTONE, sourceId, discoveredId);
+                if (NexusSpaceUnitAuthority.hasActiveTeleportSession(owner.getUUID())) {
+                    helper.fail("A management-only interface started a forged teleport session");
+                    return;
+                }
             }
 
             String managedName = "Managed " + resolved.type().id();
@@ -630,6 +700,73 @@ public final class NexusInterfaceLifecycleGameTest {
                 new NexusSpaceUnitRecord(unitId, SpaceUnitType.LODESTONE, level.dimension(), pos.immutable(), owner,
                         "Lifecycle Anchor", visibility, SpaceUnitStatus.ACTIVE, Set.of(), allowedPlayers,
                         SpaceStructureSnapshot.EMPTY, level.getGameTime(), level.getGameTime()));
+    }
+
+    private static void verifyBoundInterfaceTeleport(GameTestHelper helper, ItemStack input) {
+        ServerLevel level = helper.getLevel();
+        BlockPos source = helper.absolutePos(new BlockPos(3, 2, 4));
+        BlockPos target = helper.absolutePos(new BlockPos(13, 2, 4));
+        buildFunctionalArray(level, source);
+        buildFunctionalArray(level, target);
+        var player = helper.makeMockServerPlayerInLevel();
+        player.getAbilities().instabuild = false;
+        player.setNoGravity(true);
+        player.setPos(source.getX() + 0.5D, source.getY() + 1.0D, source.getZ() + 0.5D);
+        UUID sourceId = UUID.randomUUID();
+        UUID targetId = UUID.randomUUID();
+        putLodestone(level, sourceId, player.getUUID(), source, SpaceUnitVisibility.PRIVATE, Set.of());
+        putLodestone(level, targetId, player.getUUID(), target, SpaceUnitVisibility.PRIVATE, Set.of());
+        var discovery = level.getServer().overworld().getDataStorage()
+                .computeIfAbsent(NexusSpaceDiscoverySavedData.TYPE);
+        discovery.markDiscovered(player.getUUID(), sourceId);
+        discovery.markDiscovered(player.getUUID(), targetId);
+
+        ItemStack bound = bindSingle(helper, player, level, source, sourceId, input);
+        player.setItemInHand(InteractionHand.MAIN_HAND, bound.copy());
+        player.getAbilities().instabuild = true;
+        // Re-establishing after binding models reopening an already issued interface.
+        NexusSpaceUnitAuthority.clearInterfaceContext(player.getUUID());
+        if (NexusSpaceUnitAuthority.establishInterfaceContext(
+                player, InteractionHand.MAIN_HAND, NexusSpaceUnitAuthority.SOURCE_TYPE_LODESTONE, sourceId).isEmpty()) {
+            player.discard();
+            helper.fail("Previously issued interface did not establish a teleport context");
+            return;
+        }
+        NexusSpaceUnitAuthority.startTeleport(
+                player, NexusSpaceUnitAuthority.SOURCE_TYPE_LODESTONE, sourceId, targetId);
+        if (!NexusSpaceUnitAuthority.hasActiveTeleportSession(player.getUUID())) {
+            player.discard();
+            helper.fail("Valid bound interface did not start a teleport session: " + bound.getItem());
+            return;
+        }
+
+        helper.succeedWhen(() -> {
+            BlockPos landed = player.blockPosition();
+            int horizontalOffset = Math.max(
+                    Math.abs(landed.getX() - target.getX()),
+                    Math.abs(landed.getZ() - target.getZ()));
+            if (NexusSpaceUnitAuthority.hasActiveTeleportSession(player.getUUID())) {
+                throw helper.assertionException("Waiting for active bound interface teleport: " + bound.getItem());
+            }
+            if (landed.closerThan(source.above(), 2.0D)
+                    || horizontalOffset > TeleportInterfaceQuotePolicy.MAX_DEVIATION + 1
+                    || Math.abs(landed.getY() - target.above().getY()) > 8) {
+                throw helper.assertionException("Bound interface teleport did not reach its permitted target area: "
+                        + bound.getItem() + " at " + landed.toShortString());
+            }
+            player.discard();
+        });
+    }
+
+    private static void buildFunctionalArray(ServerLevel level, BlockPos anchor) {
+        for (int x = -2; x <= 2; x++) {
+            for (int z = -2; z <= 2; z++) {
+                BlockPos position = anchor.offset(x, 0, z);
+                level.setBlockAndUpdate(position, (x == 0 && z == 0
+                        ? Blocks.LODESTONE
+                        : Blocks.GOLD_BLOCK).defaultBlockState());
+            }
+        }
     }
 
     private static NexusMapBindingSavedData mapBindings(ServerLevel level) {
