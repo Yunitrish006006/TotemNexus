@@ -49,6 +49,7 @@ public final class NexusAuthorityBootstrap {
         DeathRetainedItemPolicy.register(NexusSoulboundTeleportItem::isEligibleForDeathRetention);
         NexusDistributedSpawnAuthority.register();
         NexusTeleportArrayExpansionRules.register();
+        LegacyNexusGameRuleMigration.registerLegacyRules();
         NexusSpaceUnitAuthority.register();
         NexusPayloadRegistration.registerServerboundTypes();
         NexusPayloadRegistration.registerClientboundTypes();

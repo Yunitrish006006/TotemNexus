@@ -28,6 +28,15 @@ public final class LegacyNexusGameRuleMigration {
     private LegacyNexusGameRuleMigration() {
     }
 
+    /**
+     * Registers the persisted legacy keys while the game-rule registry is
+     * still mutable.  Value transfer remains deferred until the server has
+     * loaded its saved rules.
+     */
+    public static void registerLegacyRules() {
+        // Loading this class performs the one-time Fabric game-rule registration.
+    }
+
     public static void migrate(MinecraftServer server) {
         var rules = server.overworld().getGameRules();
         if ((Boolean) rules.get(LEGACY_DISTRIBUTED_SPAWNING)) {
