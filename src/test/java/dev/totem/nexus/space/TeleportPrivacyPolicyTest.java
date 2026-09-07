@@ -27,7 +27,7 @@ class TeleportPrivacyPolicyTest {
                 PlayerTeleportTargetPolicy.classify(true, false, false, true));
         assertEquals(PlayerTeleportTargetPolicy.State.NOT_FRIENDS,
                 PlayerTeleportTargetPolicy.classify(true, true, false, false));
-        assertEquals("message.deadrecall.space_unit.teleport_cancelled.target_friendship",
+        assertEquals("message.totem.space_unit.teleport_cancelled.target_friendship",
                 PlayerTeleportTargetPolicy.cancellationMessageKey(PlayerTeleportTargetPolicy.State.NOT_FRIENDS));
     }
 }

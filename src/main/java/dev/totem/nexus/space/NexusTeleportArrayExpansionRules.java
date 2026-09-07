@@ -14,7 +14,7 @@ import java.util.Locale;
 /** Server-owned world rule selecting the bounded teleport-array expansion algorithm. */
 public final class NexusTeleportArrayExpansionRules {
     public static final Identifier EXPANSION_MODE_ID =
-            Identifier.fromNamespaceAndPath("deadrecall", "teleport_array_expansion_mode");
+            Identifier.fromNamespaceAndPath("totem", "nexus/teleport_array_expansion_mode");
     public static final GameRule<ExpansionMode> EXPANSION_MODE =
             GameRuleBuilder.forEnum(ExpansionMode.DEFAULT)
                     .category(TotemGameRuleCategories.TOTEM)
@@ -33,8 +33,7 @@ public final class NexusTeleportArrayExpansionRules {
     }
 
     private static void refreshLoadedSnapshots(MinecraftServer server) {
-        NexusSpaceUnitSavedData units = server.overworld().getDataStorage()
-                .computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
+        NexusSpaceUnitSavedData units = NexusSpaceUnitSavedData.loadCanonical(server.overworld().getDataStorage());
         for (NexusSpaceUnitRecord unit : units.activeLodestones()) {
             ServerLevel level = server.getLevel(unit.dimension());
             if (level != null

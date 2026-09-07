@@ -25,7 +25,7 @@ public final class NexusTeleportManualGameTest {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         try {
             var root = player.level().getServer().getAdvancements().get(
-                    Identifier.fromNamespaceAndPath("deadrecall", "root")
+                    Identifier.fromNamespaceAndPath("totem", "root")
             );
             if (root == null) {
                 helper.fail("Core onboarding advancement was not loaded");
@@ -175,7 +175,7 @@ public final class NexusTeleportManualGameTest {
         ItemStack manual = new ItemStack(Items.WRITTEN_BOOK);
         manual.set(
                 DataComponents.CUSTOM_NAME,
-                Component.translatable("item.deadrecall.nexus_teleport_manual")
+                Component.translatable("item.totem.nexus_teleport_manual")
         );
         manual.set(DataComponents.WRITTEN_BOOK_CONTENT, new WrittenBookContent(
                 Filterable.passThrough("Nexus Teleport Manual"),
@@ -183,7 +183,7 @@ public final class NexusTeleportManualGameTest {
                 0,
                 IntStream.rangeClosed(1, 7)
                         .mapToObj(page -> Filterable.<Component>passThrough(
-                                Component.translatable("book.deadrecall.nexus_teleport_manual.page." + page)
+                                Component.translatable("book.totem.nexus_teleport_manual.page." + page)
                         ))
                         .toList(),
                 false

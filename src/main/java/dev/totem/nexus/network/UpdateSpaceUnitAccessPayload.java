@@ -16,7 +16,7 @@ public record UpdateSpaceUnitAccessPayload(
         boolean enabled)
         implements CustomPacketPayload {
     public static final Type<UpdateSpaceUnitAccessPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "update_space_unit_access"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/update_space_unit_access"));
 
     public static final StreamCodec<FriendlyByteBuf, UpdateSpaceUnitAccessPayload> CODEC =
             StreamCodec.of(

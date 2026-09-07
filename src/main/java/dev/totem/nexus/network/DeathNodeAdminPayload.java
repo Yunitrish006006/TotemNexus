@@ -22,7 +22,7 @@ public record DeathNodeAdminPayload(
         String confirmationAction,
         long confirmationExpiresAtMillis) implements CustomPacketPayload {
     public static final Type<DeathNodeAdminPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "death_node_admin"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/death_node_admin"));
     public static final int MAX_ENTRIES = 2048;
     private static final int MAX_DIAGNOSTIC_FLAGS = 8;
 

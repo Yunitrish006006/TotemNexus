@@ -18,7 +18,7 @@ public abstract class NexusSpaceUnitAuthorityCatalystMixin {
             method = "calculateTeleportQuote",
             at = @At(value = "INVOKE", target = "Ljava/lang/Math;max(II)I")
     )
-    private static int deadrecall$applyAmethystCatalystDiscount(
+    private static int totem$applyAmethystCatalystDiscount(
             int minimumCost,
             int calculatedCost,
             ServerPlayer player,
@@ -27,26 +27,25 @@ public abstract class NexusSpaceUnitAuthorityCatalystMixin {
     ) {
         int baseCost = Math.max(minimumCost, calculatedCost);
         MinecraftServer server = player.level().getServer();
-        NexusSpaceUnitSavedData units = server.overworld()
-                .getDataStorage()
-                .computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
+        NexusSpaceUnitSavedData units = NexusSpaceUnitSavedData.loadCanonical(
+                server.overworld().getDataStorage());
 
         NexusSpaceUnitMapSourceAccessor sourceAccessor = (NexusSpaceUnitMapSourceAccessor) source;
         NexusSpaceUnitTeleportTargetAccessor targetAccessor = (NexusSpaceUnitTeleportTargetAccessor) target;
-        boolean sourceLodestone = NexusSpaceUnitAuthority.SOURCE_TYPE_LODESTONE.equals(sourceAccessor.deadrecall$getType());
-        boolean targetLodestone = targetAccessor.deadrecall$isLodestoneAnchor();
+        boolean sourceLodestone = NexusSpaceUnitAuthority.SOURCE_TYPE_LODESTONE.equals(sourceAccessor.totem$getType());
+        boolean targetLodestone = targetAccessor.totem$isLodestoneAnchor();
 
         return AmethystCatalystDiscount.quoteForEndpoints(
                 baseCost,
                 sourceLodestone,
-                deadrecall$quoteCatalystBlocks(units, sourceAccessor.deadrecall$getId()),
+                totem$quoteCatalystBlocks(units, sourceAccessor.totem$getId()),
                 targetLodestone,
-                deadrecall$quoteCatalystBlocks(units, targetAccessor.deadrecall$getId())
+                totem$quoteCatalystBlocks(units, targetAccessor.totem$getId())
         ).finalCost();
     }
 
     @Unique
-    private static int deadrecall$quoteCatalystBlocks(
+    private static int totem$quoteCatalystBlocks(
             NexusSpaceUnitSavedData units,
             java.util.UUID unitId
     ) {

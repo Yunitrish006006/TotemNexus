@@ -27,7 +27,7 @@ public record TeleportArrayVisualizationPayload(
     public static final int MAX_BLOCKS = 1_330;
     public static final int MAX_DIMENSION_LENGTH = 128;
     public static final Type<TeleportArrayVisualizationPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "teleport_array_visualization"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/teleport_array_visualization"));
     public static final StreamCodec<FriendlyByteBuf, TeleportArrayVisualizationPayload> CODEC = StreamCodec.of(
             TeleportArrayVisualizationPayload::write,
             TeleportArrayVisualizationPayload::read

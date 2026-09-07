@@ -80,8 +80,8 @@ neutral compatibility profile and produce one server warning per block type.
 The server exposes two expansion algorithms through one world rule:
 
 ```text
-/gamerule deadrecall:teleport_array_expansion_mode local
-/gamerule deadrecall:teleport_array_expansion_mode centered
+/gamerule totem:nexus/teleport_array_expansion_mode local
+/gamerule totem:nexus/teleport_array_expansion_mode centered
 ```
 
 The default is `local`. Both modes begin at the 26 positions in the

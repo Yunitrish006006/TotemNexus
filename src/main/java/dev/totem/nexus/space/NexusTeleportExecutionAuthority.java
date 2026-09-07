@@ -21,10 +21,10 @@ public final class NexusTeleportExecutionAuthority {
         NexusTeleportExecutionSession next = sessions.tick(player.getUUID()).orElseThrow();
         if (!next.ready()) return Result.PREPARING;
         Prepared prepared = resolveFinal.apply(next).orElse(null);
-        if (prepared == null) return new Result(false, false, "message.deadrecall.space_unit.teleport_cancelled.target");
-        if (!next.filledMapQuoteStillValid(prepared.quote)) return new Result(false, false, "message.deadrecall.space_unit.teleport_cancelled.interface_quote_changed");
+        if (prepared == null) return new Result(false, false, "message.totem.space_unit.teleport_cancelled.target");
+        if (!next.filledMapQuoteStillValid(prepared.quote)) return new Result(false, false, "message.totem.space_unit.teleport_cancelled.interface_quote_changed");
         boolean completed = NexusTeleportCompletion.execute(player, prepared.level, prepared.target, prepared.quote);
-        return completed ? Result.COMPLETED : new Result(false, false, prepared.quote.canTeleport() ? "message.deadrecall.space_unit.teleport_cancelled.no_landing" : prepared.quote.blockedReason());
+        return completed ? Result.COMPLETED : new Result(false, false, prepared.quote.canTeleport() ? "message.totem.space_unit.teleport_cancelled.no_landing" : prepared.quote.blockedReason());
     }
     public record Prepared(ServerLevel level, NexusTeleportQuoteCalculator.Target target, NexusMapQuote quote) { }
     public record Result(boolean preparing, boolean completed, String messageKey) {

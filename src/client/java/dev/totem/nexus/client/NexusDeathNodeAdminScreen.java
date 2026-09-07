@@ -56,7 +56,7 @@ public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
     }
 
     NexusDeathNodeAdminScreen(DeathNodeAdminPayload payload, boolean observer, Runnable stop) {
-        super(Component.translatable("container.deadrecall.death_node_admin"), observer, stop);
+        super(Component.translatable("container.totem.death_node_admin"), observer, stop);
         this.payload = payload;
         this.selectedNodeId = payload.entries().stream().findFirst().map(DeathNodeAdminPayload.Entry::id).orElse(null);
         CURRENT = this;
@@ -72,11 +72,11 @@ public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
                 controlsY(),
                 ownerQueryWidth(),
                 18,
-                Component.translatable("message.deadrecall.death_node_admin.owner_query")
+                Component.translatable("message.totem.death_node_admin.owner_query")
         );
         this.ownerQueryField.setMaxLength(64);
         this.ownerQueryField.setValue(this.ownerQuery);
-        this.ownerQueryField.setHint(Component.translatable("message.deadrecall.death_node_admin.owner_query"));
+        this.ownerQueryField.setHint(Component.translatable("message.totem.death_node_admin.owner_query"));
         this.ownerQueryField.setResponder(value -> this.ownerQuery = value == null ? "" : value);
         this.addRenderableWidget(this.ownerQueryField);
 
@@ -86,11 +86,11 @@ public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
                 controlsY(),
                 dimensionWidth(),
                 18,
-                Component.translatable("message.deadrecall.death_node_admin.dimension_query")
+                Component.translatable("message.totem.death_node_admin.dimension_query")
         );
         this.dimensionField.setMaxLength(128);
         this.dimensionField.setValue(this.dimensionId);
-        this.dimensionField.setHint(Component.translatable("message.deadrecall.death_node_admin.dimension_query"));
+        this.dimensionField.setHint(Component.translatable("message.totem.death_node_admin.dimension_query"));
         this.dimensionField.setResponder(value -> this.dimensionId = value == null ? "" : value);
         this.addRenderableWidget(this.dimensionField);
 
@@ -104,7 +104,7 @@ public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
                 .build();
         this.addRenderableWidget(this.timeFilterButton);
 
-        this.refreshButton = Button.builder(Component.translatable("message.deadrecall.death_node_admin.apply_filters"), button -> requestRefresh())
+        this.refreshButton = Button.builder(Component.translatable("message.totem.death_node_admin.apply_filters"), button -> requestRefresh())
                 .bounds(refreshX(), controlsY(), refreshWidth(), 18)
         .build();
         this.addRenderableWidget(this.refreshButton);
@@ -129,12 +129,12 @@ public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
                 .build();
         this.addRenderableWidget(this.nextPageButton);
 
-        this.teleportButton = Button.builder(Component.translatable("message.deadrecall.death_node_admin.teleport"), button -> teleportToSelected())
+        this.teleportButton = Button.builder(Component.translatable("message.totem.death_node_admin.teleport"), button -> teleportToSelected())
                 .bounds(teleportX(), footerY(), TELEPORT_BUTTON_WIDTH, 18)
                 .build();
         this.addRenderableWidget(this.teleportButton);
 
-        this.disableButton = Button.builder(Component.translatable("message.deadrecall.death_node_admin.disable"), button -> disableSelected())
+        this.disableButton = Button.builder(Component.translatable("message.totem.death_node_admin.disable"), button -> disableSelected())
                 .bounds(disableX(), footerY(), 72, 18)
                 .build();
         this.addRenderableWidget(this.disableButton);
@@ -192,7 +192,7 @@ public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
         drawEntries(extractor, mouseX, mouseY);
         drawSelectedDetails(extractor);
         if (this.payload.truncated()) {
-            String moreResults = Component.translatable("message.deadrecall.death_node_admin.more_results").getString();
+            String moreResults = Component.translatable("message.totem.death_node_admin.more_results").getString();
             int moreResultsX = nextPageX() + pageButtonWidth() + 8;
             int firstActionX = this.payload.administratorView() ? teleportX() : purgeX();
             if (this.font.width(moreResults) <= firstActionX - 8 - moreResultsX) {
@@ -238,7 +238,7 @@ public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
 
         List<DeathNodeAdminPayload.Entry> entries = filteredEntries();
         if (entries.isEmpty()) {
-            extractor.text(this.font, Component.translatable("message.deadrecall.death_node_admin.no_results").getString(), x + 8, y + 10, 0xFFFFC857);
+            extractor.text(this.font, Component.translatable("message.totem.death_node_admin.no_results").getString(), x + 8, y + 10, 0xFFFFC857);
             return;
         }
 
@@ -291,39 +291,39 @@ public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
         DeathNodeAdminPayload.Entry selected = selectedEntry();
         if (selected == null) {
             extractor.text(this.font,
-                    Component.translatable("message.deadrecall.death_node_admin.details.none_selected").getString(),
+                    Component.translatable("message.totem.death_node_admin.details.none_selected").getString(),
                     x + 8, y + 8, 0xFFB8C0C8);
             return;
         }
 
         extractor.text(this.font,
-                Component.translatable("message.deadrecall.death_node_admin.details.title").getString(),
+                Component.translatable("message.totem.death_node_admin.details.title").getString(),
                 x + 8, y + 6, 0xFFFFFFFF);
         if (this.payload.administratorView()) {
             extractor.text(this.font,
                     Component.translatable(
-                            "message.deadrecall.death_node_admin.details.owner",
+                            "message.totem.death_node_admin.details.owner",
                             selected.ownerName(),
                             selected.ownerId()).getString(),
                     x + 8, y + 20, 0xFFD2D8E0);
         } else {
             extractor.text(this.font,
-                    Component.translatable("message.deadrecall.death_node_admin.owner_delete_warning").getString(),
+                    Component.translatable("message.totem.death_node_admin.owner_delete_warning").getString(),
                     x + 8, y + 20, 0xFFFFC857);
         }
         extractor.text(this.font,
                 Component.translatable(
-                        "message.deadrecall.death_node_admin.details.node",
+                        "message.totem.death_node_admin.details.node",
                         selected.id()).getString(),
                 x + 8, y + 32, 0xFFD2D8E0);
         String times = Component.translatable(
-                "message.deadrecall.death_node_admin.details.times",
+                "message.totem.death_node_admin.details.times",
                 selected.createdGameTime(),
                 selected.updatedGameTime()).getString();
         extractor.text(this.font, times, x + 8, y + 44, 0xFFB8C0C8);
         if (this.payload.administratorView()) {
             String diagnostics = Component.translatable(
-                    "message.deadrecall.death_node_admin.details.diagnostics",
+                    "message.totem.death_node_admin.details.diagnostics",
                     diagnosticsText(selected)).getString();
             int contentWidth = width - 16;
             if (this.font.width(times) + 12 + this.font.width(diagnostics) <= contentWidth) {
@@ -560,17 +560,17 @@ public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
     }
 
     private Component statusFilterText() {
-        return Component.translatable("message.deadrecall.death_node_admin.status_filter", this.statusFilter.label());
+        return Component.translatable("message.totem.death_node_admin.status_filter", this.statusFilter.label());
     }
 
     private Component screenTitle() {
         return Component.translatable(this.payload.administratorView()
-                ? "container.deadrecall.death_node_admin"
-                : "container.deadrecall.death_node_owner");
+                ? "container.totem.death_node_admin"
+                : "container.totem.death_node_owner");
     }
 
     private Component timeFilterText() {
-        return Component.translatable("message.deadrecall.death_node_admin.time_filter", this.timeFilter.label());
+        return Component.translatable("message.totem.death_node_admin.time_filter", this.timeFilter.label());
     }
 
     private Component purgeButtonText() {
@@ -580,14 +580,14 @@ public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
                     selected.id(),
                     NexusDeathNodeAdminService.ACTION_OWNER_PURGE,
                     System.currentTimeMillis())
-                    ? Component.translatable("message.deadrecall.death_node_admin.confirm_owner_purge")
-                    : Component.translatable("message.deadrecall.death_node_admin.owner_purge");
+                    ? Component.translatable("message.totem.death_node_admin.confirm_owner_purge")
+                    : Component.translatable("message.totem.death_node_admin.owner_purge");
         }
         return selected != null && this.payload.hasActivePurgeConfirmationFor(selected.id(), System.currentTimeMillis())
-                ? Component.translatable("message.deadrecall.death_node_admin.confirm_purge")
+                ? Component.translatable("message.totem.death_node_admin.confirm_purge")
                 : Component.translatable(panelWidth() < COMPACT_PANEL_WIDTH
-                        ? "message.deadrecall.death_node_admin.purge_compact"
-                        : "message.deadrecall.death_node_admin.purge");
+                        ? "message.totem.death_node_admin.purge_compact"
+                        : "message.totem.death_node_admin.purge");
     }
 
     private Component batchDisableButtonText() {
@@ -595,8 +595,8 @@ public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
                 NexusDeathNodeAdminService.BATCH_NODE_ID,
                 NexusDeathNodeAdminService.ACTION_BATCH_DISABLE,
                 System.currentTimeMillis())
-                ? Component.translatable("message.deadrecall.death_node_admin.confirm_batch_disable")
-                : Component.translatable("message.deadrecall.death_node_admin.batch_disable");
+                ? Component.translatable("message.totem.death_node_admin.confirm_batch_disable")
+                : Component.translatable("message.totem.death_node_admin.batch_disable");
     }
 
     private Component batchPurgeButtonText() {
@@ -604,13 +604,13 @@ public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
                 NexusDeathNodeAdminService.BATCH_NODE_ID,
                 NexusDeathNodeAdminService.ACTION_BATCH_PURGE,
                 System.currentTimeMillis())
-                ? Component.translatable("message.deadrecall.death_node_admin.confirm_batch_purge")
-                : Component.translatable("message.deadrecall.death_node_admin.batch_purge");
+                ? Component.translatable("message.totem.death_node_admin.confirm_batch_purge")
+                : Component.translatable("message.totem.death_node_admin.batch_purge");
     }
 
     private String countSummary() {
         return Component.translatable(
-                "message.deadrecall.death_node_admin.page_summary",
+                "message.totem.death_node_admin.page_summary",
                 this.payload.page() + 1,
                 this.payload.entries().size(),
                 this.payload.totalEntries()
@@ -624,15 +624,15 @@ public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
 
     private String statusText(String status) {
         return switch (status) {
-            case "active" -> Component.translatable("message.deadrecall.death_node_admin.status.active").getString();
-            case "disabled" -> Component.translatable("message.deadrecall.death_node_admin.status.disabled").getString();
+            case "active" -> Component.translatable("message.totem.death_node_admin.status.active").getString();
+            case "disabled" -> Component.translatable("message.totem.death_node_admin.status.disabled").getString();
             default -> status.toUpperCase(java.util.Locale.ROOT);
         };
     }
 
     private String diagnosticsText(DeathNodeAdminPayload.Entry entry) {
         if (entry.diagnosticFlags().isEmpty()) {
-            return Component.translatable("message.deadrecall.death_node_admin.diagnostics.none").getString();
+            return Component.translatable("message.totem.death_node_admin.diagnostics.none").getString();
         }
         return entry.diagnosticFlags().stream()
                 .map(this::diagnosticText)
@@ -641,7 +641,7 @@ public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
     }
 
     private String diagnosticText(String diagnosticId) {
-        return Component.translatable("message.deadrecall.death_node_admin.diagnostic." + diagnosticId).getString();
+        return Component.translatable("message.totem.death_node_admin.diagnostic." + diagnosticId).getString();
     }
 
     private int maxScrollIndex() {
@@ -812,9 +812,9 @@ public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
     }
 
     private enum StatusFilter {
-        ALL("message.deadrecall.death_node_admin.status.all", ""),
-        ACTIVE("message.deadrecall.death_node_admin.status.active", "active"),
-        DISABLED("message.deadrecall.death_node_admin.status.disabled", "disabled");
+        ALL("message.totem.death_node_admin.status.all", ""),
+        ACTIVE("message.totem.death_node_admin.status.active", "active"),
+        DISABLED("message.totem.death_node_admin.status.disabled", "disabled");
 
         private final String labelKey;
         private final String id;
@@ -839,10 +839,10 @@ public final class NexusDeathNodeAdminScreen extends NexusOwnedScreen {
     }
 
     private enum TimeFilter {
-        ALL("message.deadrecall.death_node_admin.time.all", 0L),
-        DAY("message.deadrecall.death_node_admin.time.day", 24_000L),
-        WEEK("message.deadrecall.death_node_admin.time.week", 168_000L),
-        MONTH("message.deadrecall.death_node_admin.time.month", 720_000L);
+        ALL("message.totem.death_node_admin.time.all", 0L),
+        DAY("message.totem.death_node_admin.time.day", 24_000L),
+        WEEK("message.totem.death_node_admin.time.week", 168_000L),
+        MONTH("message.totem.death_node_admin.time.month", 720_000L);
 
         private final String labelKey;
         private final long windowTicks;

@@ -8,6 +8,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
+import net.minecraft.world.level.storage.SavedDataStorage;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
@@ -35,6 +36,12 @@ public final class NexusMapBindingSavedData extends SavedData {
     ).apply(instance, NexusMapBindingSavedData::new));
 
     public static final SavedDataType<NexusMapBindingSavedData> TYPE = new SavedDataType<>(
+            Identifier.fromNamespaceAndPath("totem", "nexus_map_bindings"),
+            NexusMapBindingSavedData::new,
+            CODEC,
+            DataFixTypes.SAVED_DATA_COMMAND_STORAGE
+    );
+    static final SavedDataType<NexusMapBindingSavedData> LEGACY_COMPATIBILITY_TYPE = new SavedDataType<>(
             Identifier.fromNamespaceAndPath("deadrecall", "nexus_map_bindings"),
             NexusMapBindingSavedData::new,
             CODEC,
@@ -45,6 +52,17 @@ public final class NexusMapBindingSavedData extends SavedData {
     private final Map<Integer, Entry> byMapId = new HashMap<>();
 
     public NexusMapBindingSavedData() { this(DATA_VERSION, List.of()); }
+
+    /** Canonical-first loader with a one-way, non-destructive legacy copy. */
+    public static synchronized NexusMapBindingSavedData loadCanonical(SavedDataStorage storage) {
+        NexusMapBindingSavedData canonical = storage.get(TYPE);
+        if (canonical != null) return canonical;
+        NexusMapBindingSavedData legacy = storage.get(LEGACY_COMPATIBILITY_TYPE);
+        if (legacy == null) return storage.computeIfAbsent(TYPE);
+        NexusMapBindingSavedData migrated = new NexusMapBindingSavedData(legacy.dataVersion, legacy.entries());
+        storage.set(TYPE, migrated);
+        return migrated;
+    }
 
     private NexusMapBindingSavedData(int dataVersion, List<Entry> entries) {
         this.dataVersion = Math.max(DATA_VERSION, dataVersion);

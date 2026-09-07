@@ -21,7 +21,7 @@ public abstract class NexusCartographyTableMenuMixin {
     @Shadow @Final private ContainerLevelAccess access;
     @Shadow @Final private ResultContainer resultContainer;
     @Inject(method = "setupResultSlot", at = @At("RETURN"))
-    private void deadrecall$gateNexusExpansion(
+    private void totem$gateNexusExpansion(
             ItemStack map,
             ItemStack addition,
             ItemStack previousResult,

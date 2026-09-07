@@ -15,7 +15,7 @@ public record TeleportArrayVisualizationStatusPayload(
         boolean showArray,
         boolean showBuildSites) implements CustomPacketPayload {
     public static final Type<TeleportArrayVisualizationStatusPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "teleport_array_visualization_status"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/teleport_array_visualization_status"));
     public static final StreamCodec<FriendlyByteBuf, TeleportArrayVisualizationStatusPayload> CODEC = StreamCodec.of(
             (buf, payload) -> {
                 buf.writeUUID(payload.sourceUnitId());

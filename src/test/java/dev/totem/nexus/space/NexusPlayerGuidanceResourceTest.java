@@ -20,29 +20,29 @@ class NexusPlayerGuidanceResourceTest {
     private static final Pattern FORMAT_PLACEHOLDER = Pattern.compile("%(?:(\\d+)\\$)?[a-zA-Z]|%%");
     private static final List<String> PRESERVED_SPANISH_IDENTIFIERS = List.of("Nexus", "Space Unit", "MapId", "UUID");
     private static final List<String> REQUIRED_GUIDANCE_KEYS = List.of(
-            "message.deadrecall.space_unit.map_need_bound_interface",
-            "message.deadrecall.space_unit.registration_item_changed",
-            "message.deadrecall.space_unit.interface.map_source_mismatch",
-            "message.deadrecall.space_unit.interface.management_unavailable",
-            "message.deadrecall.space_unit.map_unnamed_nexus",
-            "book.deadrecall.nexus_diagram.interfaces_bind_manage",
-            "book.deadrecall.nexus_diagram.book_normal_manual",
-            "book.deadrecall.nexus_diagram.book_sneak_nexus",
-            "book.deadrecall.nexus_diagram.empty_map_create",
-            "book.deadrecall.nexus_diagram.exact_center",
-            "book.deadrecall.nexus_diagram.scale_anchor",
-            "book.deadrecall.nexus_diagram.named_markers",
-            "book.deadrecall.nexus_diagram.no_player_edges",
-            "message.deadrecall.space_unit.array_preview_hint",
-            "message.deadrecall.space_unit.build_sites_show",
-            "message.deadrecall.space_unit.build_sites_hide",
-            "message.deadrecall.space_unit.build_sites_hint",
-            "gamerule.deadrecall.dead_recall_distributed_spawning",
-            "gamerule.deadrecall.dead_recall_distributed_spawning.description",
-            "gamerule.deadrecall.teleport_array_expansion_mode",
-            "gamerule.deadrecall.teleport_array_expansion_mode.description",
-            "gamerule.deadrecall.teleport_array_expansion_mode.local",
-            "gamerule.deadrecall.teleport_array_expansion_mode.centered"
+            "message.totem.space_unit.map_need_bound_interface",
+            "message.totem.space_unit.registration_item_changed",
+            "message.totem.space_unit.interface.map_source_mismatch",
+            "message.totem.space_unit.interface.management_unavailable",
+            "message.totem.space_unit.map_unnamed_nexus",
+            "book.totem.nexus_diagram.interfaces_bind_manage",
+            "book.totem.nexus_diagram.book_normal_manual",
+            "book.totem.nexus_diagram.book_sneak_nexus",
+            "book.totem.nexus_diagram.empty_map_create",
+            "book.totem.nexus_diagram.exact_center",
+            "book.totem.nexus_diagram.scale_anchor",
+            "book.totem.nexus_diagram.named_markers",
+            "book.totem.nexus_diagram.no_player_edges",
+            "message.totem.space_unit.array_preview_hint",
+            "message.totem.space_unit.build_sites_show",
+            "message.totem.space_unit.build_sites_hide",
+            "message.totem.space_unit.build_sites_hint",
+            "gamerule.totem.nexus.distributed_spawning",
+            "gamerule.totem.nexus.distributed_spawning.description",
+            "gamerule.totem.nexus.teleport_array_expansion_mode",
+            "gamerule.totem.nexus.teleport_array_expansion_mode.description",
+            "gamerule.totem.nexus.teleport_array_expansion_mode.local",
+            "gamerule.totem.nexus.teleport_array_expansion_mode.centered"
     );
 
     @Test
@@ -71,43 +71,43 @@ class NexusPlayerGuidanceResourceTest {
         JsonObject english = language("en_us");
         JsonObject traditionalChinese = language("zh_tw");
 
-        assertEquals("Book", text(english, "message.deadrecall.space_unit.interface_name.book"));
-        assertEquals("普通書", text(traditionalChinese, "message.deadrecall.space_unit.interface_name.book"));
-        assertTrue(text(english, "message.deadrecall.space_unit.map_need_interface").contains("Nexus map"));
-        assertTrue(text(traditionalChinese, "message.deadrecall.space_unit.map_need_interface")
+        assertEquals("Book", text(english, "message.totem.space_unit.interface_name.book"));
+        assertEquals("普通書", text(traditionalChinese, "message.totem.space_unit.interface_name.book"));
+        assertTrue(text(english, "message.totem.space_unit.map_need_interface").contains("Nexus map"));
+        assertTrue(text(traditionalChinese, "message.totem.space_unit.map_need_interface")
                 .contains("Nexus 地圖"));
-        assertTrue(text(english, "book.deadrecall.nexus_diagram.interfaces_bind_manage")
+        assertTrue(text(english, "book.totem.nexus_diagram.interfaces_bind_manage")
                 .contains("Compass: list + teleport"));
-        assertTrue(text(english, "book.deadrecall.nexus_diagram.interfaces_bind_manage")
+        assertTrue(text(english, "book.totem.nexus_diagram.interfaces_bind_manage")
                 .contains("no list"));
-        assertTrue(text(traditionalChinese, "book.deadrecall.nexus_diagram.interfaces_bind_manage")
+        assertTrue(text(traditionalChinese, "book.totem.nexus_diagram.interfaces_bind_manage")
                 .contains("羅盤：清單選點傳送"));
-        assertTrue(text(traditionalChinese, "book.deadrecall.nexus_diagram.interfaces_bind_manage")
+        assertTrue(text(traditionalChinese, "book.totem.nexus_diagram.interfaces_bind_manage")
                 .contains("沒有清單"));
-        assertTrue(text(english, "book.deadrecall.nexus_diagram.empty_map_create").contains("new MapId"));
-        assertTrue(text(traditionalChinese, "book.deadrecall.nexus_diagram.empty_map_create")
+        assertTrue(text(english, "book.totem.nexus_diagram.empty_map_create").contains("new MapId"));
+        assertTrue(text(traditionalChinese, "book.totem.nexus_diagram.empty_map_create")
                 .contains("新 MapId"));
-        assertTrue(text(english, "book.deadrecall.nexus_diagram.scale_anchor").contains("unloaded"));
-        assertTrue(text(traditionalChinese, "book.deadrecall.nexus_diagram.scale_anchor")
+        assertTrue(text(english, "book.totem.nexus_diagram.scale_anchor").contains("unloaded"));
+        assertTrue(text(traditionalChinese, "book.totem.nexus_diagram.scale_anchor")
                 .contains("未載入"));
-        assertTrue(text(english, "message.deadrecall.space_unit.array_preview_hint").contains("until hidden"));
-        assertTrue(text(traditionalChinese, "message.deadrecall.space_unit.array_preview_hint")
+        assertTrue(text(english, "message.totem.space_unit.array_preview_hint").contains("until hidden"));
+        assertTrue(text(traditionalChinese, "message.totem.space_unit.array_preview_hint")
                 .contains("直到手動隱藏"));
-        assertTrue(text(english, "message.deadrecall.space_unit.build_sites_hint").contains("green"));
-        assertTrue(text(traditionalChinese, "message.deadrecall.space_unit.build_sites_hint")
+        assertTrue(text(english, "message.totem.space_unit.build_sites_hint").contains("green"));
+        assertTrue(text(traditionalChinese, "message.totem.space_unit.build_sites_hint")
                 .contains("綠色"));
-        assertTrue(text(english, "gamerule.deadrecall.dead_recall_distributed_spawning.description")
+        assertTrue(text(english, "gamerule.totem.nexus.distributed_spawning.description")
                 .contains("safe spawn"));
-        assertTrue(text(traditionalChinese, "gamerule.deadrecall.dead_recall_distributed_spawning.description")
+        assertTrue(text(traditionalChinese, "gamerule.totem.nexus.distributed_spawning.description")
                 .contains("安全重生位置"));
-        assertTrue(text(english, "gamerule.deadrecall.teleport_array_expansion_mode.description")
+        assertTrue(text(english, "gamerule.totem.nexus.teleport_array_expansion_mode.description")
                 .contains("lodestone-centered"));
-        assertTrue(text(traditionalChinese, "gamerule.deadrecall.teleport_array_expansion_mode.description")
+        assertTrue(text(traditionalChinese, "gamerule.totem.nexus.teleport_array_expansion_mode.description")
                 .contains("磁石為中心"));
     }
 
     private static JsonObject language(String locale) {
-        String path = "/assets/deadrecall/lang/" + locale + ".json";
+        String path = "/assets/totem/lang/" + locale + ".json";
         var stream = NexusPlayerGuidanceResourceTest.class.getResourceAsStream(path);
         assertNotNull(stream, "Missing language resource: " + path);
         try (var reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {

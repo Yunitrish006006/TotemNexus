@@ -18,8 +18,10 @@ import java.util.UUID;
  * data; it never stores or grants a player role.
  */
 public final class NexusInterfaceBinding {
-    public static final String UNIT_ID_KEY = "deadrecall_space_unit_id";
-    public static final String DATA_VERSION_KEY = "deadrecall_space_unit_data_version";
+    public static final String UNIT_ID_KEY = "totem_nexus_space_unit_id";
+    public static final String DATA_VERSION_KEY = "totem_nexus_space_unit_data_version";
+    private static final String LEGACY_DEADRECALL_UNIT_ID_KEY = "deadrecall_space_unit_id";
+    private static final String LEGACY_DEADRECALL_DATA_VERSION_KEY = "deadrecall_space_unit_data_version";
     private static final String LEGACY_UNIT_ID_KEY = "space_unit_id";
     private static final String LEGACY_DATA_VERSION_KEY = "space_unit_data_version";
 
@@ -49,11 +51,10 @@ public final class NexusInterfaceBinding {
         CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         tag.store(UNIT_ID_KEY, UUIDUtil.CODEC, unitId);
         tag.putInt(DATA_VERSION_KEY, NexusSpaceUnitSavedData.DATA_VERSION);
-        // Keep the extracted pre-cutover reader compatible with existing items.
-        if (stack.is(Items.COMPASS)) {
-            tag.store(LEGACY_UNIT_ID_KEY, UUIDUtil.CODEC, unitId);
-            tag.putInt(LEGACY_DATA_VERSION_KEY, NexusSpaceUnitSavedData.DATA_VERSION);
-        }
+        tag.remove(LEGACY_DEADRECALL_UNIT_ID_KEY);
+        tag.remove(LEGACY_DEADRECALL_DATA_VERSION_KEY);
+        tag.remove(LEGACY_UNIT_ID_KEY);
+        tag.remove(LEGACY_DATA_VERSION_KEY);
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
         return true;
     }
@@ -69,7 +70,20 @@ public final class NexusInterfaceBinding {
         CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         Binding canonical = readPair(tag, UNIT_ID_KEY, DATA_VERSION_KEY);
         if (canonical != null) return canonical;
-        return stack.is(Items.COMPASS) ? readPair(tag, LEGACY_UNIT_ID_KEY, LEGACY_DATA_VERSION_KEY) : null;
+        Binding legacy = readPair(tag, LEGACY_DEADRECALL_UNIT_ID_KEY, LEGACY_DEADRECALL_DATA_VERSION_KEY);
+        if (legacy == null && stack.is(Items.COMPASS)) {
+            legacy = readPair(tag, LEGACY_UNIT_ID_KEY, LEGACY_DATA_VERSION_KEY);
+        }
+        if (legacy != null) {
+            tag.store(UNIT_ID_KEY, UUIDUtil.CODEC, legacy.unitId());
+            tag.putInt(DATA_VERSION_KEY, legacy.dataVersion());
+            tag.remove(LEGACY_DEADRECALL_UNIT_ID_KEY);
+            tag.remove(LEGACY_DEADRECALL_DATA_VERSION_KEY);
+            tag.remove(LEGACY_UNIT_ID_KEY);
+            tag.remove(LEGACY_DATA_VERSION_KEY);
+            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        }
+        return legacy;
     }
 
     private static Binding readPair(CompoundTag tag, String unitIdKey, String versionKey) {

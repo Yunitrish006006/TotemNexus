@@ -13,7 +13,7 @@ public record RequestDeathNodeAdminPayload(
         long createdBeforeGameTime,
         int page) implements CustomPacketPayload {
     public static final Type<RequestDeathNodeAdminPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "request_death_node_admin"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/request_death_node_admin"));
 
     public static final StreamCodec<FriendlyByteBuf, RequestDeathNodeAdminPayload> CODEC = StreamCodec.of(
             (buf, payload) -> {

@@ -1,0 +1,25 @@
+{
+  "parent": "totem:nexus_root",
+  "criteria": {
+    "has_manual": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.totem.nexus_lodestone_anchor.description"
+    },
+    "hidden": true,
+    "icon": {
+      "id": "minecraft:written_book"
+    },
+    "title": {
+      "translate": "advancements.totem.nexus_manual.title"
+    }
+  },
+  "requirements": [
+    [
+      "has_manual"
+    ]
+  ]
+}

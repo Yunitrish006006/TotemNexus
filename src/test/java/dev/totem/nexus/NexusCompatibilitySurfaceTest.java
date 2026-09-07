@@ -30,23 +30,23 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-/** Guards the persisted and network names that the compatibility bundle must retain. */
+/** Guards stable canonical wire identifiers and persisted expansion values. */
 class NexusCompatibilitySurfaceTest {
     @Test
     void copiedPayloadIdsRemainExact() {
         assertEquals(List.of(
-                "deadrecall:request_space_unit_map", "deadrecall:request_space_unit_friends",
-                "deadrecall:remove_space_unit_friend", "deadrecall:start_space_unit_teleport",
-                "deadrecall:toggle_space_unit_favorite", "deadrecall:calibrate_space_unit",
-                "deadrecall:update_space_unit_visibility", "deadrecall:rename_space_unit",
-                "deadrecall:update_space_unit_access", "deadrecall:confirm_space_unit_registration",
-                "deadrecall:repair_space_unit",
-                "deadrecall:space_unit_friends", "deadrecall:request_death_node_admin",
-                "deadrecall:manage_death_node_admin", "deadrecall:death_node_admin",
-                "deadrecall:space_unit_registration_preview", "deadrecall:space_unit_map",
-                "deadrecall:request_teleport_array_visualization",
-                "deadrecall:teleport_array_visualization",
-                "deadrecall:teleport_array_visualization_status"),
+                "totem:nexus/request_space_unit_map", "totem:nexus/request_space_unit_friends",
+                "totem:nexus/remove_space_unit_friend", "totem:nexus/start_space_unit_teleport",
+                "totem:nexus/toggle_space_unit_favorite", "totem:nexus/calibrate_space_unit",
+                "totem:nexus/update_space_unit_visibility", "totem:nexus/rename_space_unit",
+                "totem:nexus/update_space_unit_access", "totem:nexus/confirm_space_unit_registration",
+                "totem:nexus/repair_space_unit",
+                "totem:nexus/space_unit_friends", "totem:nexus/request_death_node_admin",
+                "totem:nexus/manage_death_node_admin", "totem:nexus/death_node_admin",
+                "totem:nexus/space_unit_registration_preview", "totem:nexus/space_unit_map",
+                "totem:nexus/request_teleport_array_visualization",
+                "totem:nexus/teleport_array_visualization",
+                "totem:nexus/teleport_array_visualization_status"),
                 List.of(
                         RequestSpaceUnitMapPayload.TYPE.id().toString(), RequestSpaceUnitFriendsPayload.TYPE.id().toString(),
                         RemoveSpaceUnitFriendPayload.TYPE.id().toString(), StartSpaceUnitTeleportPayload.TYPE.id().toString(),

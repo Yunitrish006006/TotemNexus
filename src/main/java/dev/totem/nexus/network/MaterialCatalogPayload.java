@@ -14,7 +14,7 @@ import java.util.Map;
 /** Server-authoritative per-block teleport-array material profiles for the client reference table. */
 public record MaterialCatalogPayload(long revision, List<Entry> entries) implements CustomPacketPayload {
     public static final Type<MaterialCatalogPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "material_catalog"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/material_catalog"));
     public static final int FORMAT_VERSION = 1;
     public static final int MAX_ENTRIES = 4096;
     private static final int MAX_MAP_ENTRIES = 32;

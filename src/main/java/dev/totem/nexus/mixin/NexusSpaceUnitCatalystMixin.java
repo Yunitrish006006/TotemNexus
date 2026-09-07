@@ -15,13 +15,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(NexusSpaceUnitSavedData.class)
 public abstract class NexusSpaceUnitCatalystMixin {
-    private static final TagKey<Block> DEADRECALL_AMETHYST_CATALYSTS = TagKey.create(
+    private static final TagKey<Block> TOTEM_AMETHYST_CATALYSTS = TagKey.create(
             Registries.BLOCK,
-            Identifier.fromNamespaceAndPath("deadrecall", "space_unit_amethyst_catalysts")
+            Identifier.fromNamespaceAndPath("totem", "space_unit_amethyst_catalysts")
     );
 
     @Inject(method = "scanStructure", at = @At("RETURN"), cancellable = true)
-    private static void deadrecall$countAmethystCatalysts(
+    private static void totem$countAmethystCatalysts(
             ServerLevel level,
             BlockPos lodestonePos,
             CallbackInfoReturnable<SpaceStructureSnapshot> cir
@@ -35,7 +35,7 @@ public abstract class NexusSpaceUnitCatalystMixin {
                     if (dx == 0 && dy == 0 && dz == 0) {
                         continue;
                     }
-                    if (level.getBlockState(lodestonePos.offset(dx, dy, dz)).is(DEADRECALL_AMETHYST_CATALYSTS)) {
+                    if (level.getBlockState(lodestonePos.offset(dx, dy, dz)).is(TOTEM_AMETHYST_CATALYSTS)) {
                         catalystBlocks++;
                     }
                 }

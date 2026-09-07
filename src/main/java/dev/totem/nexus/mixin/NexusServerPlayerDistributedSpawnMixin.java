@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(ServerPlayer.class)
 public abstract class NexusServerPlayerDistributedSpawnMixin {
     @Inject(method = "findRespawnPositionAndUseSpawnBlock", at = @At("HEAD"), cancellable = true)
-    private void deadrecall$findDistributedRespawnPosition(
+    private void totem$findDistributedRespawnPosition(
             boolean useSpawnBlock,
             TeleportTransition.PostTeleportTransition postTeleportTransition,
             CallbackInfoReturnable<TeleportTransition> cir) {

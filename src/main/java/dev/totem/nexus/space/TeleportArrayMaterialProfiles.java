@@ -36,7 +36,7 @@ public final class TeleportArrayMaterialProfiles {
     private static final Logger LOGGER = LoggerFactory.getLogger("totem-nexus");
     private static final String PROFILE_DIRECTORY = "teleport_array_material_profiles";
     private static final Identifier RELOAD_LISTENER_ID =
-            Identifier.fromNamespaceAndPath("deadrecall", "teleport_array_material_profiles");
+            Identifier.fromNamespaceAndPath("totem", "teleport_array_material_profiles");
     private static final AtomicBoolean REGISTERED = new AtomicBoolean();
 
     private static volatile CompiledProfileRegistry registry = CompiledProfileRegistry.EMPTY;

@@ -7,6 +7,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
+import net.minecraft.world.level.storage.SavedDataStorage;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,6 +34,12 @@ public class NexusSpaceDiscoverySavedData extends SavedData {
     ).apply(instance, NexusSpaceDiscoverySavedData::new));
 
     public static final SavedDataType<NexusSpaceDiscoverySavedData> TYPE = new SavedDataType<>(
+            Identifier.fromNamespaceAndPath("totem", "space_discovery"),
+            NexusSpaceDiscoverySavedData::new,
+            CODEC,
+            DataFixTypes.SAVED_DATA_COMMAND_STORAGE
+    );
+    static final SavedDataType<NexusSpaceDiscoverySavedData> LEGACY_COMPATIBILITY_TYPE = new SavedDataType<>(
             Identifier.fromNamespaceAndPath("deadrecall", "space_discovery"),
             NexusSpaceDiscoverySavedData::new,
             CODEC,
@@ -46,6 +53,17 @@ public class NexusSpaceDiscoverySavedData extends SavedData {
 
     public NexusSpaceDiscoverySavedData() {
         this(DATA_VERSION, List.of());
+    }
+
+    /** Canonical-first loader with a one-way, non-destructive legacy copy. */
+    public static synchronized NexusSpaceDiscoverySavedData loadCanonical(SavedDataStorage storage) {
+        NexusSpaceDiscoverySavedData canonical = storage.get(TYPE);
+        if (canonical != null) return canonical;
+        NexusSpaceDiscoverySavedData legacy = storage.get(LEGACY_COMPATIBILITY_TYPE);
+        if (legacy == null) return storage.computeIfAbsent(TYPE);
+        NexusSpaceDiscoverySavedData migrated = new NexusSpaceDiscoverySavedData(legacy.dataVersion, legacy.playerList());
+        storage.set(TYPE, migrated);
+        return migrated;
     }
 
     private NexusSpaceDiscoverySavedData(int dataVersion, List<PlayerDiscovery> players) {

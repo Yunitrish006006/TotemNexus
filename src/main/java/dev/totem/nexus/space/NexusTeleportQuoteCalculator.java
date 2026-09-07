@@ -55,12 +55,12 @@ public final class NexusTeleportQuoteCalculator {
     }
 
     private static String blocked(Source s, Target t, double stability, int foodNeeded, int safeFood, int amethyst, int available, boolean sameDimension, boolean sameUnit) {
-        if (sameUnit) return "message.deadrecall.space_unit.teleport_blocked.same_source";
-        if (stability < .2D) return "message.deadrecall.space_unit.teleport_blocked.unstable";
-        if (!sameDimension && s.type.equals("lodestone") && s.tier < 1) return "message.deadrecall.space_unit.teleport_blocked.source_tier";
-        if (!sameDimension && t.lodestone && t.tier < 1) return "message.deadrecall.space_unit.teleport_blocked.target_tier";
-        if (foodNeeded > safeFood) return "message.deadrecall.space_unit.teleport_blocked.food";
-        if (amethyst > available) return "message.deadrecall.space_unit.teleport_blocked.amethyst";
+        if (sameUnit) return "message.totem.space_unit.teleport_blocked.same_source";
+        if (stability < .2D) return "message.totem.space_unit.teleport_blocked.unstable";
+        if (!sameDimension && s.type.equals("lodestone") && s.tier < 1) return "message.totem.space_unit.teleport_blocked.source_tier";
+        if (!sameDimension && t.lodestone && t.tier < 1) return "message.totem.space_unit.teleport_blocked.target_tier";
+        if (foodNeeded > safeFood) return "message.totem.space_unit.teleport_blocked.food";
+        if (amethyst > available) return "message.totem.space_unit.teleport_blocked.amethyst";
         return "";
     }
     private static double stability(Source s, Target t, boolean sameDimension, int distance) {

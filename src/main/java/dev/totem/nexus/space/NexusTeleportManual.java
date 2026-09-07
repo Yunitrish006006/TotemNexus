@@ -26,17 +26,17 @@ public final class NexusTeleportManual {
     private static final int LEGACY_PAGE_COUNT = 7;
     private static final AtomicBoolean REGISTERED = new AtomicBoolean();
     private static final Identifier MANUAL_ADVANCEMENT =
-            Identifier.fromNamespaceAndPath("deadrecall", "nexus_manual");
+            Identifier.fromNamespaceAndPath("totem", "nexus_manual");
 
     // Page 1 used to duplicate acquisition instructions. TotemCore's starter guide is now the
     // canonical source index, while the actual lodestone source remains supported here.
     private static final List<String> PAGE_KEYS = IntStream.rangeClosed(2, 24)
-            .mapToObj(page -> "book.deadrecall.nexus_teleport_manual.page." + page)
+            .mapToObj(page -> "book.totem.nexus_teleport_manual.page." + page)
             .toList();
     private static final TotemManualSection SECTION = new TotemManualSection(
             Identifier.parse("totem:nexus/teleport"),
             200,
-            "book.deadrecall.nexus_teleport_manual.title",
+            "book.totem.nexus_teleport_manual.title",
             PAGE_KEYS,
             Map.of()
     );
@@ -84,7 +84,7 @@ public final class NexusTeleportManual {
 
     public static boolean isLegacyManual(ItemStack stack) {
         if (stack == null || !stack.is(Items.WRITTEN_BOOK)
-                || !Component.translatable("item.deadrecall.nexus_teleport_manual")
+                || !Component.translatable("item.totem.nexus_teleport_manual")
                 .equals(stack.get(DataComponents.CUSTOM_NAME))) {
             return false;
         }

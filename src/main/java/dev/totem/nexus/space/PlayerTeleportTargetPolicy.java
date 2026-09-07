@@ -2,10 +2,10 @@ package dev.totem.nexus.space;
 
 /** Stable privacy and availability classification for player teleport destinations. */
 public final class PlayerTeleportTargetPolicy {
-    private static final String GENERIC_TARGET_KEY = "message.deadrecall.space_unit.teleport_cancelled.target";
-    private static final String OFFLINE_TARGET_KEY = "message.deadrecall.space_unit.teleport_cancelled.target_offline";
-    private static final String UNAVAILABLE_TARGET_KEY = "message.deadrecall.space_unit.teleport_cancelled.target_unavailable";
-    private static final String FRIENDSHIP_TARGET_KEY = "message.deadrecall.space_unit.teleport_cancelled.target_friendship";
+    private static final String GENERIC_TARGET_KEY = "message.totem.space_unit.teleport_cancelled.target";
+    private static final String OFFLINE_TARGET_KEY = "message.totem.space_unit.teleport_cancelled.target_offline";
+    private static final String UNAVAILABLE_TARGET_KEY = "message.totem.space_unit.teleport_cancelled.target_unavailable";
+    private static final String FRIENDSHIP_TARGET_KEY = "message.totem.space_unit.teleport_cancelled.target_friendship";
     private PlayerTeleportTargetPolicy() { }
     public static State classify(boolean online, boolean alive, boolean removed, boolean friends) {
         if (!online) return State.OFFLINE;

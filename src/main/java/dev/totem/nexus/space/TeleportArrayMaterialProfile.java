@@ -9,7 +9,7 @@ public record TeleportArrayMaterialProfile(
         boolean validStructureMaterial,
         TeleportArrayMaterialAttributes attributes) {
     public static final TeleportArrayMaterialProfile NEUTRAL = new TeleportArrayMaterialProfile(
-            Identifier.fromNamespaceAndPath("deadrecall", "neutral"),
+            Identifier.fromNamespaceAndPath("totem", "nexus/neutral"),
             "neutral",
             false,
             TeleportArrayMaterialAttributes.ZERO

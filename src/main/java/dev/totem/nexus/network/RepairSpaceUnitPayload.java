@@ -16,7 +16,7 @@ public record RepairSpaceUnitPayload(
         int y,
         int z) implements CustomPacketPayload {
     public static final Type<RepairSpaceUnitPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "repair_space_unit"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/repair_space_unit"));
     public static final StreamCodec<FriendlyByteBuf, RepairSpaceUnitPayload> CODEC = StreamCodec.of(
             (buf, payload) -> {
                 buf.writeUtf(payload.sourceType(), 32);

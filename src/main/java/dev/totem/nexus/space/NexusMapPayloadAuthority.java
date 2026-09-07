@@ -37,8 +37,8 @@ public final class NexusMapPayloadAuthority {
         if (player == null || context == null || source == null || !context.playerId().equals(player.getUUID())
                 || !context.matchesSource(source.type().id(), source.id())) return;
         var storage = player.level().getServer().overworld().getDataStorage();
-        NexusSpaceUnitSavedData units = storage.computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
-        NexusSpaceDiscoverySavedData discovery = storage.computeIfAbsent(NexusSpaceDiscoverySavedData.TYPE);
+        NexusSpaceUnitSavedData units = NexusSpaceUnitSavedData.loadCanonical(storage);
+        NexusSpaceDiscoverySavedData discovery = NexusSpaceDiscoverySavedData.loadCanonical(storage);
         NexusFriendSavedData friends = storage.computeIfAbsent(NexusFriendSavedData.TYPE);
         MapItemSavedData mapData = context.mapId() == null ? null : MapItem.getSavedData(context.mapId(), player.level());
         SpaceUnitMapPayload payload = NexusMapPayloadFactory.build(player.getUUID(), source, context.interfaceType(), context.mapId(), mapData,
@@ -53,8 +53,8 @@ public final class NexusMapPayloadAuthority {
         if (player == null || context == null || source == null || !context.playerId().equals(player.getUUID())
                 || !context.matchesSource(source.type().id(), source.id())) return;
         var storage = player.level().getServer().overworld().getDataStorage();
-        NexusSpaceUnitSavedData units = storage.computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
-        NexusSpaceDiscoverySavedData discovery = storage.computeIfAbsent(NexusSpaceDiscoverySavedData.TYPE);
+        NexusSpaceUnitSavedData units = NexusSpaceUnitSavedData.loadCanonical(storage);
+        NexusSpaceDiscoverySavedData discovery = NexusSpaceDiscoverySavedData.loadCanonical(storage);
         NexusFriendSavedData friends = storage.computeIfAbsent(NexusFriendSavedData.TYPE);
         MapItemSavedData mapData = context.mapId() == null ? null : MapItem.getSavedData(context.mapId(), player.level());
         SpaceUnitMapPayload payload = NexusMapPayloadFactory.build(player.getUUID(), source, context.interfaceType(), context.mapId(), mapData,

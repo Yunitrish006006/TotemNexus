@@ -24,7 +24,7 @@ public abstract class NexusSpaceUnitMapCatalystBreakdownMixin {
     private static final int BASE_CROSS_DIMENSION_COST = 2;
 
     @Inject(method = "buildMapPayload", at = @At("RETURN"), cancellable = true)
-    private static void deadrecall$appendCatalystBreakdown(
+    private static void totem$appendCatalystBreakdown(
             ServerPlayer player,
             @Coerce Object source,
             List<NexusSpaceUnitRecord> visibleUnits,
@@ -36,11 +36,10 @@ public abstract class NexusSpaceUnitMapCatalystBreakdownMixin {
         }
 
         MinecraftServer server = player.level().getServer();
-        NexusSpaceUnitSavedData units = server.overworld()
-                .getDataStorage()
-                .computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
+        NexusSpaceUnitSavedData units = NexusSpaceUnitSavedData.loadCanonical(
+                server.overworld().getDataStorage());
         boolean sourceLodestone = NexusSpaceUnitAuthority.SOURCE_TYPE_LODESTONE.equals(payload.sourceType());
-        int sourceCatalysts = deadrecall$payloadCatalystBlocks(units, payload.sourceUnitId());
+        int sourceCatalysts = totem$payloadCatalystBlocks(units, payload.sourceUnitId());
 
         List<SpaceUnitMapPayload.Entry> enriched = new ArrayList<>(payload.entries().size());
         for (SpaceUnitMapPayload.Entry entry : payload.entries()) {
@@ -55,7 +54,7 @@ public abstract class NexusSpaceUnitMapCatalystBreakdownMixin {
                     sourceLodestone,
                     sourceCatalysts,
                     targetLodestone,
-                    deadrecall$payloadCatalystBlocks(units, entry.id())
+                    totem$payloadCatalystBlocks(units, entry.id())
             );
 
             enriched.add(new SpaceUnitMapPayload.Entry(
@@ -117,7 +116,7 @@ public abstract class NexusSpaceUnitMapCatalystBreakdownMixin {
     }
 
     @Unique
-    private static int deadrecall$payloadCatalystBlocks(
+    private static int totem$payloadCatalystBlocks(
             NexusSpaceUnitSavedData units,
             java.util.UUID unitId
     ) {

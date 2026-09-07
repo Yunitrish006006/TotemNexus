@@ -16,9 +16,8 @@ public final class NexusSpaceUnitStructureRefresh {
             return Optional.empty();
         }
 
-        NexusSpaceUnitSavedData data = server.overworld()
-                .getDataStorage()
-                .computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
+        NexusSpaceUnitSavedData data = NexusSpaceUnitSavedData.loadCanonical(
+                server.overworld().getDataStorage());
         Optional<NexusSpaceUnitRecord> existing = data.get(unitId);
         if (existing.isEmpty()) {
             return Optional.empty();

@@ -13,7 +13,7 @@ import java.util.UUID;
  *
  * <p>The façade is intentionally inert until a future atomic cutover
  * composition registers its interactions, payload receivers and ticks. It
- * keeps that composition from depending on DeadRecall implementation types.
+ * keeps that composition independent of external implementation types.
  */
 public final class NexusGameplayAuthority implements NexusTeleportAuthority {
     @Override

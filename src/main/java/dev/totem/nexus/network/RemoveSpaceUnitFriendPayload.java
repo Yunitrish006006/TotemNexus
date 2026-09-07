@@ -9,7 +9,7 @@ import java.util.UUID;
 
 public record RemoveSpaceUnitFriendPayload(UUID friendId) implements CustomPacketPayload {
     public static final Type<RemoveSpaceUnitFriendPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "remove_space_unit_friend"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/remove_space_unit_friend"));
 
     public static final StreamCodec<FriendlyByteBuf, RemoveSpaceUnitFriendPayload> CODEC =
             StreamCodec.of(

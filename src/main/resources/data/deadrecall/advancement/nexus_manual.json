@@ -7,14 +7,14 @@
   },
   "display": {
     "description": {
-      "translate": "advancements.deadrecall.nexus_lodestone_anchor.description"
+      "translate": "advancements.totem.nexus_lodestone_anchor.description"
     },
     "hidden": true,
     "icon": {
       "id": "minecraft:written_book"
     },
     "title": {
-      "translate": "advancements.deadrecall.nexus_manual.title"
+      "translate": "advancements.totem.nexus_manual.title"
     }
   },
   "requirements": [

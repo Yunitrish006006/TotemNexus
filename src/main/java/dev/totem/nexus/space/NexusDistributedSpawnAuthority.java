@@ -24,7 +24,7 @@ public final class NexusDistributedSpawnAuthority {
     public static final GameRule<Boolean> DISTRIBUTED_SPAWNING =
             GameRuleBuilder.forBoolean(false)
                     .category(TotemGameRuleCategories.TOTEM)
-                    .buildAndRegister(Identifier.fromNamespaceAndPath("deadrecall", "dead_recall_distributed_spawning"));
+                    .buildAndRegister(Identifier.fromNamespaceAndPath("totem", "nexus/distributed_spawning"));
 
     private static final int CANDIDATE_SAMPLES = 56;
     private static final int MIN_DISTANCE_BETWEEN_SPAWNS = 1_200;
@@ -301,7 +301,7 @@ public final class NexusDistributedSpawnAuthority {
     }
 
     private static NexusDistributedSpawnSavedData data(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(NexusDistributedSpawnSavedData.TYPE);
+        return NexusDistributedSpawnSavedData.loadCanonical(server.overworld().getDataStorage());
     }
 
     private record ScoredSpawn(BlockPos pos, double score) {

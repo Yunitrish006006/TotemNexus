@@ -26,9 +26,9 @@ import java.util.Optional;
 public final class NexusSpaceUnitDegradationRules {
     private static final Logger LOGGER = LoggerFactory.getLogger("totem-nexus");
     private static final Gson GSON = new Gson();
-    private static final String RULE_DIRECTORY = "deadrecall/space_unit_degradation";
+    private static final String RULE_DIRECTORY = "space_unit_degradation";
     private static final Identifier RELOAD_LISTENER_ID =
-            Identifier.fromNamespaceAndPath("deadrecall", "space_unit_degradation_rules");
+            Identifier.fromNamespaceAndPath("totem", "space_unit_degradation_rules");
 
     private static Map<Block, Block> degradationTargets = Map.of();
 

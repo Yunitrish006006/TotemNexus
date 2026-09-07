@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 @Mixin(MapItemSavedData.class)
 public interface NexusMapItemSavedDataInvoker {
     @Invoker("<init>")
-    static MapItemSavedData deadrecall$createExact(
+    static MapItemSavedData totem$createExact(
             int centerX,
             int centerZ,
             byte scale,

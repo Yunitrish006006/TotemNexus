@@ -74,10 +74,10 @@ public final class TotemAdvancementsVisualGameTest implements FabricClientGameTe
             Object handler = advancementHandler(client);
             Class<?> identifierClass = Class.forName("net.minecraft.resources.Identifier");
             Object rootId = identifierClass.getMethod("fromNamespaceAndPath", String.class, String.class)
-                    .invoke(null, "deadrecall", "root");
+                    .invoke(null, "totem", "root");
             Object root = invoke(handler, "get", rootId);
             if (root == null) {
-                throw new IllegalStateException("Missing shared advancement root deadrecall:root");
+                throw new IllegalStateException("Missing shared advancement root totem:root");
             }
             invoke(handler, "setSelectedTab", root, true);
 
@@ -86,16 +86,16 @@ public final class TotemAdvancementsVisualGameTest implements FabricClientGameTe
                     continue;
                 }
                 Object branchId = identifierClass.getMethod("fromNamespaceAndPath", String.class, String.class)
-                        .invoke(null, "deadrecall", branch.id());
+                        .invoke(null, "totem", branch.id());
                 Object advancement = invoke(handler, "get", branchId);
                 if (advancement == null) {
-                    throw new IllegalStateException("Missing TOTEM advancement branch deadrecall:" + branch.id());
+                    throw new IllegalStateException("Missing TOTEM advancement branch totem:" + branch.id());
                 }
                 Object value = invoke(advancement, "value");
                 Object parent = ((java.util.Optional<?>) invoke(value, "parent")).orElse(null);
                 if (!rootId.equals(parent)) {
-                    throw new IllegalStateException("Advancement deadrecall:" + branch.id()
-                            + " is not attached to deadrecall:root");
+                    throw new IllegalStateException("Advancement totem:" + branch.id()
+                            + " is not attached to totem:root");
                 }
             }
         } catch (ReflectiveOperationException exception) {
@@ -135,16 +135,16 @@ public final class TotemAdvancementsVisualGameTest implements FabricClientGameTe
             }
             Class<?> identifierClass = Class.forName("net.minecraft.resources.Identifier");
             Object id = identifierClass.getMethod("fromNamespaceAndPath", String.class, String.class)
-                    .invoke(null, "deadrecall", "main");
+                    .invoke(null, "totem", "main");
             Object registry = Class.forName("net.minecraft.core.registries.BuiltInRegistries")
                     .getField("CREATIVE_MODE_TAB")
                     .get(null);
             Object result = registry.getClass().getMethod("get", identifierClass).invoke(registry, id);
             Object tabHolder = ((java.util.Optional<?>) result)
-                    .orElseThrow(() -> new IllegalStateException("Missing standalone Creative tab deadrecall:main"));
+                    .orElseThrow(() -> new IllegalStateException("Missing standalone Creative tab totem:main"));
             Object tab = invoke(tabHolder, "value");
             if (tab == null) {
-                throw new IllegalStateException("Missing standalone Creative tab deadrecall:main");
+                throw new IllegalStateException("Missing standalone Creative tab totem:main");
             }
             Class<?> tabClass = Class.forName("net.minecraft.world.item.CreativeModeTab");
             Class<?> screenExtension = Class.forName(
@@ -153,7 +153,7 @@ public final class TotemAdvancementsVisualGameTest implements FabricClientGameTe
                     .getMethod("setSelectedTab", tabClass)
                     .invoke(creativeScreen, tab);
             if (!selected) {
-                throw new IllegalStateException("Could not switch to standalone Creative tab deadrecall:main");
+                throw new IllegalStateException("Could not switch to standalone Creative tab totem:main");
             }
         } catch (ReflectiveOperationException exception) {
             throw new IllegalStateException("Could not select the Totem Creative tab", exception);

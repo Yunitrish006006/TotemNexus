@@ -10,8 +10,8 @@ class NexusTeleportManualTest {
     @Test
     void guideExcludesObsoleteAcquisitionPageButKeepsSetupThroughSpecialists() {
         assertEquals(23, NexusTeleportManual.pageKeys().size());
-        assertEquals("book.deadrecall.nexus_teleport_manual.page.2", NexusTeleportManual.pageKeys().getFirst());
-        assertEquals("book.deadrecall.nexus_teleport_manual.page.24", NexusTeleportManual.pageKeys().getLast());
+        assertEquals("book.totem.nexus_teleport_manual.page.2", NexusTeleportManual.pageKeys().getFirst());
+        assertEquals("book.totem.nexus_teleport_manual.page.24", NexusTeleportManual.pageKeys().getLast());
     }
 
     @Test

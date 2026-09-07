@@ -63,42 +63,42 @@ public abstract class NexusSpaceUnitMapScreenMixin {
     }
 
     @Unique
-    private UUID deadrecall$selectionBeforeClick;
+    private UUID totem$selectionBeforeClick;
 
     @Inject(method = "mouseClicked", at = @At("HEAD"))
-    private void deadrecall$captureSelection(
+    private void totem$captureSelection(
             MouseButtonEvent event,
             boolean doubleClick,
             CallbackInfoReturnable<Boolean> cir
     ) {
-        this.deadrecall$selectionBeforeClick = this.selectedUnitId;
+        this.totem$selectionBeforeClick = this.selectedUnitId;
     }
 
     @Inject(method = "mouseClicked", at = @At("RETURN"))
-    private void deadrecall$refreshSelectedQuote(
+    private void totem$refreshSelectedQuote(
             MouseButtonEvent event,
             boolean doubleClick,
             CallbackInfoReturnable<Boolean> cir
     ) {
-        if (!cir.getReturnValue() || Objects.equals(this.deadrecall$selectionBeforeClick, this.selectedUnitId)) {
+        if (!cir.getReturnValue() || Objects.equals(this.totem$selectionBeforeClick, this.selectedUnitId)) {
             return;
         }
-        deadrecall$requestSelectedQuoteRefresh();
+        totem$requestSelectedQuoteRefresh();
     }
 
     @Inject(method = "requestRefresh", at = @At("HEAD"), cancellable = true)
-    private void deadrecall$refreshCurrentSelection(CallbackInfo ci) {
+    private void totem$refreshCurrentSelection(CallbackInfo ci) {
         SpaceUnitMapPayload.Entry selected = selectedEntry();
         if (selected == null || selected.id().equals(this.payload.sourceUnitId())) {
             return;
         }
-        if (deadrecall$sendQuoteRefresh(selected.id())) {
+        if (totem$sendQuoteRefresh(selected.id())) {
             ci.cancel();
         }
     }
 
     @Inject(method = "updateButtonLayout", at = @At("TAIL"))
-    private void deadrecall$allowAuthoritativeTeleportCheck(CallbackInfo ci) {
+    private void totem$allowAuthoritativeTeleportCheck(CallbackInfo ci) {
         if (this.teleportButton == null) {
             return;
         }
@@ -107,7 +107,7 @@ public abstract class NexusSpaceUnitMapScreenMixin {
     }
 
     @Inject(method = "drawFooter", at = @At("TAIL"))
-    private void deadrecall$drawCatalystQuote(
+    private void totem$drawCatalystQuote(
             GuiGraphicsExtractor extractor,
             int mouseX,
             int mouseY,
@@ -122,7 +122,7 @@ public abstract class NexusSpaceUnitMapScreenMixin {
         int y = panelY() + panelHeight() - 46 + 27;
         int width = Math.max(36, firstFooterButtonX() - x - 8);
         String text = Component.translatable(
-                "message.deadrecall.space_unit.metric.amethyst_breakdown",
+                "message.totem.space_unit.metric.amethyst_breakdown",
                 selected.baseAmethystCost(),
                 selected.sourceCatalysts(),
                 selected.targetCatalysts(),
@@ -133,7 +133,7 @@ public abstract class NexusSpaceUnitMapScreenMixin {
     }
 
     @Inject(method = "requestTeleport", at = @At("HEAD"), cancellable = true)
-    private void deadrecall$startWithFreshStructureCheck(CallbackInfo ci) {
+    private void totem$startWithFreshStructureCheck(CallbackInfo ci) {
         SpaceUnitMapPayload.Entry selected = selectedEntry();
         if (selected == null || selected.id().equals(this.payload.sourceUnitId())) {
             ci.cancel();
@@ -152,15 +152,15 @@ public abstract class NexusSpaceUnitMapScreenMixin {
     }
 
     @Unique
-    private void deadrecall$requestSelectedQuoteRefresh() {
+    private void totem$requestSelectedQuoteRefresh() {
         SpaceUnitMapPayload.Entry selected = selectedEntry();
         if (selected != null && !selected.id().equals(this.payload.sourceUnitId())) {
-            deadrecall$sendQuoteRefresh(selected.id());
+            totem$sendQuoteRefresh(selected.id());
         }
     }
 
     @Unique
-    private boolean deadrecall$sendQuoteRefresh(UUID targetUnitId) {
+    private boolean totem$sendQuoteRefresh(UUID targetUnitId) {
         if (!ClientPlayNetworking.canSend(RefreshSpaceUnitQuotePayload.TYPE)) {
             return false;
         }

@@ -17,7 +17,7 @@ public record SpaceUnitRegistrationPreviewPayload(
         int confirmSeconds)
         implements CustomPacketPayload {
     public static final Type<SpaceUnitRegistrationPreviewPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "space_unit_registration_preview"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/space_unit_registration_preview"));
 
     public static final StreamCodec<FriendlyByteBuf, SpaceUnitRegistrationPreviewPayload> CODEC =
             StreamCodec.of(

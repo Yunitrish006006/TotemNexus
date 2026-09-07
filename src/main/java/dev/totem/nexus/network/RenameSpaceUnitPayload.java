@@ -14,7 +14,7 @@ public record RenameSpaceUnitPayload(
         String name)
         implements CustomPacketPayload {
     public static final Type<RenameSpaceUnitPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "rename_space_unit"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/rename_space_unit"));
 
     public static final StreamCodec<FriendlyByteBuf, RenameSpaceUnitPayload> CODEC =
             StreamCodec.of(

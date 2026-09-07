@@ -21,7 +21,7 @@ import java.util.UUID;
 @Mixin(NexusSpaceUnitAuthority.class)
 public abstract class NexusSpaceUnitAuthorityRefreshMixin {
     @Accessor("teleportSessions")
-    public static Map<UUID, Object> deadrecall$getTeleportSessions() {
+    public static Map<UUID, Object> totem$getTeleportSessions() {
         throw new AssertionError();
     }
 
@@ -29,7 +29,7 @@ public abstract class NexusSpaceUnitAuthorityRefreshMixin {
             method = "sendSpaceUnitMap(Lnet/minecraft/server/level/ServerPlayer;Ljava/util/UUID;)V",
             at = @At("HEAD")
     )
-    private static void deadrecall$refreshMapSource(
+    private static void totem$refreshMapSource(
             ServerPlayer player,
             UUID sourceUnitId,
             CallbackInfo ci
@@ -41,7 +41,7 @@ public abstract class NexusSpaceUnitAuthorityRefreshMixin {
             method = "startTeleport(Lnet/minecraft/server/level/ServerPlayer;Ljava/lang/String;Ljava/util/UUID;Ljava/util/UUID;)V",
             at = @At("HEAD")
     )
-    private static void deadrecall$refreshTeleportRoute(
+    private static void totem$refreshTeleportRoute(
             ServerPlayer player,
             String sourceType,
             UUID sourceUnitId,
@@ -59,7 +59,7 @@ public abstract class NexusSpaceUnitAuthorityRefreshMixin {
             method = "startTeleport(Lnet/minecraft/server/level/ServerPlayer;Ljava/lang/String;Ljava/util/UUID;Ljava/util/UUID;)V",
             at = @At("RETURN")
     )
-    private static void deadrecall$notifyFriendTeleportStarted(
+    private static void totem$notifyFriendTeleportStarted(
             ServerPlayer player,
             String sourceType,
             UUID sourceUnitId,
@@ -71,9 +71,8 @@ public abstract class NexusSpaceUnitAuthorityRefreshMixin {
         }
 
         MinecraftServer server = player.level().getServer();
-        NexusSpaceUnitSavedData unitData = server.overworld()
-                .getDataStorage()
-                .computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
+        NexusSpaceUnitSavedData unitData = NexusSpaceUnitSavedData.loadCanonical(
+                server.overworld().getDataStorage());
         if (unitData.get(targetUnitId).isPresent()) {
             return;
         }
@@ -90,14 +89,14 @@ public abstract class NexusSpaceUnitAuthorityRefreshMixin {
             return;
         }
 
-        Object sessionValue = deadrecall$getTeleportSessions().get(player.getUUID());
+        Object sessionValue = totem$getTeleportSessions().get(player.getUUID());
         if (!(sessionValue instanceof NexusSpaceUnitTeleportSessionAccessor session)
-                || !targetUnitId.equals(session.deadrecall$getTargetUnitId())) {
+                || !targetUnitId.equals(session.totem$getTargetUnitId())) {
             return;
         }
 
         targetPlayer.sendSystemMessage(Component.empty()
-                .append(Component.translatable("message.deadrecall.space_unit.teleport_start"))
+                .append(Component.translatable("message.totem.space_unit.teleport_start"))
                 .append(Component.literal(": "))
                 .append(player.getDisplayName())
                 .append(Component.literal(" → "))
@@ -108,14 +107,14 @@ public abstract class NexusSpaceUnitAuthorityRefreshMixin {
             method = "removeFriend",
             at = @At("TAIL")
     )
-    private static void deadrecall$cancelRemovedFriendTeleports(
+    private static void totem$cancelRemovedFriendTeleports(
             ServerPlayer player,
             UUID friendId,
             CallbackInfo ci
     ) {
         UUID playerId = player.getUUID();
         MinecraftServer server = player.level().getServer();
-        Iterator<Map.Entry<UUID, Object>> iterator = deadrecall$getTeleportSessions().entrySet().iterator();
+        Iterator<Map.Entry<UUID, Object>> iterator = totem$getTeleportSessions().entrySet().iterator();
         while (iterator.hasNext()) {
             Map.Entry<UUID, Object> entry = iterator.next();
             if (!(entry.getValue() instanceof NexusSpaceUnitTeleportSessionAccessor session)) {
@@ -123,7 +122,7 @@ public abstract class NexusSpaceUnitAuthorityRefreshMixin {
             }
             if (!FriendTeleportSessionPolicy.belongsToRelationship(
                     entry.getKey(),
-                    session.deadrecall$getTargetUnitId(),
+                    session.totem$getTargetUnitId(),
                     playerId,
                     friendId)) {
                 continue;
@@ -133,7 +132,7 @@ public abstract class NexusSpaceUnitAuthorityRefreshMixin {
             ServerPlayer requester = server.getPlayerList().getPlayer(entry.getKey());
             if (requester != null) {
                 requester.sendSystemMessage(Component.translatable(
-                        "message.deadrecall.space_unit.teleport_cancelled.target_friendship"));
+                        "message.totem.space_unit.teleport_cancelled.target_friendship"));
             }
         }
     }

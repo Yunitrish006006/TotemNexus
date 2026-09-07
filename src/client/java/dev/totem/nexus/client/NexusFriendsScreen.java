@@ -18,10 +18,10 @@ final class NexusFriendsScreen extends NexusOwnedScreen {
     static NexusFriendsScreen CURRENT;
     private SpaceUnitFriendsPayload payload; private UUID selected; private Button remove;
     NexusFriendsScreen(SpaceUnitFriendsPayload payload) { this(payload, false, () -> { }); }
-    NexusFriendsScreen(SpaceUnitFriendsPayload payload, boolean observer, Runnable stop) { super(Component.translatable("message.deadrecall.space_unit.friends_title"), observer, stop); this.payload=payload; }
+    NexusFriendsScreen(SpaceUnitFriendsPayload payload, boolean observer, Runnable stop) { super(Component.translatable("message.totem.space_unit.friends_title"), observer, stop); this.payload=payload; }
     @Override protected void init(){CURRENT=this; int x=(width-330)/2,y=(height-238)/2;
-        addRenderableWidget(Button.builder(Component.translatable("message.deadrecall.space_unit.friends_refresh"), ignored->refresh()).bounds(x+12,y+208,62,18).build());
-        remove=addRenderableWidget(Button.builder(Component.translatable("message.deadrecall.space_unit.friends_remove"), ignored->remove()).bounds(x+82,y+208,62,18).build());
+        addRenderableWidget(Button.builder(Component.translatable("message.totem.space_unit.friends_refresh"), ignored->refresh()).bounds(x+12,y+208,62,18).build());
+        remove=addRenderableWidget(Button.builder(Component.translatable("message.totem.space_unit.friends_remove"), ignored->remove()).bounds(x+82,y+208,62,18).build());
         addRenderableWidget(Button.builder(Component.translatable("gui.done"), ignored->onClose()).bounds(x+256,y+208,62,18).build()); buttons(); if(payload==null && !observerReadOnly())refresh(); }
     @Override public void removed(){super.removed();if(CURRENT==this)CURRENT=null;}
     void apply(SpaceUnitFriendsPayload next){payload=next;if(selected==null||entries().stream().noneMatch(e->e.id().equals(selected)))selected=entries().isEmpty()?null:entries().getFirst().id();buttons();}

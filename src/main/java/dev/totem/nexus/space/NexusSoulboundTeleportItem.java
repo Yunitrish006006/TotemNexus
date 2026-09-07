@@ -42,7 +42,6 @@ public final class NexusSoulboundTeleportItem {
     }
 
     private static NexusSpaceDiscoverySavedData discovery(ServerPlayer player) {
-        return player.level().getServer().overworld().getDataStorage()
-                .computeIfAbsent(NexusSpaceDiscoverySavedData.TYPE);
+        return NexusSpaceDiscoverySavedData.loadCanonical(player.level().getServer().overworld().getDataStorage());
     }
 }

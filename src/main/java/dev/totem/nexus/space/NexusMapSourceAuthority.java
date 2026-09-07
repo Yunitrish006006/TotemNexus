@@ -15,8 +15,8 @@ public final class NexusMapSourceAuthority {
     public Optional<NexusSpaceUnitRecord> validateLodestone(ServerPlayer player, UUID sourceId) {
         if (player == null || sourceId == null) return Optional.empty();
         var storage = player.level().getServer().overworld().getDataStorage();
-        NexusSpaceUnitSavedData units = storage.computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
-        NexusSpaceDiscoverySavedData discovery = storage.computeIfAbsent(NexusSpaceDiscoverySavedData.TYPE);
+        NexusSpaceUnitSavedData units = NexusSpaceUnitSavedData.loadCanonical(storage);
+        NexusSpaceDiscoverySavedData discovery = NexusSpaceDiscoverySavedData.loadCanonical(storage);
         NexusFriendSavedData friends = storage.computeIfAbsent(NexusFriendSavedData.TYPE);
         NexusSpaceUnitRecord source = units.get(sourceId).orElse(null);
         if (source == null || !source.isLodestoneAnchor() || source.status() != SpaceUnitStatus.ACTIVE

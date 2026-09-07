@@ -11,7 +11,7 @@ import java.util.UUID;
 
 public record SpaceUnitFriendsPayload(List<Entry> entries) implements CustomPacketPayload {
     public static final Type<SpaceUnitFriendsPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "space_unit_friends"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/space_unit_friends"));
     public static final int MAX_ENTRIES = 128;
 
     public record Entry(UUID id, String name, boolean online, String status) {

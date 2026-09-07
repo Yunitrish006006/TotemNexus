@@ -10,7 +10,7 @@ import java.util.UUID;
 public record RefreshSpaceUnitQuotePayload(String sourceType, UUID sourceUnitId, UUID targetUnitId)
         implements CustomPacketPayload {
     public static final Type<RefreshSpaceUnitQuotePayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "refresh_space_unit_quote"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/refresh_space_unit_quote"));
 
     public static final StreamCodec<FriendlyByteBuf, RefreshSpaceUnitQuotePayload> CODEC =
             StreamCodec.of(

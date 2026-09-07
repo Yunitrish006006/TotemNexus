@@ -23,7 +23,7 @@ import org.spongepowered.asm.mixin.Mixin;
 public abstract class NexusExpansionModeGameRuleMixin<T> {
     @WrapMethod(method = "deserialize")
     @SuppressWarnings("unchecked")
-    private DataResult<T> deadrecall$acceptExpansionModeScreenValue(
+    private DataResult<T> totem$acceptExpansionModeScreenValue(
             String serialized,
             Operation<DataResult<T>> original) {
         if ((Object) this != NexusTeleportArrayExpansionRules.EXPANSION_MODE) {

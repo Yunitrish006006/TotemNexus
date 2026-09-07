@@ -193,9 +193,9 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
 
     private static Component screenTitle(SpaceUnitMapPayload payload) {
         return Component.translatable(switch (payload.interfaceType()) {
-            case COMPASS -> "container.deadrecall.space_unit.compass";
-            case FILLED_MAP -> "container.deadrecall.space_unit.map";
-            case RECOVERY_COMPASS, BOOK -> "container.deadrecall.space_unit.management";
+            case COMPASS -> "container.totem.space_unit.compass";
+            case FILLED_MAP -> "container.totem.space_unit.map";
+            case RECOVERY_COMPASS, BOOK -> "container.totem.space_unit.management";
         });
     }
 
@@ -215,10 +215,10 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     protected void init() {
         CURRENT = this;
         this.searchField = new EditBox(this.font, searchX(), controlsY(), searchWidth(), 18,
-                Component.translatable("message.deadrecall.space_unit.map_search"));
+                Component.translatable("message.totem.space_unit.map_search"));
         this.searchField.setMaxLength(64);
         this.searchField.setValue(this.searchQuery);
-        this.searchField.setHint(Component.translatable("message.deadrecall.space_unit.map_search"));
+        this.searchField.setHint(Component.translatable("message.totem.space_unit.map_search"));
         this.searchField.setResponder(value -> {
             this.searchQuery = value == null ? "" : value;
             this.listScrollIndex = 0;
@@ -242,7 +242,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         this.addRenderableWidget(this.sortButton);
 
         this.friendsButton = Button.builder(
-                        Component.translatable("message.deadrecall.space_unit.map_friends"),
+                        Component.translatable("message.totem.space_unit.map_friends"),
                         button -> openFriendManagement())
                 .bounds(friendsButtonX(), friendsButtonY(), friendsButtonWidth(), 18)
                 .build();
@@ -253,7 +253,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
                 .build();
         this.addRenderableWidget(this.materialButton);
 
-        this.repairButton = Button.builder(Component.translatable("message.deadrecall.space_unit.maintenance_repair"),
+        this.repairButton = Button.builder(Component.translatable("message.totem.space_unit.maintenance_repair"),
                         button -> requestSelectedMaintenance())
                 .bounds(maintenanceButtonX(), maintenanceButtonY(), 78, 18)
                 .build();
@@ -282,35 +282,35 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         this.addRenderableWidget(this.visibilityButton);
 
         this.adminButton = Button.builder(
-                        Component.translatable("message.deadrecall.space_unit.map_admins"),
+                        Component.translatable("message.totem.space_unit.map_admins"),
                         button -> requestAccessUpdate(ACCESS_ROLE_ADMINISTRATOR))
                 .bounds(adminButtonX(), footerButtonY(), FOOTER_BUTTON_WIDTH, 18)
                 .build();
         this.addRenderableWidget(this.adminButton);
 
         this.accessButton = Button.builder(
-                        Component.translatable("message.deadrecall.space_unit.map_allowed"),
+                        Component.translatable("message.totem.space_unit.map_allowed"),
                         button -> requestAccessUpdate(ACCESS_ROLE_ALLOWED))
                 .bounds(accessButtonX(), footerButtonY(), FOOTER_BUTTON_WIDTH, 18)
                 .build();
         this.addRenderableWidget(this.accessButton);
 
-        this.renameButton = Button.builder(Component.translatable("message.deadrecall.space_unit.map_rename"), button -> requestRename())
+        this.renameButton = Button.builder(Component.translatable("message.totem.space_unit.map_rename"), button -> requestRename())
                 .bounds(renameButtonX(), footerButtonY(), FOOTER_BUTTON_WIDTH, 18)
                 .build();
         this.addRenderableWidget(this.renameButton);
 
-        this.calibrateButton = Button.builder(Component.translatable("message.deadrecall.space_unit.map_calibrate"), button -> requestCalibration())
+        this.calibrateButton = Button.builder(Component.translatable("message.totem.space_unit.map_calibrate"), button -> requestCalibration())
                 .bounds(calibrateButtonX(), footerButtonY(), FOOTER_BUTTON_WIDTH, 18)
                 .build();
         this.addRenderableWidget(this.calibrateButton);
 
-        this.teleportButton = Button.builder(Component.translatable("message.deadrecall.space_unit.teleport_start"), button -> requestTeleport())
+        this.teleportButton = Button.builder(Component.translatable("message.totem.space_unit.teleport_start"), button -> requestTeleport())
                 .bounds(teleportButtonX(), footerButtonY(), FOOTER_BUTTON_WIDTH, 18)
                 .build();
         this.addRenderableWidget(this.teleportButton);
 
-        this.refreshButton = Button.builder(Component.translatable("message.deadrecall.space_unit.map_refresh"), button -> requestRefresh())
+        this.refreshButton = Button.builder(Component.translatable("message.totem.space_unit.map_refresh"), button -> requestRefresh())
                 .bounds(refreshButtonX(), footerButtonY(), FOOTER_BUTTON_WIDTH, 18)
                 .build();
         this.addRenderableWidget(this.refreshButton);
@@ -563,7 +563,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         SpaceUnitMapPayload.Entry entry = entryById(unitId);
         if (entry != null) {
             this.minecraft.getNarrator().saySystemNow(Component.translatable(
-                    "message.deadrecall.space_unit.destination_selected",
+                    "message.totem.space_unit.destination_selected",
                     nexusName(entry.name())));
         }
     }
@@ -573,7 +573,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         clampMapPan();
         if (this.minecraft != null) {
             this.minecraft.getNarrator().saySystemNow(Component.translatable(
-                    "message.deadrecall.space_unit.map_zoom_narration", this.mapZoom * 100));
+                    "message.totem.space_unit.map_zoom_narration", this.mapZoom * 100));
         }
     }
 
@@ -779,59 +779,59 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         boolean enabled = NexusArrayVisualizationClient.isArrayEnabledFor(this.payload.sourceUnitId());
         return Component.translatable(compactOverlayButtons()
                 ? enabled
-                ? "message.deadrecall.space_unit.array_preview_hide_compact"
-                : "message.deadrecall.space_unit.array_preview_show_compact"
+                ? "message.totem.space_unit.array_preview_hide_compact"
+                : "message.totem.space_unit.array_preview_show_compact"
                 : enabled
-                ? "message.deadrecall.space_unit.array_preview_hide"
-                : "message.deadrecall.space_unit.array_preview_show");
+                ? "message.totem.space_unit.array_preview_hide"
+                : "message.totem.space_unit.array_preview_show");
     }
 
     private Component buildSitesPreviewButtonText() {
         boolean enabled = NexusArrayVisualizationClient.isBuildSitesEnabledFor(this.payload.sourceUnitId());
         return Component.translatable(compactOverlayButtons()
                 ? enabled
-                ? "message.deadrecall.space_unit.build_sites_hide_compact"
-                : "message.deadrecall.space_unit.build_sites_show_compact"
+                ? "message.totem.space_unit.build_sites_hide_compact"
+                : "message.totem.space_unit.build_sites_show_compact"
                 : enabled
-                ? "message.deadrecall.space_unit.build_sites_hide"
-                : "message.deadrecall.space_unit.build_sites_show");
+                ? "message.totem.space_unit.build_sites_hide"
+                : "message.totem.space_unit.build_sites_show");
     }
 
     private Component arrayPreviewTooltip() {
         if (observerReadOnly()) {
-            return Component.translatable("message.deadrecall.space_unit.array_preview_observer");
+            return Component.translatable("message.totem.space_unit.array_preview_observer");
         }
         if (!"lodestone".equals(this.payload.sourceType())) {
-            return Component.translatable("message.deadrecall.space_unit.array_preview_lodestone_only");
+            return Component.translatable("message.totem.space_unit.array_preview_lodestone_only");
         }
         if (!this.payload.sourceUnitId().equals(this.selectedUnitId)) {
-            return Component.translatable("message.deadrecall.space_unit.array_preview_source_only");
+            return Component.translatable("message.totem.space_unit.array_preview_source_only");
         }
         if (!ClientPlayNetworking.canSend(RequestTeleportArrayVisualizationPayload.TYPE)) {
-            return Component.translatable("message.deadrecall.space_unit.array_preview_unavailable");
+            return Component.translatable("message.totem.space_unit.array_preview_unavailable");
         }
-        return Component.translatable("message.deadrecall.space_unit.array_preview_hint");
+        return Component.translatable("message.totem.space_unit.array_preview_hint");
     }
 
     private Component buildSitesPreviewTooltip() {
         Component unavailable = visualizationUnavailableTooltip();
         return unavailable == null
-                ? Component.translatable("message.deadrecall.space_unit.build_sites_hint")
+                ? Component.translatable("message.totem.space_unit.build_sites_hint")
                 : unavailable;
     }
 
     private Component visualizationUnavailableTooltip() {
         if (observerReadOnly()) {
-            return Component.translatable("message.deadrecall.space_unit.array_preview_observer");
+            return Component.translatable("message.totem.space_unit.array_preview_observer");
         }
         if (!"lodestone".equals(this.payload.sourceType())) {
-            return Component.translatable("message.deadrecall.space_unit.array_preview_lodestone_only");
+            return Component.translatable("message.totem.space_unit.array_preview_lodestone_only");
         }
         if (!this.payload.sourceUnitId().equals(this.selectedUnitId)) {
-            return Component.translatable("message.deadrecall.space_unit.array_preview_source_only");
+            return Component.translatable("message.totem.space_unit.array_preview_source_only");
         }
         if (!ClientPlayNetworking.canSend(RequestTeleportArrayVisualizationPayload.TYPE)) {
-            return Component.translatable("message.deadrecall.space_unit.array_preview_unavailable");
+            return Component.translatable("message.totem.space_unit.array_preview_unavailable");
         }
         return null;
     }
@@ -856,7 +856,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         int panelLeft = panelX() + PANEL_PADDING;
         int reservedRight = panelX() + panelWidth() - PANEL_PADDING - 94;
         int materialTitleRight = panelLeft + 10 + this.font.width(trimToWidth(
-                Component.translatable("message.deadrecall.space_unit.material_title",
+                Component.translatable("message.totem.space_unit.material_title",
                         selectedEntry() == null ? this.payload.sourceName() : selectedEntry().name()).getString(),
                 materialTitleAvailableWidth()));
         return maintenanceButtonX() >= panelLeft
@@ -959,13 +959,13 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
 
     private Component materialButtonText() {
         if (!this.showMaterials) {
-            return Component.translatable("message.deadrecall.space_unit.map_materials");
+            return Component.translatable("message.totem.space_unit.map_materials");
         }
         return Component.translatable(hasMapVisualization()
-                ? "message.deadrecall.space_unit.map_view"
+                ? "message.totem.space_unit.map_view"
                 : hasDestinationList()
-                ? "message.deadrecall.space_unit.compass_view"
-                : "message.deadrecall.space_unit.management_view");
+                ? "message.totem.space_unit.compass_view"
+                : "message.totem.space_unit.management_view");
     }
 
     private void drawMaterialPanel(GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
@@ -979,37 +979,37 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
 
         String selectedName = selectedEntry() == null ? this.payload.sourceName() : selectedEntry().name();
         String materialTitle = Component.translatable(
-                "message.deadrecall.space_unit.material_title", selectedName).getString();
+                "message.totem.space_unit.material_title", selectedName).getString();
         extractor.text(this.font, trimToWidth(materialTitle, materialTitleAvailableWidth()),
                 x + 10, y + 9, 0xFFFFFFFF);
         extractor.text(this.font, Component.translatable(
-                "message.deadrecall.space_unit.material_subtitle", material.profileRevision()),
+                "message.totem.space_unit.material_subtitle", material.profileRevision()),
                 x + 10, y + 22, 0xFF9EAFBE);
 
         SpaceUnitMapPayload.Entry selected = selectedEntry();
         if (selected != null) {
             extractor.text(this.font, trimToWidth(Component.translatable(
-                    "message.deadrecall.space_unit.material_route_summary",
+                    "message.totem.space_unit.material_route_summary",
                     selected.finalFoodCost(), selected.amethystCost(), seconds(selected.prepareTicks()),
                     selected.maxHorizontalDeviation(), selected.structureWearChancePercent()).getString(), width - 20),
                     x + 10, y + 35, 0xFFB8D9F3);
         }
         List<MaterialMetric> metrics = List.of(
-                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_capacity",
+                new MaterialMetric(Component.translatable("message.totem.space_unit.material_capacity",
                         material.effectiveCapacity(), material.rawStructuralBlocks()), 0),
-                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_reach", material.maximumReachedDistance()), 0),
-                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_stability", signed(material.stability())), material.stability()),
-                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_accuracy", signed(material.arrivalAccuracy())), material.arrivalAccuracy()),
-                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_lock", signed(material.targetLock())), material.targetLock()),
-                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_safety", signed(material.arrivalSafety())), material.arrivalSafety()),
-                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_wear", signed(material.wearResistance())), material.wearResistance()),
-                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_maintenance", signed(material.maintenanceEfficiency())), material.maintenanceEfficiency()),
-                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_interference", signed(material.interferenceResistance())), material.interferenceResistance()),
-                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_food", signed(material.foodEfficiency())), material.foodEfficiency()),
-                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_phase", signed(material.phaseSpeed())), material.phaseSpeed()),
-                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_cooldown", signed(material.cooldownRecovery())), material.cooldownRecovery()),
-                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_load", signed(material.routeLoadCapacity())), material.routeLoadCapacity()),
-                new MaterialMetric(Component.translatable("message.deadrecall.space_unit.material_catalyst", signed(material.crossDimensionCatalystUnits())), material.crossDimensionCatalystUnits())
+                new MaterialMetric(Component.translatable("message.totem.space_unit.material_reach", material.maximumReachedDistance()), 0),
+                new MaterialMetric(Component.translatable("message.totem.space_unit.material_stability", signed(material.stability())), material.stability()),
+                new MaterialMetric(Component.translatable("message.totem.space_unit.material_accuracy", signed(material.arrivalAccuracy())), material.arrivalAccuracy()),
+                new MaterialMetric(Component.translatable("message.totem.space_unit.material_lock", signed(material.targetLock())), material.targetLock()),
+                new MaterialMetric(Component.translatable("message.totem.space_unit.material_safety", signed(material.arrivalSafety())), material.arrivalSafety()),
+                new MaterialMetric(Component.translatable("message.totem.space_unit.material_wear", signed(material.wearResistance())), material.wearResistance()),
+                new MaterialMetric(Component.translatable("message.totem.space_unit.material_maintenance", signed(material.maintenanceEfficiency())), material.maintenanceEfficiency()),
+                new MaterialMetric(Component.translatable("message.totem.space_unit.material_interference", signed(material.interferenceResistance())), material.interferenceResistance()),
+                new MaterialMetric(Component.translatable("message.totem.space_unit.material_food", signed(material.foodEfficiency())), material.foodEfficiency()),
+                new MaterialMetric(Component.translatable("message.totem.space_unit.material_phase", signed(material.phaseSpeed())), material.phaseSpeed()),
+                new MaterialMetric(Component.translatable("message.totem.space_unit.material_cooldown", signed(material.cooldownRecovery())), material.cooldownRecovery()),
+                new MaterialMetric(Component.translatable("message.totem.space_unit.material_load", signed(material.routeLoadCapacity())), material.routeLoadCapacity()),
+                new MaterialMetric(Component.translatable("message.totem.space_unit.material_catalyst", signed(material.crossDimensionCatalystUnits())), material.crossDimensionCatalystUnits())
         );
         int columnWidth = Math.max(100, (width - 24) / 2);
         for (int index = 0; index < metrics.size(); index++) {
@@ -1028,12 +1028,12 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
                 ? materialMapText(material.familyCounts(), false)
                 : expandedFamily.family() + " ×" + expandedFamily.blockCount();
         extractor.text(this.font, trimToWidth(Component.translatable(
-                "message.deadrecall.space_unit.material_families", familyLabel).getString(), width - 20),
+                "message.totem.space_unit.material_families", familyLabel).getString(), width - 20),
                 x + 10, mapsY, expandedFamily == null ? 0xFFB8D9F3 : 0xFFFFD166);
         if (!material.familyContributions().isEmpty()
                 && isInside(mouseX, mouseY, x + 8, mapsY - 2, width - 16, 14)) {
             extractor.setTooltipForNextFrame(
-                    Component.translatable("message.deadrecall.space_unit.material_families_hint"), mouseX, mouseY);
+                    Component.translatable("message.totem.space_unit.material_families_hint"), mouseX, mouseY);
         }
         int detailOffset = expandedFamily == null ? 0 : 16;
         if (expandedFamily != null) {
@@ -1041,15 +1041,15 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
                     x + 10, mapsY + 16, contributionColor(expandedFamily));
         }
         String affinityText = selected == null
-                ? Component.translatable("message.deadrecall.space_unit.material_affinity",
+                ? Component.translatable("message.totem.space_unit.material_affinity",
                 materialMapText(material.dimensionAffinity(), true)).getString()
-                : Component.translatable("message.deadrecall.space_unit.material_route_affinity",
+                : Component.translatable("message.totem.space_unit.material_route_affinity",
                 materialMapText(this.payload.sourceMaterial().dimensionAffinity(), true),
                 materialMapText(material.dimensionAffinity(), true)).getString();
         extractor.text(this.font, trimToWidth(affinityText, width - 20),
                 x + 10, mapsY + 16 + detailOffset, 0xFFD9C394);
         if (material.rawStructuralBlocks() == 0) {
-            extractor.text(this.font, Component.translatable("message.deadrecall.space_unit.material_empty"),
+            extractor.text(this.font, Component.translatable("message.totem.space_unit.material_empty"),
                     x + 10, mapsY + 42 + detailOffset, 0xFFFFD166);
         }
         drawMaintenanceTargets(extractor, material, x, mapsY + 42 + detailOffset, width, mouseX, mouseY);
@@ -1068,7 +1068,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             return;
         }
         extractor.text(this.font, Component.translatable(
-                "message.deadrecall.space_unit.maintenance_targets", material.maintenanceItemCost()),
+                "message.totem.space_unit.maintenance_targets", material.maintenanceItemCost()),
                 x + 10, y, 0xFFFFD166);
         int rowY = y + 14;
         int visible = Math.min(5, targets.size());
@@ -1081,7 +1081,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             extractor.fill(x + 8, rowY, x + width - 92, rowY + 14,
                     selected ? 0xFF4B3D24 : hovered ? 0xFF343029 : 0x8020252B);
             extractor.outline(x + 8, rowY, width - 100, 14, selected ? 0xFFFFD166 : 0xFF4B5663);
-            String line = Component.translatable("message.deadrecall.space_unit.maintenance_target_row",
+            String line = Component.translatable("message.totem.space_unit.maintenance_target_row",
                     target.x(), target.y(), target.z(), target.family()).getString();
             extractor.text(this.font, trimToWidth(line, width - 112), x + 12, rowY + 3, 0xFFE8EDF2);
             rowY += 16;
@@ -1128,7 +1128,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
 
     private String materialContributionText(SpaceUnitMapPayload.FamilyContribution contribution) {
         if (contribution.attributes().isEmpty()) {
-            return Component.translatable("message.deadrecall.space_unit.material_empty").getString();
+            return Component.translatable("message.totem.space_unit.material_empty").getString();
         }
         return contribution.attributes().entrySet().stream()
                 .sorted(java.util.Map.Entry.comparingByKey())
@@ -1238,7 +1238,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         for (String dimension : this.dimensions) {
             int tabWidth = Math.min(132, Math.max(64, this.font.width(shortDimension(dimension)) + 18));
             if (x + tabWidth > maxRight) {
-                extractor.text(this.font, Component.translatable("message.deadrecall.space_unit.map_more_dimensions"), x + 4, y + 6, 0xFF9AA3AD);
+                extractor.text(this.font, Component.translatable("message.totem.space_unit.map_more_dimensions"), x + 4, y + 6, 0xFF9AA3AD);
                 return;
             }
 
@@ -1261,8 +1261,8 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         MapItemSavedData cached = cachedMapData();
         if (cached == null) {
             this.renderedMapLabels = List.of();
-            Component unavailable = Component.translatable("message.deadrecall.space_unit.map_data_unavailable");
-            Component detail = Component.translatable("message.deadrecall.space_unit.map_data_unavailable_detail");
+            Component unavailable = Component.translatable("message.totem.space_unit.map_data_unavailable");
+            Component detail = Component.translatable("message.totem.space_unit.map_data_unavailable_detail");
             extractor.centeredText(this.font, unavailable, x + width / 2, y + height / 2 - 10, 0xFFFFD166);
             extractor.centeredText(this.font, trimToWidth(detail.getString(), Math.max(1, width - 16)),
                     x + width / 2, y + height / 2 + 6, 0xFFB8C0C8);
@@ -1286,7 +1286,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
 
     private void drawMapNavigationHint(GuiGraphicsExtractor extractor) {
         String hint = Component.translatable(
-                "message.deadrecall.space_unit.map_navigation_hint", this.mapZoom * 100).getString();
+                "message.totem.space_unit.map_navigation_hint", this.mapZoom * 100).getString();
         hint = trimToWidth(hint, Math.max(1, mapWidth() - 16));
         int textWidth = this.font.width(hint);
         int x = mapX() + 6;
@@ -1306,10 +1306,10 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         if (isInside(mouseX, mouseY, x + 12, y + 12, 16, 16)) {
             extractor.setTooltipForNextFrame(interfaceTooltip(), mouseX, mouseY);
         }
-        extractor.text(this.font, Component.translatable("message.deadrecall.space_unit.management_only"),
+        extractor.text(this.font, Component.translatable("message.totem.space_unit.management_only"),
                 x + 36, y + 10, 0xFFFFFFFF);
         extractor.text(this.font,
-                trimToWidth(Component.translatable("message.deadrecall.space_unit.management_only_detail").getString(),
+                trimToWidth(Component.translatable("message.totem.space_unit.management_only_detail").getString(),
                         width - 48),
                 x + 36, y + 23, 0xFFB8C0C8);
 
@@ -1321,9 +1321,9 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         int sourceY = interfaceY - this.font.lineHeight * 2;
         SpaceUnitMapPayload.Entry source = sourceEntry();
         String sourceName = source == null ? displayNexusName(this.payload.sourceName()) : displayNexusName(source.name());
-        extractor.text(this.font, Component.translatable("message.deadrecall.space_unit.management_bound_source", sourceName),
+        extractor.text(this.font, Component.translatable("message.totem.space_unit.management_bound_source", sourceName),
                 x + 14, sourceY, 0xFFFFD166);
-        extractor.text(this.font, Component.translatable("message.deadrecall.space_unit.management_interface",
+        extractor.text(this.font, Component.translatable("message.totem.space_unit.management_interface",
                         Component.translatable(interfaceNameKey())),
                 x + 14, interfaceY, 0xFFE0E6EC);
         if (source != null) {
@@ -1332,10 +1332,10 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             extractor.text(this.font, Component.translatable(source.interfaceBonusMessageKey()),
                     x + 14, bonusY, source.interfaceBonusActive() ? 0xFF8BD9A0 : 0xFF93A4B5);
         } else {
-            extractor.text(this.font, Component.translatable("message.deadrecall.space_unit.management_source_unavailable"),
+            extractor.text(this.font, Component.translatable("message.totem.space_unit.management_source_unavailable"),
                     x + 14, summaryY, 0xFFFFD166);
         }
-        String controlsHint = Component.translatable("message.deadrecall.space_unit.management_controls_hint").getString();
+        String controlsHint = Component.translatable("message.totem.space_unit.management_controls_hint").getString();
         extractor.text(this.font, trimToWidth(controlsHint, width - 28),
                 x + 14, hintY, 0xFFB8C0C8);
     }
@@ -1513,7 +1513,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
 
     private Component nexusName(String name) {
         return name == null || name.isBlank()
-                ? Component.translatable("message.deadrecall.space_unit.map_unnamed_nexus")
+                ? Component.translatable("message.totem.space_unit.map_unnamed_nexus")
                 : Component.literal(name.strip());
     }
 
@@ -1552,7 +1552,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         extractor.fill(x, y, x + width, y + height, 0x80101010);
         extractor.outline(x, y, width, height, 0xFF3F4A56);
         List<SpaceUnitMapPayload.Entry> entries = entriesForActiveDimension();
-        String nodeTitle = Component.translatable("message.deadrecall.space_unit.map_nodes", entries.size()).getString();
+        String nodeTitle = Component.translatable("message.totem.space_unit.map_nodes", entries.size()).getString();
         int titleWidth = Math.max(0, visibilityButtonX() - x - 12);
         if (titleWidth > 8) {
             extractor.text(this.font, trimToWidth(nodeTitle, titleWidth), x + 8, y + 7, 0xFFFFFFFF);
@@ -1576,7 +1576,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
 
         if (entries.isEmpty()) {
             extractor.text(this.font,
-                    trimToWidth(Component.translatable("message.deadrecall.space_unit.map_dimension_empty").getString(),
+                    trimToWidth(Component.translatable("message.totem.space_unit.map_dimension_empty").getString(),
                             Math.max(1, width - 16)),
                     x + 8, y + 28, 0xFFFFC857);
         } else if (entries.size() > rowsVisible) {
@@ -1593,9 +1593,9 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         int firstButtonX = firstFooterButtonX();
         int width = Math.max(36, firstButtonX - x - 8);
         String title = selected == null
-                ? Component.translatable("message.deadrecall.space_unit.map_source_footer", this.payload.sourceName()).getString()
+                ? Component.translatable("message.totem.space_unit.map_source_footer", this.payload.sourceName()).getString()
                 : Component.translatable(
-                        "message.deadrecall.space_unit.map_selected_footer",
+                        "message.totem.space_unit.map_selected_footer",
                         selected.name(),
                         localizedType(selected.type()),
                         selected.dimension(),
@@ -1629,12 +1629,12 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
                 new QuoteMetric(
                         new ItemStack(Items.SPYGLASS),
                         distanceMetricValue(entry),
-                        Component.translatable("message.deadrecall.space_unit.metric.distance", distanceText(entry))),
+                        Component.translatable("message.totem.space_unit.metric.distance", distanceText(entry))),
                 new QuoteMetric(
                         new ItemStack(Items.GOLDEN_CARROT),
                         comparisonValue(entry.baseFoodCost(), entry.finalFoodCost()),
                         Component.translatable(
-                                "message.deadrecall.space_unit.metric.food_quote",
+                                "message.totem.space_unit.metric.food_quote",
                                 entry.baseFoodCost(),
                                 entry.finalFoodCost(),
                                 entry.saturationCost(),
@@ -1644,16 +1644,16 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
                 new QuoteMetric(
                         new ItemStack(Items.COOKED_BEEF),
                         Integer.toString(entry.hungerCost()),
-                        Component.translatable("message.deadrecall.space_unit.metric.hunger", entry.hungerCost())),
+                        Component.translatable("message.totem.space_unit.metric.hunger", entry.hungerCost())),
                 new QuoteMetric(
                         new ItemStack(Items.BREAD),
                         entry.foodPointsNeeded() + "/" + entry.safeFoodPointsAvailable(),
-                        Component.translatable("message.deadrecall.space_unit.metric.food",
+                        Component.translatable("message.totem.space_unit.metric.food",
                                 entry.foodPointsNeeded(), entry.safeFoodPointsAvailable())),
                 new QuoteMetric(
                         new ItemStack(Items.AMETHYST_SHARD),
                         entry.amethystCost() + "/" + entry.amethystAvailable(),
-                        Component.translatable("message.deadrecall.space_unit.metric.amethyst_breakdown",
+                        Component.translatable("message.totem.space_unit.metric.amethyst_breakdown",
                                 entry.baseAmethystCost(), signed(entry.sourceCatalysts()),
                                 signed(entry.targetCatalysts()), signed(entry.catalystDiscount()),
                                 entry.amethystCost() + "/" + entry.amethystAvailable())),
@@ -1661,13 +1661,13 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
                         new ItemStack(Items.CLOCK),
                         comparisonValue(seconds(entry.basePrepareTicks()), seconds(entry.prepareTicks())),
                         Component.translatable(
-                                "message.deadrecall.space_unit.metric.time_quote",
+                                "message.totem.space_unit.metric.time_quote",
                                 seconds(entry.basePrepareTicks()),
                                 seconds(entry.prepareTicks()))),
                 new QuoteMetric(
                         new ItemStack(Items.COMPASS),
                         Long.toString(Math.round(entry.resonance() * 100.0D)),
-                        Component.translatable("message.deadrecall.space_unit.metric.stability",
+                        Component.translatable("message.totem.space_unit.metric.stability",
                                 Math.round(entry.resonance() * 100.0D))),
                 new QuoteMetric(
                         new ItemStack(Items.ENDER_PEARL),
@@ -1675,7 +1675,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
                                 entry.baseMaxHorizontalDeviation(),
                                 entry.maxHorizontalDeviation()),
                         Component.translatable(
-                                "message.deadrecall.space_unit.metric.drift_quote",
+                                "message.totem.space_unit.metric.drift_quote",
                                 entry.baseMaxHorizontalDeviation(),
                                 entry.maxHorizontalDeviation())),
                 new QuoteMetric(
@@ -1684,7 +1684,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
                                 entry.baseStructureWearChancePercent(),
                                 entry.structureWearChancePercent()),
                         Component.translatable(
-                                "message.deadrecall.space_unit.metric.wear_quote",
+                                "message.totem.space_unit.metric.wear_quote",
                                 entry.baseStructureWearChancePercent(),
                                 entry.structureWearChancePercent()))
         );
@@ -1948,7 +1948,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
 
     private String sourceSummary() {
         return Component.translatable(
-                "message.deadrecall.space_unit.interface_source_summary",
+                "message.totem.space_unit.interface_source_summary",
                 Component.translatable(interfaceNameKey()),
                 this.payload.sourceName(),
                 this.payload.entries().size()
@@ -1972,7 +1972,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private String interfaceNameKey() {
-        return "message.deadrecall.space_unit.interface_name." + this.payload.interfaceType().id();
+        return "message.totem.space_unit.interface_name." + this.payload.interfaceType().id();
     }
 
     private boolean hasManagementCapabilities() {
@@ -1987,7 +1987,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     private String entrySummary(SpaceUnitMapPayload.Entry entry) {
         if (entry.dimension().equals(this.payload.sourceDimension())) {
             return Component.translatable(
-                    "message.deadrecall.space_unit.map_relative_summary",
+                    "message.totem.space_unit.map_relative_summary",
                     entry.x() - this.payload.sourceX(),
                     entry.z() - this.payload.sourceZ(),
                     totalFoodCost(entry),
@@ -1995,7 +1995,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
                     Math.round(entry.resonance() * 100.0D)).getString();
         }
         return Component.translatable(
-                "message.deadrecall.space_unit.map_absolute_summary",
+                "message.totem.space_unit.map_absolute_summary",
                 entry.x(),
                 entry.y(),
                 entry.z(),
@@ -2006,8 +2006,8 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
 
     private String distanceText(SpaceUnitMapPayload.Entry entry) {
         return entry.distanceBlocks() >= 0
-                ? Component.translatable("message.deadrecall.space_unit.map_distance_blocks", entry.distanceBlocks()).getString()
-                : Component.translatable("message.deadrecall.space_unit.map_distance_cross_dimension").getString();
+                ? Component.translatable("message.totem.space_unit.map_distance_blocks", entry.distanceBlocks()).getString()
+                : Component.translatable("message.totem.space_unit.map_distance_cross_dimension").getString();
     }
 
     private String distanceMetricValue(SpaceUnitMapPayload.Entry entry) {
@@ -2016,20 +2016,20 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
 
     private String managementSummary(SpaceUnitMapPayload.Entry entry) {
         return Component.translatable(
-                "message.deadrecall.space_unit.map_management_footer",
+                "message.totem.space_unit.map_management_footer",
                 visibilitySummary(entry),
                 entry.tier(),
                 Component.translatable(entry.manageable()
-                        ? "message.deadrecall.space_unit.map_manageable"
-                        : "message.deadrecall.space_unit.map_readonly").getString(),
+                        ? "message.totem.space_unit.map_manageable"
+                        : "message.totem.space_unit.map_readonly").getString(),
                 entry.administratorCount(),
                 entry.allowedPlayerCount()).getString();
     }
 
     private String visibilitySummary(SpaceUnitMapPayload.Entry entry) {
-        String visibility = Component.translatable("message.deadrecall.space_unit.visibility." + visibilityLabelId(entry.visibility())).getString();
+        String visibility = Component.translatable("message.totem.space_unit.visibility." + visibilityLabelId(entry.visibility())).getString();
         return entry.friendShared()
-                ? Component.translatable("message.deadrecall.space_unit.map_friend_shared", visibility).getString()
+                ? Component.translatable("message.totem.space_unit.map_friend_shared", visibility).getString()
                 : visibility;
     }
 
@@ -2054,7 +2054,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private String localizedType(String type) {
-        return Component.translatable("message.deadrecall.space_unit.type." + type).getString();
+        return Component.translatable("message.totem.space_unit.type." + type).getString();
     }
 
     private String favoritePrefix(SpaceUnitMapPayload.Entry entry) {
@@ -2283,19 +2283,19 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             this.visibilityButton.setMessage(visibilityButtonText());
         }
         if (this.adminButton != null) {
-            this.adminButton.setMessage(Component.translatable("message.deadrecall.space_unit.map_admins"));
+            this.adminButton.setMessage(Component.translatable("message.totem.space_unit.map_admins"));
         }
         if (this.accessButton != null) {
-            this.accessButton.setMessage(Component.translatable("message.deadrecall.space_unit.map_allowed"));
+            this.accessButton.setMessage(Component.translatable("message.totem.space_unit.map_allowed"));
         }
         if (this.renameButton != null) {
-            this.renameButton.setMessage(Component.translatable("message.deadrecall.space_unit.map_rename"));
+            this.renameButton.setMessage(Component.translatable("message.totem.space_unit.map_rename"));
         }
         if (this.calibrateButton != null) {
-            this.calibrateButton.setMessage(Component.translatable("message.deadrecall.space_unit.map_calibrate"));
+            this.calibrateButton.setMessage(Component.translatable("message.totem.space_unit.map_calibrate"));
         }
         if (this.friendsButton != null) {
-            this.friendsButton.setMessage(Component.translatable("message.deadrecall.space_unit.map_friends"));
+            this.friendsButton.setMessage(Component.translatable("message.totem.space_unit.map_friends"));
         }
         if (this.materialButton != null) {
             this.materialButton.setMessage(materialButtonText());
@@ -2303,30 +2303,30 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private Component typeFilterText() {
-        return Component.translatable("message.deadrecall.space_unit.map_filter", typeFilter.label());
+        return Component.translatable("message.totem.space_unit.map_filter", typeFilter.label());
     }
 
     private Component friendFilterText() {
-        return Component.translatable("message.deadrecall.space_unit.map_friend_filter", friendFilter.label());
+        return Component.translatable("message.totem.space_unit.map_friend_filter", friendFilter.label());
     }
 
     private Component sortModeText() {
-        return Component.translatable("message.deadrecall.space_unit.map_sort", sortMode.label());
+        return Component.translatable("message.totem.space_unit.map_sort", sortMode.label());
     }
 
     private Component favoriteButtonText() {
         SpaceUnitMapPayload.Entry selected = selectedEntry();
         return Component.translatable(selected != null && selected.favorite()
-                ? "message.deadrecall.space_unit.map_favorite_remove"
-                : "message.deadrecall.space_unit.map_favorite_add");
+                ? "message.totem.space_unit.map_favorite_remove"
+                : "message.totem.space_unit.map_favorite_add");
     }
 
     private Component visibilityButtonText() {
         SpaceUnitMapPayload.Entry selected = selectedEntry();
         if (selected == null) {
-            return Component.translatable("message.deadrecall.space_unit.visibility.private");
+            return Component.translatable("message.totem.space_unit.visibility.private");
         }
-        return Component.translatable("message.deadrecall.space_unit.visibility." + visibilityLabelId(selected.visibility()));
+        return Component.translatable("message.totem.space_unit.visibility." + visibilityLabelId(selected.visibility()));
     }
 
     private void syncSelectionWithFilters() {
@@ -2643,8 +2643,8 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
 
         private Component label() {
             return this == ALL
-                    ? Component.translatable("message.deadrecall.space_unit.map_filter_all")
-                    : Component.translatable("message.deadrecall.space_unit.type." + this.id);
+                    ? Component.translatable("message.totem.space_unit.map_filter_all")
+                    : Component.translatable("message.totem.space_unit.type." + this.id);
         }
     }
 
@@ -2668,7 +2668,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         }
 
         private Component label() {
-            return Component.translatable("message.deadrecall.space_unit.map_friend_filter_" + this.id);
+            return Component.translatable("message.totem.space_unit.map_friend_filter_" + this.id);
         }
     }
 
@@ -2691,7 +2691,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         }
 
         private Component label() {
-            return Component.translatable("message.deadrecall.space_unit.map_sort." + this.id);
+            return Component.translatable("message.totem.space_unit.map_sort." + this.id);
         }
     }
 
@@ -2701,7 +2701,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         private EditBox nameField;
 
         private RenameSpaceUnitScreen(SpaceUnitMapPayload.Entry target) {
-            super(Component.translatable("message.deadrecall.space_unit.rename_title"));
+            super(Component.translatable("message.totem.space_unit.rename_title"));
             this.targetUnitId = target.id();
             this.initialName = target.name();
         }
@@ -2714,13 +2714,13 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             int y = (this.height - dialogHeight) / 2;
 
             this.nameField = new EditBox(this.font, x + 12, y + 38, dialogWidth - 24, 18,
-                    Component.translatable("message.deadrecall.space_unit.rename_name"));
+                    Component.translatable("message.totem.space_unit.rename_name"));
             this.nameField.setMaxLength(MAX_RENAME_LENGTH);
             this.nameField.setValue(this.initialName);
             this.addRenderableWidget(this.nameField);
 
             this.addRenderableWidget(Button.builder(
-                            Component.translatable("message.deadrecall.space_unit.rename_save"),
+                            Component.translatable("message.totem.space_unit.rename_save"),
                             button -> submit())
                     .bounds(x + dialogWidth - 124, y + dialogHeight - 28, 54, 18)
                     .build());
@@ -2745,7 +2745,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             extractor.fill(x, y, x + dialogWidth, y + dialogHeight, 0xF016191D);
             extractor.outline(x, y, dialogWidth, dialogHeight, 0xFF657383);
             extractor.text(this.font, this.title, x + 12, y + 10, 0xFFFFFFFF);
-            extractor.text(this.font, Component.translatable("message.deadrecall.space_unit.rename_name"), x + 12, y + 28, 0xFFB8C0C8);
+            extractor.text(this.font, Component.translatable("message.totem.space_unit.rename_name"), x + 12, y + 28, 0xFFB8C0C8);
             super.extractRenderState(extractor, mouseX, mouseY, partialTick);
         }
 
@@ -2768,7 +2768,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         private EditBox playerNameField;
 
         private AccessSpaceUnitScreen(SpaceUnitMapPayload.Entry target, String role) {
-            super(Component.translatable("message.deadrecall.space_unit.access_title." + role));
+            super(Component.translatable("message.totem.space_unit.access_title." + role));
             this.targetUnitId = target.id();
             this.role = role;
         }
@@ -2781,17 +2781,17 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             int y = (this.height - dialogHeight) / 2;
 
             this.playerNameField = new EditBox(this.font, x + 12, y + 42, dialogWidth - 24, 18,
-                    Component.translatable("message.deadrecall.space_unit.access_player"));
+                    Component.translatable("message.totem.space_unit.access_player"));
             this.playerNameField.setMaxLength(MAX_ACCESS_PLAYER_NAME_LENGTH);
             this.addRenderableWidget(this.playerNameField);
 
             this.addRenderableWidget(Button.builder(
-                            Component.translatable("message.deadrecall.space_unit.access_add"),
+                            Component.translatable("message.totem.space_unit.access_add"),
                             button -> submit(true))
                     .bounds(x + dialogWidth - 184, y + dialogHeight - 28, 52, 18)
                     .build());
             this.addRenderableWidget(Button.builder(
-                            Component.translatable("message.deadrecall.space_unit.access_remove"),
+                            Component.translatable("message.totem.space_unit.access_remove"),
                             button -> submit(false))
                     .bounds(x + dialogWidth - 126, y + dialogHeight - 28, 58, 18)
                     .build());
@@ -2816,7 +2816,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             extractor.fill(x, y, x + dialogWidth, y + dialogHeight, 0xF016191D);
             extractor.outline(x, y, dialogWidth, dialogHeight, 0xFF657383);
             extractor.text(this.font, this.title, x + 12, y + 10, 0xFFFFFFFF);
-            extractor.text(this.font, Component.translatable("message.deadrecall.space_unit.access_player"), x + 12, y + 30, 0xFFB8C0C8);
+            extractor.text(this.font, Component.translatable("message.totem.space_unit.access_player"), x + 12, y + 30, 0xFFB8C0C8);
             super.extractRenderState(extractor, mouseX, mouseY, partialTick);
         }
 

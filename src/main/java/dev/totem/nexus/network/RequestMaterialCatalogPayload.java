@@ -8,7 +8,7 @@ import net.minecraft.resources.Identifier;
 /** Requests the current server-authoritative teleport-array material reference table. */
 public record RequestMaterialCatalogPayload() implements CustomPacketPayload {
     public static final Type<RequestMaterialCatalogPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "request_material_catalog"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/request_material_catalog"));
 
     public static final StreamCodec<FriendlyByteBuf, RequestMaterialCatalogPayload> CODEC =
             StreamCodec.of(

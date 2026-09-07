@@ -10,7 +10,7 @@ public final class NexusLodestoneIntegrityAuthority {
     public void tick(MinecraftServer server) {
         if (++ticks < 40) return;
         ticks = 0;
-        NexusSpaceUnitSavedData units = server.overworld().getDataStorage().computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
+        NexusSpaceUnitSavedData units = NexusSpaceUnitSavedData.loadCanonical(server.overworld().getDataStorage());
         for (NexusSpaceUnitRecord unit : units.activeLodestones()) {
             ServerLevel level = server.getLevel(unit.dimension());
             if (level != null && level.isLoaded(unit.pos()) && !level.getBlockState(unit.pos()).is(Blocks.LODESTONE)) units.disableLodestone(unit.id(), level.getGameTime());

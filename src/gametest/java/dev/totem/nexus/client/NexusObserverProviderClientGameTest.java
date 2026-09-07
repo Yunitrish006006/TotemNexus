@@ -202,9 +202,9 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                 "minecraft:overworld", id.equals(SOURCE) ? 1 : 24, 64, id.equals(SOURCE) ? 1 : 24,
                 0.9D, 2, id.equals(SOURCE) ? 0 : 32, 0, 0, 0, 0, 0, 20,
                 0, 0, 20, 20, 4, 4, 0, 0, 0,
-                false, "message.deadrecall.space_unit.interface_bonus.compass",
+                false, "message.totem.space_unit.interface_bonus.compass",
                 false, true, true, 0, 0, canTeleport,
-                canTeleport ? "" : "message.deadrecall.space_unit.teleport_blocked.same_source");
+                canTeleport ? "" : "message.totem.space_unit.teleport_blocked.same_source");
     }
 
     private static SpaceUnitFriendsPayload friends(int count) {

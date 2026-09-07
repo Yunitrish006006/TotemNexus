@@ -5,6 +5,7 @@ import dev.totem.core.api.v1.death.DeathRetainedItemPolicy;
 import dev.totem.nexus.network.NexusAuthorityPayloadHandler;
 import dev.totem.nexus.network.NexusMaterialCatalogNetworking;
 import dev.totem.nexus.network.NexusPayloadRegistration;
+import dev.totem.nexus.migration.LegacyNexusGameRuleMigration;
 import dev.totem.nexus.space.NexusArrayVisualizationAuthority;
 import dev.totem.nexus.space.NexusDeathBackpackNodeAdapter;
 import dev.totem.nexus.space.NexusDeathNodeAdminAuthority;
@@ -60,19 +61,20 @@ public final class NexusAuthorityBootstrap {
             if (entity instanceof ServerPlayer player && damageTaken > 0.0F) {
                 NexusSpaceUnitAuthority.cancelTeleport(
                         player,
-                        Component.translatable("message.deadrecall.space_unit.teleport_cancelled.damage")
+                        Component.translatable("message.totem.space_unit.teleport_cancelled.damage")
                 );
             }
         });
         ServerTickEvents.END_SERVER_TICK.register(authority::tickTeleportSessions);
         ServerTickEvents.END_SERVER_TICK.register(authority::tickLodestoneIntegrity);
+        ServerLifecycleEvents.SERVER_STARTED.register(LegacyNexusGameRuleMigration::migrate);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> NexusArrayVisualizationAuthority.shutdown());
         ServerPlayConnectionEvents.DISCONNECT.register((listener, server) -> {
             NexusDeathNodeAdminService.clearSession(listener.getPlayer().getUUID());
             NexusArrayVisualizationAuthority.disconnect(listener.getPlayer().getUUID());
         });
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
-                dispatcher.register(Commands.literal("deadrecall")
+                dispatcher.register(Commands.literal("totem")
                         .then(Commands.literal("deathnodes")
                                 .executes(context -> openDeathNodes(context.getSource().getPlayerOrException())))
                         .then(Commands.literal("deathpoints")

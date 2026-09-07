@@ -21,18 +21,18 @@ public final class TeleportInterfaceQuotePolicy {
         int deviation = clamp(baseDeviation, 0, MAX_DEVIATION);
         int wear = clamp(baseWearChance, 0, MAX_WEAR_CHANCE_PERCENT);
         if (interfaceType == TeleportInterfaceType.RECOVERY_COMPASS && targetType == SpaceUnitType.DEATH && targetOwnedByPlayer)
-            return new Quote(food, prepare, floor(deviation, .5D), wear, true, "message.deadrecall.space_unit.interface_bonus.recovery_compass.active");
+            return new Quote(food, prepare, floor(deviation, .5D), wear, true, "message.totem.space_unit.interface_bonus.recovery_compass.active");
         if (interfaceType == TeleportInterfaceType.BOOK && targetType == SpaceUnitType.LODESTONE && prepare > 0)
-            return new Quote(food, clamp(Math.max(BOOK_MIN_PREPARE_TICKS, ceil(prepare, .8D)), BOOK_MIN_PREPARE_TICKS, MAX_PREPARE_TICKS), deviation, floor(wear, .75D), true, "message.deadrecall.space_unit.interface_bonus.book.active");
+            return new Quote(food, clamp(Math.max(BOOK_MIN_PREPARE_TICKS, ceil(prepare, .8D)), BOOK_MIN_PREPARE_TICKS, MAX_PREPARE_TICKS), deviation, floor(wear, .75D), true, "message.totem.space_unit.interface_bonus.book.active");
         if (interfaceType == TeleportInterfaceType.FILLED_MAP && filledMapCoversTarget && (food > 0 || deviation > 0))
-            return new Quote(food == 0 ? 0 : Math.max(1, ceil(food, .8D)), prepare, floor(deviation, .8D), wear, true, "message.deadrecall.space_unit.interface_bonus.filled_map.active");
+            return new Quote(food == 0 ? 0 : Math.max(1, ceil(food, .8D)), prepare, floor(deviation, .8D), wear, true, "message.totem.space_unit.interface_bonus.filled_map.active");
         return new Quote(food, prepare, deviation, wear, false, inactiveMessageKey(interfaceType));
     }
     private static String inactiveMessageKey(TeleportInterfaceType type) { return switch (type) {
-        case COMPASS -> "message.deadrecall.space_unit.interface_bonus.compass";
-        case RECOVERY_COMPASS -> "message.deadrecall.space_unit.interface_bonus.recovery_compass.inactive";
-        case BOOK -> "message.deadrecall.space_unit.interface_bonus.book.inactive";
-        case FILLED_MAP -> "message.deadrecall.space_unit.interface_bonus.filled_map.inactive"; }; }
+        case COMPASS -> "message.totem.space_unit.interface_bonus.compass";
+        case RECOVERY_COMPASS -> "message.totem.space_unit.interface_bonus.recovery_compass.inactive";
+        case BOOK -> "message.totem.space_unit.interface_bonus.book.inactive";
+        case FILLED_MAP -> "message.totem.space_unit.interface_bonus.filled_map.inactive"; }; }
     private static int ceil(int value, double multiplier) { return (int) Math.ceil(value * multiplier); }
     private static int floor(int value, double multiplier) { return (int) Math.floor(value * multiplier); }
     private static int clamp(int value, int min, int max) { return Math.max(min, Math.min(max, value)); }

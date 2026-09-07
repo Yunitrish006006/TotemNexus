@@ -47,11 +47,11 @@ public final class NexusManualVisualGameTest implements FabricClientGameTest {
         context.waitFor(client -> reload.get() != null && reload.get().isDone());
         context.waitFor(client -> client.gui.overlay() == null);
         context.runOnClient(client -> {
-            String title = I18n.get("book.deadrecall.nexus_teleport_manual.title");
+            String title = I18n.get("book.totem.nexus_teleport_manual.title");
             if (!title.equals(expectedTitle)) {
                 throw new AssertionError(language + " Nexus manual resources were not loaded: " + title);
             }
-            String specialist = I18n.get("book.deadrecall.nexus_teleport_manual.page.19");
+            String specialist = I18n.get("book.totem.nexus_teleport_manual.page.19");
             if (!specialist.contains(expectedSpecialistText)) {
                 throw new AssertionError(language + " specialist material page was not loaded: " + specialist);
             }

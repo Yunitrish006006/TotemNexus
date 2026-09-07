@@ -9,7 +9,7 @@ import java.util.UUID;
 
 public record RequestSpaceUnitMapPayload(String sourceType, UUID sourceUnitId) implements CustomPacketPayload {
     public static final Type<RequestSpaceUnitMapPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "request_space_unit_map"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/request_space_unit_map"));
 
     public static final StreamCodec<FriendlyByteBuf, RequestSpaceUnitMapPayload> CODEC =
             StreamCodec.of(

@@ -2,24 +2,21 @@
   "parent": "deadrecall:root",
   "criteria": {
     "crafted_lodestone": {
-      "conditions": {
-        "recipe_id": "minecraft:lodestone"
-      },
-      "trigger": "minecraft:recipe_crafted"
+      "trigger": "minecraft:impossible"
     }
   },
   "display": {
     "announce_to_chat": false,
     "background": "minecraft:gui/advancements/backgrounds/end",
     "description": {
-      "translate": "advancements.deadrecall.nexus_lodestone_anchor.description"
+      "translate": "advancements.totem.nexus_lodestone_anchor.description"
     },
     "icon": {
       "id": "minecraft:lodestone"
     },
     "show_toast": true,
     "title": {
-      "translate": "advancements.deadrecall.nexus_root.title"
+      "translate": "advancements.totem.nexus_root.title"
     }
   },
   "requirements": [

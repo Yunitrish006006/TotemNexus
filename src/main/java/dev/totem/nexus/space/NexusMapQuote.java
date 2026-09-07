@@ -13,7 +13,7 @@ public record NexusMapQuote(
         boolean interfaceBonusActive, String interfaceBonusMessageKey, boolean canTeleport, String blockedReason) {
     public NexusMapQuote {
         interfaceBonusMessageKey = interfaceBonusMessageKey == null || interfaceBonusMessageKey.isBlank()
-                ? "message.deadrecall.space_unit.interface_bonus.compass" : interfaceBonusMessageKey;
+                ? "message.totem.space_unit.interface_bonus.compass" : interfaceBonusMessageKey;
         blockedReason = blockedReason == null ? "" : blockedReason;
     }
 

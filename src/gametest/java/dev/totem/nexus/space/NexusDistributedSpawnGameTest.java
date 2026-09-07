@@ -91,11 +91,11 @@ public final class NexusDistributedSpawnGameTest {
 
     @GameTest(maxTicks = 20)
     public void savedDataKeysPreserveLegacyWorldDataUnderCoreOwnership(GameTestHelper helper) {
-        if (!NexusSpaceUnitSavedData.TYPE.id().toString().equals("deadrecall:space_units")
-                || !NexusSpaceDiscoverySavedData.TYPE.id().toString().equals("deadrecall:space_discovery")
-                || !TotemFriendSavedData.TYPE.id().toString().equals("deadrecall:space_friends")
+        if (!NexusSpaceUnitSavedData.TYPE.id().toString().equals("totem:space_units")
+                || !NexusSpaceDiscoverySavedData.TYPE.id().toString().equals("totem:space_discovery")
+                || !TotemFriendSavedData.TYPE.id().toString().equals("totem:space_friends")
                 || !NexusFriendSavedData.TYPE.id().toString().equals("totem-nexus:friendship_view")
-                || !NexusDistributedSpawnSavedData.TYPE.id().toString().equals("deadrecall:distributed_spawns")) {
+                || !NexusDistributedSpawnSavedData.TYPE.id().toString().equals("totem:distributed_spawns")) {
             helper.fail("Core/Nexus friendship ownership changed an expected SavedData key");
             return;
         }
@@ -565,7 +565,7 @@ public final class NexusDistributedSpawnGameTest {
                 new NexusTeleportQuoteCalculator.Resources(player, false, 5, 10, 0, 0), false);
         var payable = NexusTeleportQuoteCalculator.calculate(source, target, TeleportInterfaceType.COMPASS,
                 new NexusTeleportQuoteCalculator.Resources(player, false, 20, 20, 20, 10), false);
-        if (blocked.canTeleport() || !blocked.blockedReason().equals("message.deadrecall.space_unit.teleport_blocked.amethyst")
+        if (blocked.canTeleport() || !blocked.blockedReason().equals("message.totem.space_unit.teleport_blocked.amethyst")
                 || !payable.canTeleport() || payable.amethystCost() < 2 || payable.prepareTicks() < 40) {
             helper.fail("Teleport quote calculator did not preserve cross-dimension resource gates");
             return;
@@ -580,7 +580,7 @@ public final class NexusDistributedSpawnGameTest {
                 helper.getLevel().dimension(), new BlockPos(0, 64, 0), TeleportInterfaceType.COMPASS, false, false, 2);
         var moved = new NexusTeleportExecutionSession.PlayerState(true, false, helper.getLevel().dimension(), new BlockPos(5, 64, 0));
         NexusTeleportSessionStore store = new NexusTeleportSessionStore(); store.start(session);
-        if (!session.cancellationReason(moved).equals("message.deadrecall.space_unit.teleport_cancelled.moved")
+        if (!session.cancellationReason(moved).equals("message.totem.space_unit.teleport_cancelled.moved")
                 || store.tick(player).filter(next -> next.remainingTicks() == 1 && !next.ready()).isEmpty()
                 || store.tick(player).filter(NexusTeleportExecutionSession::ready).isEmpty() || store.get(player).isPresent()) {
             helper.fail("Teleport session did not enforce movement cancellation or preparation completion");

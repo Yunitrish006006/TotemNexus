@@ -12,8 +12,8 @@ public final class NexusTeleportResolver {
         if ("player".equals(sourceType) && player.getUUID().equals(sourceId))
             return Optional.of(new NexusTeleportQuoteCalculator.Source(player.getUUID(), "player", player.level().dimension(), player.blockPosition(), .6D, 0, 0));
         if (!"lodestone".equals(sourceType) || sourceId == null) return Optional.empty();
-        NexusSpaceUnitSavedData units = player.level().getServer().overworld().getDataStorage().computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
-        NexusSpaceDiscoverySavedData discovery = player.level().getServer().overworld().getDataStorage().computeIfAbsent(NexusSpaceDiscoverySavedData.TYPE);
+        NexusSpaceUnitSavedData units = NexusSpaceUnitSavedData.loadCanonical(player.level().getServer().overworld().getDataStorage());
+        NexusSpaceDiscoverySavedData discovery = NexusSpaceDiscoverySavedData.loadCanonical(player.level().getServer().overworld().getDataStorage());
         NexusFriendSavedData friends = player.level().getServer().overworld().getDataStorage().computeIfAbsent(NexusFriendSavedData.TYPE);
         return units.get(sourceId).filter(unit -> unit.isLodestoneAnchor() && unit.status() == SpaceUnitStatus.ACTIVE
                         && unit.canView(player.getUUID(), friends.areFriends(player.getUUID(), unit.owner())) && discovery.hasDiscovered(player.getUUID(), unit.id()))
@@ -22,8 +22,8 @@ public final class NexusTeleportResolver {
     public static Optional<NexusTeleportQuoteCalculator.Target> target(ServerPlayer player, UUID targetId) {
         if (targetId == null) return Optional.empty();
         var server = player.level().getServer();
-        NexusSpaceUnitSavedData units = server.overworld().getDataStorage().computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
-        NexusSpaceDiscoverySavedData discovery = server.overworld().getDataStorage().computeIfAbsent(NexusSpaceDiscoverySavedData.TYPE);
+        NexusSpaceUnitSavedData units = NexusSpaceUnitSavedData.loadCanonical(server.overworld().getDataStorage());
+        NexusSpaceDiscoverySavedData discovery = NexusSpaceDiscoverySavedData.loadCanonical(server.overworld().getDataStorage());
         NexusFriendSavedData friends = server.overworld().getDataStorage().computeIfAbsent(NexusFriendSavedData.TYPE);
         Optional<NexusSpaceUnitRecord> unit = units.get(targetId);
         if (unit.isPresent()) return unit.filter(value -> value.status() == SpaceUnitStatus.ACTIVE

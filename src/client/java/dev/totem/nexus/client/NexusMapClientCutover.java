@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Explicit client-side half of the map cutover. The module entrypoint does
- * not call this while DeadRecall still owns the live payload receiver.
+ * registers it with the canonical Nexus payload receiver.
  */
 public final class NexusMapClientCutover {
     private static final AtomicBoolean ACTIVATED = new AtomicBoolean();

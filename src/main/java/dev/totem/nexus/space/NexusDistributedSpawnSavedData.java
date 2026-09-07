@@ -10,6 +10,7 @@ import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
+import net.minecraft.world.level.storage.SavedDataStorage;
 
 import java.util.HashMap;
 import java.util.List;
@@ -34,6 +35,12 @@ public class NexusDistributedSpawnSavedData extends SavedData {
     ).apply(instance, NexusDistributedSpawnSavedData::new));
 
     public static final SavedDataType<NexusDistributedSpawnSavedData> TYPE = new SavedDataType<>(
+            Identifier.fromNamespaceAndPath("totem", "distributed_spawns"),
+            NexusDistributedSpawnSavedData::new,
+            CODEC,
+            DataFixTypes.SAVED_DATA_COMMAND_STORAGE
+    );
+    static final SavedDataType<NexusDistributedSpawnSavedData> LEGACY_COMPATIBILITY_TYPE = new SavedDataType<>(
             Identifier.fromNamespaceAndPath("deadrecall", "distributed_spawns"),
             NexusDistributedSpawnSavedData::new,
             CODEC,
@@ -45,6 +52,17 @@ public class NexusDistributedSpawnSavedData extends SavedData {
 
     public NexusDistributedSpawnSavedData() {
         this(DATA_VERSION, List.of());
+    }
+
+    /** Canonical-first loader with a one-way, non-destructive legacy copy. */
+    public static synchronized NexusDistributedSpawnSavedData loadCanonical(SavedDataStorage storage) {
+        NexusDistributedSpawnSavedData canonical = storage.get(TYPE);
+        if (canonical != null) return canonical;
+        NexusDistributedSpawnSavedData legacy = storage.get(LEGACY_COMPATIBILITY_TYPE);
+        if (legacy == null) return storage.computeIfAbsent(TYPE);
+        NexusDistributedSpawnSavedData migrated = new NexusDistributedSpawnSavedData(legacy.dataVersion, legacy.playerList());
+        storage.set(TYPE, migrated);
+        return migrated;
     }
 
     private NexusDistributedSpawnSavedData(int dataVersion, List<PlayerSpawn> players) {

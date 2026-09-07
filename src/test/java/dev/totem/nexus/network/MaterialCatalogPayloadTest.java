@@ -13,7 +13,7 @@ class MaterialCatalogPayloadTest {
     void acceptsSignedMaterialAttributesAndAffinity() {
         MaterialCatalogPayload.Entry entry = new MaterialCatalogPayload.Entry(
                 "minecraft:gold_block",
-                "deadrecall:gold_block",
+                "totem:nexus/gold_block",
                 "gold",
                 true,
                 Map.of(
@@ -38,7 +38,7 @@ class MaterialCatalogPayloadTest {
     void rejectsInvalidBlockIdentifier() {
         assertThrows(IllegalArgumentException.class, () -> new MaterialCatalogPayload.Entry(
                 "not a block id",
-                "deadrecall:test",
+                "totem:nexus/test",
                 "test",
                 true,
                 Map.of(),
@@ -50,7 +50,7 @@ class MaterialCatalogPayloadTest {
     void rejectsUnsafeAttributeMagnitude() {
         assertThrows(IllegalArgumentException.class, () -> new MaterialCatalogPayload.Entry(
                 "minecraft:stone",
-                "deadrecall:test",
+                "totem:nexus/test",
                 "test",
                 true,
                 Map.of("stability", 65),

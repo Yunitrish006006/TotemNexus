@@ -55,8 +55,8 @@ public final class NexusMapOpenAuthority {
         if (player == null || context == null) return java.util.Optional.empty();
         if (!SpaceUnitType.LODESTONE.id().equals(context.sourceType())) return java.util.Optional.empty();
         var storage = player.level().getServer().overworld().getDataStorage();
-        NexusSpaceUnitSavedData units = storage.computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
-        NexusSpaceDiscoverySavedData discovery = storage.computeIfAbsent(NexusSpaceDiscoverySavedData.TYPE);
+        NexusSpaceUnitSavedData units = NexusSpaceUnitSavedData.loadCanonical(storage);
+        NexusSpaceDiscoverySavedData discovery = NexusSpaceDiscoverySavedData.loadCanonical(storage);
         NexusFriendSavedData friends = storage.computeIfAbsent(NexusFriendSavedData.TYPE);
         return units.get(context.sourceId()).filter(source -> source.isLodestoneAnchor()
                 && source.status() == SpaceUnitStatus.ACTIVE

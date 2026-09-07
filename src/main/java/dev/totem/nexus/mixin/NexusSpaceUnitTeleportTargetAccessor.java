@@ -8,8 +8,8 @@ import java.util.UUID;
 @Mixin(targets = "dev.totem.nexus.space.NexusSpaceUnitAuthority$TeleportTarget")
 public interface NexusSpaceUnitTeleportTargetAccessor {
     @Accessor("id")
-    UUID deadrecall$getId();
+    UUID totem$getId();
 
     @Accessor("lodestoneAnchor")
-    boolean deadrecall$isLodestoneAnchor();
+    boolean totem$isLodestoneAnchor();
 }

@@ -19,7 +19,7 @@ final class NexusSpaceUnitRegistrationPreviewScreen extends NexusOwnedScreen {
     }
 
     NexusSpaceUnitRegistrationPreviewScreen(SpaceUnitRegistrationPreviewPayload payload, boolean observer, Runnable stop) {
-        super(Component.translatable("message.deadrecall.space_unit.registration_gui_title"), observer, stop);
+        super(Component.translatable("message.totem.space_unit.registration_gui_title"), observer, stop);
         this.payload = payload;
     }
 
@@ -28,7 +28,7 @@ final class NexusSpaceUnitRegistrationPreviewScreen extends NexusOwnedScreen {
         int x = (this.width - DIALOG_WIDTH) / 2;
         int y = (this.height - DIALOG_HEIGHT) / 2;
         this.addRenderableWidget(Button.builder(
-                        Component.translatable("message.deadrecall.space_unit.registration_gui_confirm"),
+                        Component.translatable("message.totem.space_unit.registration_gui_confirm"),
                         button -> confirm())
                 .bounds(x + DIALOG_WIDTH - 132, y + DIALOG_HEIGHT - 28, 58, 18)
                 .build());
@@ -52,23 +52,23 @@ final class NexusSpaceUnitRegistrationPreviewScreen extends NexusOwnedScreen {
         extractor.outline(x, y, DIALOG_WIDTH, DIALOG_HEIGHT, 0xFF657383);
         extractor.text(this.font, this.title, x + 12, y + 10, 0xFFFFFFFF);
         extractor.text(this.font, Component.translatable(
-                "message.deadrecall.space_unit.registration_gui_position",
+                "message.totem.space_unit.registration_gui_position",
                 this.payload.dimension(),
                 this.payload.x(),
                 this.payload.y(),
                 this.payload.z()), x + 12, y + 29, 0xFFB8C0C8);
         extractor.text(this.font, Component.translatable(
-                "message.deadrecall.space_unit.registration_gui_structure",
+                "message.totem.space_unit.registration_gui_structure",
                 this.payload.tier(),
                 this.payload.resonancePercent(),
                 this.payload.completenessPercent(),
                 this.payload.wearPercent()), x + 12, y + 47, 0xFFE0E6EC);
         extractor.text(this.font, Component.translatable(
-                "message.deadrecall.space_unit.registration_gui_timeout",
+                "message.totem.space_unit.registration_gui_timeout",
                 this.payload.confirmSeconds()), x + 12, y + 65, 0xFFFFD166);
         int hintY = y + 84;
         for (var line : this.font.split(Component.translatable(
-                "message.deadrecall.space_unit.registration_gui_hint"), DIALOG_WIDTH - 24)) {
+                "message.totem.space_unit.registration_gui_hint"), DIALOG_WIDTH - 24)) {
             extractor.text(this.font, line, x + 12, hintY, 0xFF93A4B5);
             hintY += 10;
         }

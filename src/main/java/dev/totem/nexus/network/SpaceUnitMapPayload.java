@@ -29,7 +29,7 @@ public record SpaceUnitMapPayload(
         MaterialSummary sourceMaterial)
         implements CustomPacketPayload {
     public static final Type<SpaceUnitMapPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "space_unit_map"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/space_unit_map"));
     public static final int MAX_ENTRIES = 128;
     /** Sentinel used by management-only interfaces, which never carry a vanilla map identity. */
     public static final int NO_MAP_ID = -1;

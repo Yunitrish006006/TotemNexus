@@ -29,7 +29,7 @@ public final class NexusMapLifecycleAuthority {
                 || !level.getBlockState(anchorPos).is(Blocks.LODESTONE)) return Optional.empty();
 
         var storage = level.getServer().overworld().getDataStorage();
-        NexusSpaceUnitRecord unit = storage.computeIfAbsent(NexusSpaceUnitSavedData.TYPE).get(unitId)
+        NexusSpaceUnitRecord unit = NexusSpaceUnitSavedData.loadCanonical(storage).get(unitId)
                 .filter(value -> value.isLodestoneAnchor()
                         && value.status() == SpaceUnitStatus.ACTIVE
                         && value.dimension().equals(level.dimension())
@@ -46,7 +46,7 @@ public final class NexusMapLifecycleAuthority {
         result.remove(DataComponents.MAP_DECORATIONS);
         if (!NexusInterfaceBinding.write(result, level, anchorPos, unitId)) return Optional.empty();
 
-        NexusMapBindingSavedData bindings = storage.computeIfAbsent(NexusMapBindingSavedData.TYPE);
+        NexusMapBindingSavedData bindings = NexusMapBindingSavedData.loadCanonical(storage);
         if (!bindings.bind(mapId, unitId, GlobalPos.of(level.dimension(), anchorPos.immutable()), mapData)) {
             return Optional.empty();
         }
@@ -114,8 +114,7 @@ public final class NexusMapLifecycleAuthority {
         }
 
         MapId resultMapId = level.getFreeMapId();
-        NexusMapBindingSavedData bindings = level.getServer().overworld().getDataStorage()
-                .computeIfAbsent(NexusMapBindingSavedData.TYPE);
+        NexusMapBindingSavedData bindings = NexusMapBindingSavedData.loadCanonical(level.getServer().overworld().getDataStorage());
         if (!bindings.derive(validated.mapId(), validated.data(), resultMapId, resultData)) {
             return PostProcessResult.DENIED;
         }
@@ -130,7 +129,7 @@ public final class NexusMapLifecycleAuthority {
             byte scale,
             boolean locked,
             net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension) {
-        return NexusMapItemSavedDataInvoker.deadrecall$createExact(
+        return NexusMapItemSavedDataInvoker.totem$createExact(
                 centerX, centerZ, scale, false, false, locked, dimension);
     }
 
@@ -140,7 +139,7 @@ public final class NexusMapLifecycleAuthority {
         if (mapId == null) return RegistryResolution.NOT_NEXUS;
 
         var storage = level.getServer().overworld().getDataStorage();
-        NexusMapBindingSavedData.Entry entry = storage.computeIfAbsent(NexusMapBindingSavedData.TYPE)
+        NexusMapBindingSavedData.Entry entry = NexusMapBindingSavedData.loadCanonical(storage)
                 .get(mapId).orElse(null);
         if (entry == null) return RegistryResolution.NOT_NEXUS;
         UUID claimedUnitId = NexusInterfaceBinding.read(stack);
@@ -150,7 +149,7 @@ public final class NexusMapLifecycleAuthority {
                 || !entry.anchor().dimension().equals(mapData.dimension)
                 || entry.centerX() != mapData.centerX
                 || entry.centerZ() != mapData.centerZ) return RegistryResolution.INVALID_NEXUS;
-        NexusSpaceUnitRecord unit = storage.computeIfAbsent(NexusSpaceUnitSavedData.TYPE)
+        NexusSpaceUnitRecord unit = NexusSpaceUnitSavedData.loadCanonical(storage)
                 .get(entry.unitId()).filter(entry::matchesUnit).orElse(null);
         return unit == null
                 ? RegistryResolution.INVALID_NEXUS

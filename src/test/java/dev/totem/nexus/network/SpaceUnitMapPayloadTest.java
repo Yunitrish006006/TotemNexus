@@ -44,11 +44,11 @@ class SpaceUnitMapPayloadTest {
 
     @Test
     void acceptsConsistentMinimumPaidQuote() {
-        assertDoesNotThrow(() -> new SpaceUnitMapPayload.Entry(UUID.randomUUID(), "lodestone", "A", "private", false, "minecraft:overworld", 0,64,0,0,0,0,1,1,0,0,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,false,"message.deadrecall.space_unit.interface_bonus.compass",false,false,true,0,0,true,""));
+        assertDoesNotThrow(() -> new SpaceUnitMapPayload.Entry(UUID.randomUUID(), "lodestone", "A", "private", false, "minecraft:overworld", 0,64,0,0,0,0,1,1,0,0,1,1,1,0,1,0,0,0,0,0,0,0,0,0,0,false,"message.totem.space_unit.interface_bonus.compass",false,false,true,0,0,true,""));
     }
     @Test
     void rejectsAnAmethystDiscountThatMakesPaidTravelFree() {
-        assertThrows(IllegalArgumentException.class, () -> new SpaceUnitMapPayload.Entry(UUID.randomUUID(), "lodestone", "A", "private", false, "minecraft:overworld", 0,64,0,0,0,0,1,1,0,0,1,1,0,0,1,0,0,1,0,0,0,0,0,0,0,false,"message.deadrecall.space_unit.interface_bonus.compass",false,false,true,0,0,false,""));
+        assertThrows(IllegalArgumentException.class, () -> new SpaceUnitMapPayload.Entry(UUID.randomUUID(), "lodestone", "A", "private", false, "minecraft:overworld", 0,64,0,0,0,0,1,1,0,0,1,1,0,0,1,0,0,1,0,0,0,0,0,0,0,false,"message.totem.space_unit.interface_bonus.compass",false,false,true,0,0,false,""));
     }
 
     @Test
@@ -59,7 +59,7 @@ class SpaceUnitMapPayloadTest {
                 1, 0, 1, 0, 0, 0,
                 0, 0, 0, 0,
                 60, 80, 75,
-                false, "message.deadrecall.space_unit.interface_bonus.compass",
+                false, "message.totem.space_unit.interface_bonus.compass",
                 false, false, true, 0, 0, true, ""));
     }
 
@@ -71,7 +71,7 @@ class SpaceUnitMapPayloadTest {
                 1, 0, 1, 0, 0, 0,
                 0, 0, 0, 0,
                 60, 101, 75,
-                false, "message.deadrecall.space_unit.interface_bonus.compass",
+                false, "message.totem.space_unit.interface_bonus.compass",
                 false, false, true, 0, 0, true, ""));
     }
 
@@ -86,7 +86,7 @@ class SpaceUnitMapPayloadTest {
         SpaceUnitMapPayload.Entry entry = new SpaceUnitMapPayload.Entry(
                 UUID.randomUUID(), "lodestone", "A", "private", false, "minecraft:overworld", 0, 64, 0,
                 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                false, "message.deadrecall.space_unit.interface_bonus.compass", false, false, true, 0, 0, true, "")
+                false, "message.totem.space_unit.interface_bonus.compass", false, false, true, 0, 0, true, "")
                 .withMaterial(material);
         SpaceUnitMapPayload payload = new SpaceUnitMapPayload(
                 UUID.randomUUID(), "lodestone", "Source", "minecraft:overworld", 4, 64, 4,
@@ -107,7 +107,7 @@ class SpaceUnitMapPayloadTest {
                 0, 0, 0, 1, 1, 0, 0, 1, 1,
                 5, 0, 4, -3, -2, -1,
                 0, 0, 0, 0, 0, 0, 0,
-                false, "message.deadrecall.space_unit.interface_bonus.compass",
+                false, "message.totem.space_unit.interface_bonus.compass",
                 false, false, true, 0, 0, true, ""));
     }
 }

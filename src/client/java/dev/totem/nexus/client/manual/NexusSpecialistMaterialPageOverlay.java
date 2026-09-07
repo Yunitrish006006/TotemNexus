@@ -20,7 +20,7 @@ import java.util.Map;
 
 /** Renders server-authoritative material recommendations for the Nexus specialist manual pages. */
 public final class NexusSpecialistMaterialPageOverlay {
-    private static final String PAGE_PREFIX = "book.deadrecall.nexus_teleport_manual.page.";
+    private static final String PAGE_PREFIX = "book.totem.nexus_teleport_manual.page.";
     private static final int INK = 0xFF4B3826;
     private static final int MUTED = 0xFF765B3D;
     private static final int GOOD = 0xFF287A45;
@@ -59,18 +59,18 @@ public final class NexusSpecialistMaterialPageOverlay {
         requestRefresh();
         MaterialCatalogPayload catalog = NexusMaterialCatalogClientState.snapshot();
         if (catalog.entries().isEmpty()) {
-            centered(context, Component.translatable("book.deadrecall.nexus_specialist.loading"),
+            centered(context, Component.translatable("book.totem.nexus_specialist.loading"),
                     context.pageTop() + 72, WARN);
             return;
         }
 
         centered(context,
-                Component.translatable("book.deadrecall.nexus_specialist.server_revision", catalog.revision()),
+                Component.translatable("book.totem.nexus_specialist.server_revision", catalog.revision()),
                 context.pageTop() + 39, MUTED);
 
         List<MaterialCatalogPayload.Entry> ranked = ranked(catalog.entries(), specialist);
         if (ranked.isEmpty()) {
-            centered(context, Component.translatable("book.deadrecall.nexus_specialist.none"),
+            centered(context, Component.translatable("book.totem.nexus_specialist.none"),
                     context.pageTop() + 72, WARN);
             return;
         }
@@ -196,7 +196,7 @@ public final class NexusSpecialistMaterialPageOverlay {
     }
 
     private enum Specialist {
-        BACKBONE("book.deadrecall.nexus_specialist.metrics.backbone") {
+        BACKBONE("book.totem.nexus_specialist.metrics.backbone") {
             @Override
             boolean eligible(MaterialCatalogPayload.Entry entry) {
                 return entry.attribute("structure_capacity") > 1
@@ -219,7 +219,7 @@ public final class NexusSpecialistMaterialPageOverlay {
                         "structure_capacity", "stability", "wear_resistance");
             }
         },
-        EXPANSION("book.deadrecall.nexus_specialist.metrics.expansion") {
+        EXPANSION("book.totem.nexus_specialist.metrics.expansion") {
             @Override
             boolean eligible(MaterialCatalogPayload.Entry entry) {
                 return entry.attribute("scan_expansion_radius") > 0;
@@ -238,7 +238,7 @@ public final class NexusSpecialistMaterialPageOverlay {
                         "scan_expansion_radius", "structure_capacity");
             }
         },
-        PRECISION("book.deadrecall.nexus_specialist.metrics.precision") {
+        PRECISION("book.totem.nexus_specialist.metrics.precision") {
             @Override
             boolean eligible(MaterialCatalogPayload.Entry entry) {
                 return entry.attribute("arrival_accuracy") > 0 || entry.attribute("target_lock") > 0;
@@ -256,7 +256,7 @@ public final class NexusSpecialistMaterialPageOverlay {
                 return metricComponent(entry, "arrival_accuracy", "target_lock");
             }
         },
-        SPEED("book.deadrecall.nexus_specialist.metrics.speed") {
+        SPEED("book.totem.nexus_specialist.metrics.speed") {
             @Override
             boolean eligible(MaterialCatalogPayload.Entry entry) {
                 return entry.attribute("phase_speed") > 0 || entry.attribute("cooldown_recovery") > 0;
@@ -274,7 +274,7 @@ public final class NexusSpecialistMaterialPageOverlay {
                 return metricComponent(entry, "phase_speed", "cooldown_recovery");
             }
         },
-        EFFICIENCY("book.deadrecall.nexus_specialist.metrics.efficiency") {
+        EFFICIENCY("book.totem.nexus_specialist.metrics.efficiency") {
             @Override
             boolean eligible(MaterialCatalogPayload.Entry entry) {
                 return entry.attribute("food_efficiency") > 0
@@ -293,7 +293,7 @@ public final class NexusSpecialistMaterialPageOverlay {
                 return metricComponent(entry, "food_efficiency", "maintenance_efficiency");
             }
         },
-        CROSS_DIMENSION("book.deadrecall.nexus_specialist.metrics.cross_dimension") {
+        CROSS_DIMENSION("book.totem.nexus_specialist.metrics.cross_dimension") {
             @Override
             boolean eligible(MaterialCatalogPayload.Entry entry) {
                 return entry.attribute("cross_dimension_catalyst_units") > 0 || maxAffinity(entry) > 0;
@@ -310,7 +310,7 @@ public final class NexusSpecialistMaterialPageOverlay {
             @Override
             Component metrics(MaterialCatalogPayload.Entry entry) {
                 return Component.translatable(
-                        "book.deadrecall.nexus_specialist.metrics.cross_dimension",
+                        "book.totem.nexus_specialist.metrics.cross_dimension",
                         signed(entry.attribute("cross_dimension_catalyst_units")),
                         signed(maxAffinity(entry))
                 );

@@ -10,7 +10,7 @@ import java.util.UUID;
 public record ManageDeathNodeAdminPayload(UUID nodeId, String action, UUID confirmationToken) implements CustomPacketPayload {
     private static final int MAX_ACTION_LENGTH = 32;
     public static final Type<ManageDeathNodeAdminPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "manage_death_node_admin"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/manage_death_node_admin"));
 
     public static final StreamCodec<FriendlyByteBuf, ManageDeathNodeAdminPayload> CODEC = StreamCodec.of(
             (buf, payload) -> {

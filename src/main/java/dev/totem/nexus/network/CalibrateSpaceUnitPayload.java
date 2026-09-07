@@ -10,7 +10,7 @@ import java.util.UUID;
 public record CalibrateSpaceUnitPayload(String sourceType, UUID sourceUnitId, UUID targetUnitId)
         implements CustomPacketPayload {
     public static final Type<CalibrateSpaceUnitPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "calibrate_space_unit"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/calibrate_space_unit"));
 
     public static final StreamCodec<FriendlyByteBuf, CalibrateSpaceUnitPayload> CODEC =
             StreamCodec.of(

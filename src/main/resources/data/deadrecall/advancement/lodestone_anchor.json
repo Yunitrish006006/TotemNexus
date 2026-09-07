@@ -2,25 +2,18 @@
   "parent": "deadrecall:nexus_manual",
   "criteria": {
     "has_lodestone": {
-      "conditions": {
-        "items": [
-          {
-            "items": "minecraft:lodestone"
-          }
-        ]
-      },
-      "trigger": "minecraft:inventory_changed"
+      "trigger": "minecraft:impossible"
     }
   },
   "display": {
     "description": {
-      "translate": "advancements.deadrecall.nexus_lodestone_anchor.description"
+      "translate": "advancements.totem.nexus_lodestone_anchor.description"
     },
     "icon": {
       "id": "minecraft:lodestone"
     },
     "title": {
-      "translate": "advancements.deadrecall.nexus_lodestone_anchor.title"
+      "translate": "advancements.totem.nexus_lodestone_anchor.title"
     }
   },
   "requirements": [

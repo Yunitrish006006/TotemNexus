@@ -22,7 +22,7 @@ import java.util.UUID;
 @Mixin(NexusSpaceUnitAuthority.class)
 public abstract class NexusSpaceUnitOfflinePlayerNameMixin {
     @Inject(method = "friendEntry", at = @At("HEAD"), cancellable = true)
-    private static void deadrecall$useCachedNameForOfflineFriend(
+    private static void totem$useCachedNameForOfflineFriend(
             MinecraftServer server,
             UUID playerId,
             String status,
@@ -31,12 +31,12 @@ public abstract class NexusSpaceUnitOfflinePlayerNameMixin {
         ServerPlayer online = server.getPlayerList().getPlayer(playerId);
         String name = online != null
                 ? online.getName().getString()
-                : deadrecall$cachedPlayerName(server, playerId).orElseGet(() -> deadrecall$shortPlayerId(playerId));
+                : totem$cachedPlayerName(server, playerId).orElseGet(() -> totem$shortPlayerId(playerId));
         cir.setReturnValue(new SpaceUnitFriendsPayload.Entry(playerId, name, online != null, status));
     }
 
     @Inject(method = "playerDisplayName", at = @At("HEAD"), cancellable = true)
-    private static void deadrecall$useCachedPlayerDisplayName(
+    private static void totem$useCachedPlayerDisplayName(
             MinecraftServer server,
             UUID playerId,
             CallbackInfoReturnable<String> cir
@@ -46,23 +46,23 @@ public abstract class NexusSpaceUnitOfflinePlayerNameMixin {
             cir.setReturnValue(online.getName().getString());
             return;
         }
-        deadrecall$cachedPlayerName(server, playerId).ifPresent(cir::setReturnValue);
+        totem$cachedPlayerName(server, playerId).ifPresent(cir::setReturnValue);
     }
 
-    private static Optional<String> deadrecall$cachedPlayerName(MinecraftServer server, UUID playerId) {
-        Object cache = deadrecall$profileCache(server);
+    private static Optional<String> totem$cachedPlayerName(MinecraftServer server, UUID playerId) {
+        Object cache = totem$profileCache(server);
         if (cache == null) {
             return Optional.empty();
         }
 
-        Object profile = deadrecall$lookupProfile(cache, playerId);
+        Object profile = totem$lookupProfile(cache, playerId);
         if (profile == null) {
             return Optional.empty();
         }
 
-        String name = deadrecall$invokeNameAccessor(profile, "name");
+        String name = totem$invokeNameAccessor(profile, "name");
         if (name == null || name.isBlank()) {
-            name = deadrecall$invokeNameAccessor(profile, "getName");
+            name = totem$invokeNameAccessor(profile, "getName");
         }
         return name == null || name.isBlank() ? Optional.empty() : Optional.of(name);
     }
@@ -71,40 +71,40 @@ public abstract class NexusSpaceUnitOfflinePlayerNameMixin {
      * Minecraft 26.x mappings have changed the public cache accessor name more than once. Resolve
      * the cache reflectively so this compatibility shim does not depend on one mapping spelling.
      */
-    private static Object deadrecall$profileCache(MinecraftServer server) {
-        Object cache = deadrecall$invokeNoArg(server, "getProfileCache");
+    private static Object totem$profileCache(MinecraftServer server) {
+        Object cache = totem$invokeNoArg(server, "getProfileCache");
         if (cache == null) {
-            cache = deadrecall$invokeNoArg(server, "getUserCache");
+            cache = totem$invokeNoArg(server, "getUserCache");
         }
         if (cache == null) {
-            cache = deadrecall$invokeNoArg(server, "profileCache");
+            cache = totem$invokeNoArg(server, "profileCache");
         }
         if (cache == null) {
-            cache = deadrecall$invokeNoArg(server, "userCache");
+            cache = totem$invokeNoArg(server, "userCache");
         }
         if (cache != null) {
             return cache;
         }
 
-        Object services = deadrecall$invokeNoArg(server, "services");
+        Object services = totem$invokeNoArg(server, "services");
         if (services == null) {
-            services = deadrecall$invokeNoArg(server, "getServices");
+            services = totem$invokeNoArg(server, "getServices");
         }
         if (services == null) {
             return null;
         }
 
-        cache = deadrecall$invokeNoArg(services, "profileCache");
+        cache = totem$invokeNoArg(services, "profileCache");
         if (cache == null) {
-            cache = deadrecall$invokeNoArg(services, "userCache");
+            cache = totem$invokeNoArg(services, "userCache");
         }
         if (cache == null) {
-            cache = deadrecall$invokeNoArg(services, "nameToIdCache");
+            cache = totem$invokeNoArg(services, "nameToIdCache");
         }
         return cache;
     }
 
-    private static Object deadrecall$lookupProfile(Object cache, UUID playerId) {
+    private static Object totem$lookupProfile(Object cache, UUID playerId) {
         for (Method method : cache.getClass().getMethods()) {
             if (method.getParameterCount() != 1 || method.getParameterTypes()[0] != UUID.class) {
                 continue;
@@ -132,7 +132,7 @@ public abstract class NexusSpaceUnitOfflinePlayerNameMixin {
         return null;
     }
 
-    private static Object deadrecall$invokeNoArg(Object target, String methodName) {
+    private static Object totem$invokeNoArg(Object target, String methodName) {
         try {
             Method method = target.getClass().getMethod(methodName);
             return method.invoke(target);
@@ -141,7 +141,7 @@ public abstract class NexusSpaceUnitOfflinePlayerNameMixin {
         }
     }
 
-    private static String deadrecall$invokeNameAccessor(Object profile, String methodName) {
+    private static String totem$invokeNameAccessor(Object profile, String methodName) {
         try {
             Method method = profile.getClass().getMethod(methodName);
             Object value = method.invoke(profile);
@@ -151,7 +151,7 @@ public abstract class NexusSpaceUnitOfflinePlayerNameMixin {
         }
     }
 
-    private static String deadrecall$shortPlayerId(UUID playerId) {
+    private static String totem$shortPlayerId(UUID playerId) {
         String id = playerId.toString();
         return id.length() <= 8 ? id : id.substring(0, 8);
     }

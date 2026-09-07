@@ -7,10 +7,7 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Serverbound wire-type registration for the future Nexus cutover.
- *
- * <p>This class is deliberately not invoked from the module initializer while
- * DeadRecall remains the live owner of these {@code deadrecall:*} identifiers.
+ * Serverbound wire-type registration for the standalone Nexus module.
  */
 public final class NexusPayloadRegistration {
     private static final AtomicBoolean REGISTERED = new AtomicBoolean();

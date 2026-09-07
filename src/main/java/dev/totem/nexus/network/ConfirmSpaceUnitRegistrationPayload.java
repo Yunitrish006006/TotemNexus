@@ -12,7 +12,7 @@ public record ConfirmSpaceUnitRegistrationPayload(
         int z)
         implements CustomPacketPayload {
     public static final Type<ConfirmSpaceUnitRegistrationPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "confirm_space_unit_registration"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/confirm_space_unit_registration"));
 
     public static final StreamCodec<FriendlyByteBuf, ConfirmSpaceUnitRegistrationPayload> CODEC =
             StreamCodec.of(

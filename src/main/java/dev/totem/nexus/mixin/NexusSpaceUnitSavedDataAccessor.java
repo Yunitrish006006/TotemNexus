@@ -15,10 +15,10 @@ import java.util.UUID;
 @Mixin(NexusSpaceUnitSavedData.class)
 public interface NexusSpaceUnitSavedDataAccessor {
     @Accessor("unitsById")
-    Map<UUID, NexusSpaceUnitRecord> deadrecall$getUnitsById();
+    Map<UUID, NexusSpaceUnitRecord> totem$getUnitsById();
 
     @Invoker("scanStructure")
-    static SpaceStructureSnapshot deadrecall$invokeScanStructure(ServerLevel level, BlockPos lodestonePos) {
+    static SpaceStructureSnapshot totem$invokeScanStructure(ServerLevel level, BlockPos lodestonePos) {
         throw new AssertionError("Mixin invoker was not applied");
     }
 }

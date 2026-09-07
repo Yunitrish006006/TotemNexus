@@ -8,5 +8,5 @@ import java.util.UUID;
 @Mixin(targets = "dev.totem.nexus.space.NexusSpaceUnitAuthority$TeleportSession")
 public interface NexusSpaceUnitTeleportSessionAccessor {
     @Accessor("targetUnitId")
-    UUID deadrecall$getTargetUnitId();
+    UUID totem$getTargetUnitId();
 }

@@ -12,7 +12,7 @@ import java.util.function.Function;
 
 /**
  * Converts server-owned Space Unit read models and server-calculated quotes to
- * the legacy {@code deadrecall:space_unit_map} wire shape.
+ * the canonical {@code totem:nexus/space_unit_map} wire shape.
  *
  * <p>It deliberately has no networking dependency. Receiver activation and
  * authoritative map resend remain a later cutover step.

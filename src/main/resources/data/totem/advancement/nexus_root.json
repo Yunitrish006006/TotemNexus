@@ -1,0 +1,30 @@
+{
+  "parent": "totem:root",
+  "criteria": {
+    "crafted_lodestone": {
+      "conditions": {
+        "recipe_id": "minecraft:lodestone"
+      },
+      "trigger": "minecraft:recipe_crafted"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "background": "minecraft:gui/advancements/backgrounds/end",
+    "description": {
+      "translate": "advancements.totem.nexus_lodestone_anchor.description"
+    },
+    "icon": {
+      "id": "minecraft:lodestone"
+    },
+    "show_toast": true,
+    "title": {
+      "translate": "advancements.totem.nexus_root.title"
+    }
+  },
+  "requirements": [
+    [
+      "crafted_lodestone"
+    ]
+  ]
+}

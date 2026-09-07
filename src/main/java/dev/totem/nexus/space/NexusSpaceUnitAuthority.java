@@ -61,7 +61,8 @@ public final class NexusSpaceUnitAuthority {
     public static final String SOURCE_TYPE_LODESTONE = "lodestone";
     public static final String SOURCE_TYPE_PLAYER = "player";
 
-    private static final String TAG_DEATH_NODE_ID = "deadrecall_space_death_node_id";
+    private static final String TAG_DEATH_NODE_ID = "totem_nexus_space_death_node_id";
+    private static final String LEGACY_TAG_DEATH_NODE_ID = "deadrecall_space_death_node_id";
     private static final String ACCESS_ROLE_ADMINISTRATOR = "administrator";
     private static final String ACCESS_ROLE_ALLOWED = "allowed";
     private static final double SOURCE_OPEN_RADIUS = 8.0D;
@@ -227,6 +228,7 @@ public final class NexusSpaceUnitAuthority {
 
         CompoundTag tag = deathBackpack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         tag.store(TAG_DEATH_NODE_ID, UUIDUtil.CODEC, unitId);
+        tag.remove(LEGACY_TAG_DEATH_NODE_ID);
         deathBackpack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
     }
 
@@ -239,7 +241,7 @@ public final class NexusSpaceUnitAuthority {
         boolean disabled = units(player.level().getServer())
                 .disableDeathUnit(player.getUUID(), unitId, player.level().getGameTime());
         if (disabled) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.death_node_recovered"));
+            notify(player, Component.translatable("message.totem.space_unit.death_node_recovered"));
             publishDeathBackpackRecovered(player.getName().getString());
         }
     }
@@ -281,7 +283,7 @@ public final class NexusSpaceUnitAuthority {
     public static void sendSpaceUnitMap(ServerPlayer player) {
         Optional<InteractionHand> hand = findBoundInterfaceHand(player);
         if (hand.isEmpty()) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.map_need_bound_interface"));
+            notify(player, Component.translatable("message.totem.space_unit.map_need_bound_interface"));
             return;
         }
 
@@ -298,7 +300,7 @@ public final class NexusSpaceUnitAuthority {
             return;
         }
 
-        notify(player, Component.translatable("message.deadrecall.space_unit.map_source_missing"));
+        notify(player, Component.translatable("message.totem.space_unit.map_source_missing"));
     }
 
     public static void startTeleport(
@@ -316,7 +318,7 @@ public final class NexusSpaceUnitAuthority {
             return;
         }
         if (!interfaceContext.orElseThrow().interfaceType().canSelectTeleportDestination()) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.management_only"));
+            notify(player, Component.translatable("message.totem.space_unit.management_only"));
             return;
         }
 
@@ -344,7 +346,7 @@ public final class NexusSpaceUnitAuthority {
 
         ServerLevel targetLevel = player.level().getServer().getLevel(target.get().dimension());
         if (targetLevel == null) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.no_landing"));
+            notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.no_landing"));
             return;
         }
 
@@ -355,7 +357,7 @@ public final class NexusSpaceUnitAuthority {
         );
         if (!routeEndpoints.isEmpty()
                 && !routeReservations.reserve(player.getUUID(), routeEndpoints, player.level().getGameTime())) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.route_busy"));
+            notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.route_busy"));
             return;
         }
 
@@ -378,7 +380,7 @@ public final class NexusSpaceUnitAuthority {
                 prepareTicks
         ));
         notify(player, Component.translatable(
-                "message.deadrecall.space_unit.teleport_started",
+                "message.totem.space_unit.teleport_started",
                 target.get().name(),
                 seconds(prepareTicks)
         ));
@@ -397,15 +399,15 @@ public final class NexusSpaceUnitAuthority {
                 || target.get().status() != SpaceUnitStatus.ACTIVE
                 || !canView(player, target.get())
                 || !discovery.hasDiscovered(player.getUUID(), target.get().id())) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.no_permission"));
+            notify(player, Component.translatable("message.totem.space_unit.no_permission"));
             return;
         }
 
         boolean changed = discovery.setFavorite(player.getUUID(), target.get().id(), favorite);
         if (changed) {
             notify(player, Component.translatable(favorite
-                    ? "message.deadrecall.space_unit.favorite_added"
-                    : "message.deadrecall.space_unit.favorite_removed",
+                    ? "message.totem.space_unit.favorite_added"
+                    : "message.totem.space_unit.favorite_removed",
                     target.get().name()));
         }
 
@@ -431,9 +433,9 @@ public final class NexusSpaceUnitAuthority {
         Optional<ManageableLodestone> target = resolveManageableLodestone(
                 player,
                 targetUnitId,
-                Component.translatable("message.deadrecall.space_unit.calibrate_missing"),
-                Component.translatable("message.deadrecall.space_unit.calibrate_too_far"),
-                Component.translatable("message.deadrecall.space_unit.calibrate_unloaded")
+                Component.translatable("message.totem.space_unit.calibrate_missing"),
+                Component.translatable("message.totem.space_unit.calibrate_too_far"),
+                Component.translatable("message.totem.space_unit.calibrate_unloaded")
         );
         if (target.isEmpty()) {
             return;
@@ -441,13 +443,13 @@ public final class NexusSpaceUnitAuthority {
 
         Optional<NexusSpaceUnitRecord> calibrated = units.rescanLodestone(target.get().level(), target.get().unit().id());
         if (calibrated.isEmpty()) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.calibrate_missing"));
+            notify(player, Component.translatable("message.totem.space_unit.calibrate_missing"));
             return;
         }
 
         SpaceStructureSnapshot structure = calibrated.get().structure();
         notify(player, Component.translatable(
-                "message.deadrecall.space_unit.calibrated",
+                "message.totem.space_unit.calibrated",
                 calibrated.get().name(),
                 structure.tier(),
                 Math.round(structure.resonance() * 100.0D)
@@ -477,9 +479,9 @@ public final class NexusSpaceUnitAuthority {
         Optional<ManageableLodestone> target = resolveManageableLodestone(
                 player,
                 targetUnitId,
-                Component.translatable("message.deadrecall.space_unit.maintenance_missing"),
-                Component.translatable("message.deadrecall.space_unit.maintenance_too_far"),
-                Component.translatable("message.deadrecall.space_unit.maintenance_unloaded")
+                Component.translatable("message.totem.space_unit.maintenance_missing"),
+                Component.translatable("message.totem.space_unit.maintenance_too_far"),
+                Component.translatable("message.totem.space_unit.maintenance_unloaded")
         );
         if (target.isEmpty()) {
             return;
@@ -487,7 +489,7 @@ public final class NexusSpaceUnitAuthority {
 
         NexusSpaceUnitSavedData units = units(player.level().getServer());
         if (!units.wornLodestoneStructureBlocks(target.get().level(), target.get().unit().id()).contains(wornPos.immutable())) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.maintenance_target_invalid"));
+            notify(player, Component.translatable("message.totem.space_unit.maintenance_target_invalid"));
             return;
         }
         BlockState wornState = target.get().level().getBlockState(wornPos);
@@ -495,13 +497,13 @@ public final class NexusSpaceUnitAuthority {
         int cost = TeleportRouteLoadPolicy.maintenanceItemCost(target.get().unit().structure().maintenanceEfficiency());
         Optional<RepairMaterial> repairMaterial = findRepairMaterial(player, wornProfile.family(), cost);
         if (repairMaterial.isEmpty()) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.maintenance_material_missing", cost, wornProfile.family()));
+            notify(player, Component.translatable("message.totem.space_unit.maintenance_material_missing", cost, wornProfile.family()));
             return;
         }
 
         BlockState replacement = repairMaterial.get().block().withPropertiesOf(wornState);
         if (!units.repairLodestoneStructureBlock(target.get().level(), target.get().unit().id(), wornPos, replacement)) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.maintenance_target_invalid"));
+            notify(player, Component.translatable("message.totem.space_unit.maintenance_target_invalid"));
             return;
         }
         repairMaterial.get().stack().shrink(cost);
@@ -509,7 +511,7 @@ public final class NexusSpaceUnitAuthority {
                 player.getGameProfile().name(), target.get().unit().id(), wornPos.getX(), wornPos.getY(), wornPos.getZ(),
                 wornProfile.family(), cost);
         notify(player, Component.translatable(
-                "message.deadrecall.space_unit.maintenance_completed",
+                "message.totem.space_unit.maintenance_completed",
                 target.get().unit().name(), wornPos.getX(), wornPos.getY(), wornPos.getZ(), cost
         ));
 
@@ -537,7 +539,7 @@ public final class NexusSpaceUnitAuthority {
 
         Optional<SpaceUnitVisibility> visibility = managedVisibility(visibilityId);
         if (visibility.isEmpty()) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.visibility_invalid"));
+            notify(player, Component.translatable("message.totem.space_unit.visibility_invalid"));
             return;
         }
 
@@ -546,9 +548,9 @@ public final class NexusSpaceUnitAuthority {
         Optional<ManageableLodestone> target = resolveManageableLodestone(
                 player,
                 targetUnitId,
-                Component.translatable("message.deadrecall.space_unit.manage_missing"),
-                Component.translatable("message.deadrecall.space_unit.manage_too_far"),
-                Component.translatable("message.deadrecall.space_unit.manage_unloaded")
+                Component.translatable("message.totem.space_unit.manage_missing"),
+                Component.translatable("message.totem.space_unit.manage_too_far"),
+                Component.translatable("message.totem.space_unit.manage_unloaded")
         );
         if (target.isEmpty()) {
             return;
@@ -562,14 +564,14 @@ public final class NexusSpaceUnitAuthority {
                 target.get().level().getGameTime()
         );
         if (updated.isEmpty()) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.no_permission"));
+            notify(player, Component.translatable("message.totem.space_unit.no_permission"));
             return;
         }
 
         notify(player, Component.translatable(
-                "message.deadrecall.space_unit.visibility_updated",
+                "message.totem.space_unit.visibility_updated",
                 updated.get().name(),
-                Component.translatable("message.deadrecall.space_unit.visibility." + updated.get().visibility().id())
+                Component.translatable("message.totem.space_unit.visibility." + updated.get().visibility().id())
         ));
 
         sendPublicLodestoneVisibilityUpdate(player, previous, updated.get());
@@ -598,7 +600,7 @@ public final class NexusSpaceUnitAuthority {
 
         String normalizedName = normalizeLodestoneName(name);
         if (normalizedName.isEmpty()) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.name_invalid"));
+            notify(player, Component.translatable("message.totem.space_unit.name_invalid"));
             return;
         }
 
@@ -607,9 +609,9 @@ public final class NexusSpaceUnitAuthority {
         Optional<ManageableLodestone> target = resolveManageableLodestone(
                 player,
                 targetUnitId,
-                Component.translatable("message.deadrecall.space_unit.manage_missing"),
-                Component.translatable("message.deadrecall.space_unit.manage_too_far"),
-                Component.translatable("message.deadrecall.space_unit.manage_unloaded")
+                Component.translatable("message.totem.space_unit.manage_missing"),
+                Component.translatable("message.totem.space_unit.manage_too_far"),
+                Component.translatable("message.totem.space_unit.manage_unloaded")
         );
         if (target.isEmpty()) {
             return;
@@ -623,11 +625,11 @@ public final class NexusSpaceUnitAuthority {
                 target.get().level().getGameTime()
         );
         if (updated.isEmpty()) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.no_permission"));
+            notify(player, Component.translatable("message.totem.space_unit.no_permission"));
             return;
         }
 
-        notify(player, Component.translatable("message.deadrecall.space_unit.name_updated", updated.get().name()));
+        notify(player, Component.translatable("message.totem.space_unit.name_updated", updated.get().name()));
 
         if (isPublicLodestone(updated.get()) && !previous.name().equals(updated.get().name())) {
             publishPublicSpaceUnitUpdate(
@@ -662,19 +664,19 @@ public final class NexusSpaceUnitAuthority {
 
         String normalizedRole = roleId == null ? "" : roleId.trim().toLowerCase(Locale.ROOT);
         if (!ACCESS_ROLE_ADMINISTRATOR.equals(normalizedRole) && !ACCESS_ROLE_ALLOWED.equals(normalizedRole)) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.access_invalid"));
+            notify(player, Component.translatable("message.totem.space_unit.access_invalid"));
             return;
         }
 
         String normalizedPlayerName = targetPlayerName == null ? "" : targetPlayerName.trim();
         if (normalizedPlayerName.isEmpty()) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.access_name_invalid"));
+            notify(player, Component.translatable("message.totem.space_unit.access_name_invalid"));
             return;
         }
 
         ServerPlayer targetPlayer = findOnlinePlayer(server, normalizedPlayerName);
         if (targetPlayer == null) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.access_player_missing", normalizedPlayerName));
+            notify(player, Component.translatable("message.totem.space_unit.access_player_missing", normalizedPlayerName));
             return;
         }
 
@@ -682,9 +684,9 @@ public final class NexusSpaceUnitAuthority {
         Optional<ManageableLodestone> target = resolveManageableLodestone(
                 player,
                 targetUnitId,
-                Component.translatable("message.deadrecall.space_unit.manage_missing"),
-                Component.translatable("message.deadrecall.space_unit.manage_too_far"),
-                Component.translatable("message.deadrecall.space_unit.manage_unloaded")
+                Component.translatable("message.totem.space_unit.manage_missing"),
+                Component.translatable("message.totem.space_unit.manage_too_far"),
+                Component.translatable("message.totem.space_unit.manage_unloaded")
         );
         if (target.isEmpty()) {
             return;
@@ -692,14 +694,14 @@ public final class NexusSpaceUnitAuthority {
 
         NexusSpaceUnitRecord previous = target.get().unit();
         if (previous.owner().equals(targetPlayer.getUUID())) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.access_owner_target"));
+            notify(player, Component.translatable("message.totem.space_unit.access_owner_target"));
             return;
         }
 
         Optional<NexusSpaceUnitRecord> updated;
         if (ACCESS_ROLE_ADMINISTRATOR.equals(normalizedRole)) {
             if (!previous.owner().equals(player.getUUID())) {
-                notify(player, Component.translatable("message.deadrecall.space_unit.access_owner_only"));
+                notify(player, Component.translatable("message.totem.space_unit.access_owner_only"));
                 return;
             }
             updated = units.setLodestoneAdministrator(
@@ -720,17 +722,17 @@ public final class NexusSpaceUnitAuthority {
         }
 
         if (updated.isEmpty()) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.no_permission"));
+            notify(player, Component.translatable("message.totem.space_unit.no_permission"));
             return;
         }
 
         notify(player, Component.translatable(
-                "message.deadrecall.space_unit.access_updated",
+                "message.totem.space_unit.access_updated",
                 targetPlayer.getName(),
-                Component.translatable("message.deadrecall.space_unit.access_role." + normalizedRole),
+                Component.translatable("message.totem.space_unit.access_role." + normalizedRole),
                 Component.translatable(enabled
-                        ? "message.deadrecall.space_unit.access_granted"
-                        : "message.deadrecall.space_unit.access_revoked")
+                        ? "message.totem.space_unit.access_granted"
+                        : "message.totem.space_unit.access_revoked")
         ));
 
         resolveMapSource(player, source.get().type(), source.get().id(), false)
@@ -775,7 +777,7 @@ public final class NexusSpaceUnitAuthority {
             return;
         }
         if (friendId == null || player.getUUID().equals(friendId)) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.friend_invalid"));
+            notify(player, Component.translatable("message.totem.space_unit.friend_invalid"));
             sendFriendList(player);
             return;
         }
@@ -785,18 +787,18 @@ public final class NexusSpaceUnitAuthority {
         UUID playerId = player.getUUID();
         boolean removed = friendData.removeRelationship(playerId, friendId);
         if (!removed) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.friend_remove_missing"));
+            notify(player, Component.translatable("message.totem.space_unit.friend_remove_missing"));
             sendFriendList(player);
             return;
         }
 
         String otherName = playerDisplayName(server, friendId);
-        notify(player, Component.translatable("message.deadrecall.space_unit.friend_removed", otherName));
+        notify(player, Component.translatable("message.totem.space_unit.friend_removed", otherName));
         sendFriendList(player);
 
         ServerPlayer other = server.getPlayerList().getPlayer(friendId);
         if (other != null) {
-            notify(other, Component.translatable("message.deadrecall.space_unit.friend_removed_by", player.getName()));
+            notify(other, Component.translatable("message.totem.space_unit.friend_removed_by", player.getName()));
             currentInterfaceContext(other)
                     .filter(context -> context.interfaceType().canManageFriends())
                     .ifPresent(context -> sendFriendListUnchecked(other));
@@ -832,7 +834,7 @@ public final class NexusSpaceUnitAuthority {
             if (source.isEmpty()) {
                 iterator.remove();
                 routeReservations.release(session.playerId());
-                notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.source"));
+                notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.source"));
                 continue;
             }
 
@@ -855,7 +857,7 @@ public final class NexusSpaceUnitAuthority {
                 iterator.remove();
                 routeReservations.release(session.playerId());
                 notify(player, Component.translatable(
-                        "message.deadrecall.space_unit.teleport_cancelled.interface_quote_changed"));
+                        "message.totem.space_unit.teleport_cancelled.interface_quote_changed"));
                 continue;
             }
             if (!quote.canTeleport()) {
@@ -948,11 +950,11 @@ public final class NexusSpaceUnitAuthority {
 
         NexusSpaceUnitRecord target = targetUnit.get();
         if (!target.canManage(player.getUUID())) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.no_permission"));
+            notify(player, Component.translatable("message.totem.space_unit.no_permission"));
             return Optional.empty();
         }
         if (!discovery.hasDiscovered(player.getUUID(), target.id())) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.target_unexplored"));
+            notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.target_unexplored"));
             return Optional.empty();
         }
         if (!isNearSource(player, target)) {
@@ -1130,14 +1132,14 @@ public final class NexusSpaceUnitAuthority {
         ));
         sendRegistrationPreview(player, level, pos, preview);
         notify(player, Component.translatable(
-                "message.deadrecall.space_unit.registration_preview",
+                "message.totem.space_unit.registration_preview",
                 preview.tier(),
                 Math.round(preview.resonance() * 100.0D),
                 Math.round(preview.completeness() * 100.0D),
                 Math.round(preview.wear() * 100.0D)
         ));
         notify(player, Component.translatable(
-                "message.deadrecall.space_unit.registration_confirm",
+                "message.totem.space_unit.registration_confirm",
                 seconds(LODESTONE_REGISTRATION_CONFIRM_TICKS)
         ));
         return false;
@@ -1171,7 +1173,7 @@ public final class NexusSpaceUnitAuthority {
         UUID playerId = player.getUUID();
         if (player.isSpectator()) {
             pendingLodestoneRegistrations.remove(playerId);
-            notify(player, Component.translatable("message.deadrecall.space_unit.no_permission"));
+            notify(player, Component.translatable("message.totem.space_unit.no_permission"));
             return;
         }
         long gameTime = server.overworld().getGameTime();
@@ -1182,28 +1184,28 @@ public final class NexusSpaceUnitAuthority {
                 || !pending.matchesDimensionId(dimensionId)
                 || !pending.pos().equals(pos)) {
             pendingLodestoneRegistrations.remove(playerId);
-            notify(player, Component.translatable("message.deadrecall.space_unit.registration_expired"));
+            notify(player, Component.translatable("message.totem.space_unit.registration_expired"));
             return;
         }
 
         ServerLevel level = server.getLevel(pending.dimension());
         if (level == null || !level.isLoaded(pos)) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.manage_unloaded"));
+            notify(player, Component.translatable("message.totem.space_unit.manage_unloaded"));
             return;
         }
         if (!player.level().dimension().equals(pending.dimension()) || !isValidBlockInteraction(player, pos)) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.too_far"));
+            notify(player, Component.translatable("message.totem.space_unit.too_far"));
             return;
         }
         if (!level.getBlockState(pos).is(Blocks.LODESTONE)) {
             pendingLodestoneRegistrations.remove(playerId);
-            notify(player, Component.translatable("message.deadrecall.space_unit.manage_missing"));
+            notify(player, Component.translatable("message.totem.space_unit.manage_missing"));
             return;
         }
 
         if (!pending.matchesHeld(player)) {
             pendingLodestoneRegistrations.remove(playerId);
-            notify(player, Component.translatable("message.deadrecall.space_unit.registration_item_changed"));
+            notify(player, Component.translatable("message.totem.space_unit.registration_item_changed"));
             return;
         }
 
@@ -1211,7 +1213,7 @@ public final class NexusSpaceUnitAuthority {
         Optional<NexusSpaceUnitRecord> existing = units.getLodestone(level.dimension(), pos);
         if (existing.isPresent() && !canView(player, existing.get())) {
             pendingLodestoneRegistrations.remove(playerId);
-            notify(player, Component.translatable("message.deadrecall.space_unit.no_permission"));
+            notify(player, Component.translatable("message.totem.space_unit.no_permission"));
             return;
         }
 
@@ -1219,27 +1221,27 @@ public final class NexusSpaceUnitAuthority {
         ItemStack heldStack = player.getItemInHand(pending.hand());
         if (!isExactBindingInput(player, pending.hand(), heldStack, pendingInput)) {
             pendingLodestoneRegistrations.remove(playerId);
-            notify(player, Component.translatable("message.deadrecall.space_unit.registration_item_changed"));
+            notify(player, Component.translatable("message.totem.space_unit.registration_item_changed"));
             return;
         }
         NexusSpaceUnitRecord unit = existing.orElseGet(() -> units.getOrCreateLodestone(level, pos, player));
         pendingLodestoneRegistrations.remove(playerId);
         if (!bindInterface(player, pending.hand(), heldStack, pendingInput, level, pos, unit.id())) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.registration_item_changed"));
+            notify(player, Component.translatable("message.totem.space_unit.registration_item_changed"));
             return;
         }
         level.playSound(null, pos, SoundEvents.LODESTONE_COMPASS_LOCK, SoundSource.PLAYERS, 1.0F, 1.0F);
         notify(player, Component.translatable(
                 existing.isPresent()
-                        ? "message.deadrecall.space_unit.bound"
-                        : "message.deadrecall.space_unit.registered",
+                        ? "message.totem.space_unit.bound"
+                        : "message.totem.space_unit.registered",
                 unit.name()
         ));
     }
 
     private static InteractionResult handlePlayerInterfaceUse(ServerPlayer player, ServerPlayer target) {
         if (player.getUUID().equals(target.getUUID())) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.friend_self"));
+            notify(player, Component.translatable("message.totem.space_unit.friend_self"));
             return InteractionResult.SUCCESS;
         }
 
@@ -1247,16 +1249,16 @@ public final class NexusSpaceUnitAuthority {
                 .inviteOrAccept(player.getUUID(), target.getUUID());
         switch (result) {
             case ACCEPTED -> {
-                notify(player, Component.translatable("message.deadrecall.space_unit.friend_added", target.getName()));
-                notify(target, Component.translatable("message.deadrecall.space_unit.friend_added", player.getName()));
+                notify(player, Component.translatable("message.totem.space_unit.friend_added", target.getName()));
+                notify(target, Component.translatable("message.totem.space_unit.friend_added", player.getName()));
             }
             case INVITED -> {
-                notify(player, Component.translatable("message.deadrecall.space_unit.friend_invite_sent", target.getName()));
-                notify(target, Component.translatable("message.deadrecall.space_unit.friend_invite_received", player.getName()));
+                notify(player, Component.translatable("message.totem.space_unit.friend_invite_sent", target.getName()));
+                notify(target, Component.translatable("message.totem.space_unit.friend_invite_received", player.getName()));
             }
-            case PENDING -> notify(player, Component.translatable("message.deadrecall.space_unit.friend_invite_pending", target.getName()));
-            case ALREADY_FRIENDS -> notify(player, Component.translatable("message.deadrecall.space_unit.friend_already", target.getName()));
-            case INVALID -> notify(player, Component.translatable("message.deadrecall.space_unit.friend_invalid"));
+            case PENDING -> notify(player, Component.translatable("message.totem.space_unit.friend_invite_pending", target.getName()));
+            case ALREADY_FRIENDS -> notify(player, Component.translatable("message.totem.space_unit.friend_already", target.getName()));
+            case INVALID -> notify(player, Component.translatable("message.totem.space_unit.friend_invalid"));
         }
         return InteractionResult.SUCCESS;
     }
@@ -1288,7 +1290,7 @@ public final class NexusSpaceUnitAuthority {
             TeleportInterfaceItemResolver.RegistrationInput input,
             BlockPos pos) {
         if (!isValidBlockInteraction(player, pos)) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.too_far"));
+            notify(player, Component.translatable("message.totem.space_unit.too_far"));
             return InteractionResult.SUCCESS;
         }
 
@@ -1299,12 +1301,12 @@ public final class NexusSpaceUnitAuthority {
         if (existing.isPresent()) {
             unit = existing.get();
             if (!canView(player, unit)) {
-                notify(player, Component.translatable("message.deadrecall.space_unit.no_permission"));
+                notify(player, Component.translatable("message.totem.space_unit.no_permission"));
                 return InteractionResult.SUCCESS;
             }
         } else {
             if (input.type() == TeleportInterfaceItemResolver.RegistrationInputType.NEXUS_MAP) {
-                notify(player, Component.translatable("message.deadrecall.space_unit.interface.map_source_mismatch"));
+                notify(player, Component.translatable("message.totem.space_unit.interface.map_source_mismatch"));
                 return InteractionResult.SUCCESS;
             }
             SpaceStructureSnapshot preview = units.previewLodestoneStructure(level, pos);
@@ -1312,7 +1314,7 @@ public final class NexusSpaceUnitAuthority {
                 return InteractionResult.SUCCESS;
             }
             if (!isExactBindingInput(player, hand, stack, input)) {
-                notify(player, Component.translatable("message.deadrecall.space_unit.registration_item_changed"));
+                notify(player, Component.translatable("message.totem.space_unit.registration_item_changed"));
                 return InteractionResult.SUCCESS;
             }
             unit = units.getOrCreateLodestone(level, pos, player);
@@ -1320,21 +1322,21 @@ public final class NexusSpaceUnitAuthority {
 
         if (input.type() == TeleportInterfaceItemResolver.RegistrationInputType.NEXUS_MAP
                 && !unit.id().equals(input.boundUnitId())) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.interface.map_source_mismatch"));
+            notify(player, Component.translatable("message.totem.space_unit.interface.map_source_mismatch"));
             return InteractionResult.SUCCESS;
         }
         if (!bindInterface(player, hand, stack, input, level, pos, unit.id())) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.registration_item_changed"));
+            notify(player, Component.translatable("message.totem.space_unit.registration_item_changed"));
             return InteractionResult.SUCCESS;
         }
         level.playSound(null, pos, SoundEvents.LODESTONE_COMPASS_LOCK, SoundSource.PLAYERS, 1.0F, 1.0F);
         if (created) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.registered", unit.name()));
+            notify(player, Component.translatable("message.totem.space_unit.registered", unit.name()));
             return InteractionResult.SUCCESS;
         }
 
         if (!discovery(level.getServer()).hasDiscovered(player.getUUID(), unit.id())) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.bound_explore_to_open", unit.name()));
+            notify(player, Component.translatable("message.totem.space_unit.bound_explore_to_open", unit.name()));
             return InteractionResult.SUCCESS;
         }
 
@@ -1360,31 +1362,31 @@ public final class NexusSpaceUnitAuthority {
             return InteractionResult.SUCCESS;
         }
         if (!level.isLoaded(pos) || !level.getBlockState(pos).is(Blocks.LODESTONE)) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.manage_missing"));
+            notify(player, Component.translatable("message.totem.space_unit.manage_missing"));
             return InteractionResult.SUCCESS;
         }
         if (!isValidBlockInteraction(player, pos)) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.too_far"));
+            notify(player, Component.translatable("message.totem.space_unit.too_far"));
             return InteractionResult.SUCCESS;
         }
 
         NexusSpaceUnitSavedData units = units(level.getServer());
         Optional<NexusSpaceUnitRecord> unit = units.getLodestone(level.dimension(), pos);
         if (unit.isEmpty()) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.register_first"));
+            notify(player, Component.translatable("message.totem.space_unit.register_first"));
             return InteractionResult.SUCCESS;
         }
 
         NexusSpaceUnitRecord record = unit.get();
         if (!canView(player, record)) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.no_permission"));
+            notify(player, Component.translatable("message.totem.space_unit.no_permission"));
             return InteractionResult.SUCCESS;
         }
 
         boolean changed = discovery(level.getServer()).markDiscovered(player.getUUID(), record.id());
         notify(player, Component.translatable(changed
-                ? "message.deadrecall.space_unit.discovered"
-                : "message.deadrecall.space_unit.already_discovered",
+                ? "message.totem.space_unit.discovered"
+                : "message.totem.space_unit.already_discovered",
                 record.name()));
         return InteractionResult.SUCCESS;
     }
@@ -1395,7 +1397,7 @@ public final class NexusSpaceUnitAuthority {
             TeleportInterfaceItemResolver.ResolvedInterface resolved) {
         UUID sourceUnitId = resolved.boundUnitId();
         if (sourceUnitId == null || !validateBoundInterfaceSource(player, sourceUnitId, true)) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.map_need_bound_interface"));
+            notify(player, Component.translatable("message.totem.space_unit.map_need_bound_interface"));
             return;
         }
 
@@ -1412,7 +1414,7 @@ public final class NexusSpaceUnitAuthority {
                 SOURCE_TYPE_LODESTONE,
                 sourceUnitId
         ).isEmpty()) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.map_need_interface"));
+            notify(player, Component.translatable("message.totem.space_unit.map_need_interface"));
             return;
         }
         sendSpaceUnitMap(player, sourceUnitId);
@@ -1434,37 +1436,37 @@ public final class NexusSpaceUnitAuthority {
         Optional<NexusSpaceUnitRecord> sourceUnit = units.get(sourceUnitId);
         if (sourceUnit.isEmpty() || sourceUnit.get().status() != SpaceUnitStatus.ACTIVE) {
             clearInterfaceContext(player.getUUID());
-            notify(player, Component.translatable("message.deadrecall.space_unit.map_source_missing"));
+            notify(player, Component.translatable("message.totem.space_unit.map_source_missing"));
             return;
         }
 
         NexusSpaceUnitRecord source = sourceUnit.get();
         if (!source.isLodestoneAnchor()) {
             clearInterfaceContext(player.getUUID());
-            notify(player, Component.translatable("message.deadrecall.space_unit.map_need_lodestone_source"));
+            notify(player, Component.translatable("message.totem.space_unit.map_need_lodestone_source"));
             return;
         }
         if (!canView(player, source)) {
             clearInterfaceContext(player.getUUID());
-            notify(player, Component.translatable("message.deadrecall.space_unit.no_permission"));
+            notify(player, Component.translatable("message.totem.space_unit.no_permission"));
             return;
         }
 
         NexusSpaceDiscoverySavedData discovery = discovery(server);
         if (!discovery.hasDiscovered(player.getUUID(), source.id())) {
             clearInterfaceContext(player.getUUID());
-            notify(player, Component.translatable("message.deadrecall.space_unit.map_source_unexplored"));
+            notify(player, Component.translatable("message.totem.space_unit.map_source_unexplored"));
             return;
         }
         if (!isNearSource(player, source)) {
             clearInterfaceContext(player.getUUID());
-            notify(player, Component.translatable("message.deadrecall.space_unit.map_source_too_far"));
+            notify(player, Component.translatable("message.totem.space_unit.map_source_too_far"));
             return;
         }
         if (!player.level().getBlockState(source.pos()).is(Blocks.LODESTONE)) {
             disableMissingLodestone(server, source);
             clearInterfaceContext(player.getUUID());
-            notify(player, Component.translatable("message.deadrecall.space_unit.map_source_missing"));
+            notify(player, Component.translatable("message.totem.space_unit.map_source_missing"));
             return;
         }
 
@@ -1505,7 +1507,7 @@ public final class NexusSpaceUnitAuthority {
         Optional<MapSource> finalSource = resolveMapSource(player, source.type(), source.id(), false, true);
         if (finalSource.isEmpty()) {
             routeReservations.release(session.playerId());
-            notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.source"));
+            notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.source"));
             return;
         }
 
@@ -1526,7 +1528,7 @@ public final class NexusSpaceUnitAuthority {
         if (filledMapSessionQuoteInvalid(session, finalQuote)) {
             routeReservations.release(session.playerId());
             notify(player, Component.translatable(
-                    "message.deadrecall.space_unit.teleport_cancelled.interface_quote_changed"));
+                    "message.totem.space_unit.teleport_cancelled.interface_quote_changed"));
             return;
         }
         if (!finalQuote.canTeleport()) {
@@ -1539,14 +1541,14 @@ public final class NexusSpaceUnitAuthority {
                 routeReservationEndpoints(player, finalSource.get(), finalTarget.get()),
                 player.level().getGameTime())) {
             routeReservations.release(session.playerId());
-            notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.route_busy"));
+            notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.route_busy"));
             return;
         }
 
         ServerLevel targetLevel = player.level().getServer().getLevel(finalTarget.get().dimension());
         if (targetLevel == null) {
             routeReservations.release(session.playerId());
-            notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.target"));
+            notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.target"));
             return;
         }
 
@@ -1597,7 +1599,7 @@ public final class NexusSpaceUnitAuthority {
                 iterator.remove();
                 pending.search().close();
                 routeReservations.release(session.playerId());
-                notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.source"));
+                notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.source"));
                 continue;
             }
 
@@ -1623,7 +1625,7 @@ public final class NexusSpaceUnitAuthority {
                 pending.search().close();
                 routeReservations.release(session.playerId());
                 notify(player, Component.translatable(
-                        "message.deadrecall.space_unit.teleport_cancelled.interface_quote_changed"));
+                        "message.totem.space_unit.teleport_cancelled.interface_quote_changed"));
                 continue;
             }
             if (!quote.canTeleport()) {
@@ -1639,7 +1641,7 @@ public final class NexusSpaceUnitAuthority {
                 iterator.remove();
                 pending.search().close();
                 routeReservations.release(session.playerId());
-                notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.target"));
+                notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.target"));
                 continue;
             }
 
@@ -1677,7 +1679,7 @@ public final class NexusSpaceUnitAuthority {
             if (progress.state() == NexusSafeLanding.State.EXHAUSTED) {
                 routeReservations.release(session.playerId());
                 notify(player, Component.translatable(
-                        "message.deadrecall.space_unit.teleport_cancelled.no_landing"));
+                        "message.totem.space_unit.teleport_cancelled.no_landing"));
                 continue;
             }
             finishTeleport(player, session, progress.landing().orElseThrow());
@@ -1699,7 +1701,7 @@ public final class NexusSpaceUnitAuthority {
                 resolveMapSource(player, session.sourceType(), session.sourceUnitId(), false, true);
         if (finalSource.isEmpty()) {
             routeReservations.release(session.playerId());
-            notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.source"));
+            notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.source"));
             return;
         }
         Optional<TeleportTarget> finalTarget =
@@ -1720,7 +1722,7 @@ public final class NexusSpaceUnitAuthority {
         if (filledMapSessionQuoteInvalid(session, finalQuote)) {
             routeReservations.release(session.playerId());
             notify(player, Component.translatable(
-                    "message.deadrecall.space_unit.teleport_cancelled.interface_quote_changed"));
+                    "message.totem.space_unit.teleport_cancelled.interface_quote_changed"));
             return;
         }
         if (!finalQuote.canTeleport()) {
@@ -1733,7 +1735,7 @@ public final class NexusSpaceUnitAuthority {
                 routeReservationEndpoints(player, finalSource.get(), finalTarget.get()),
                 player.level().getGameTime())) {
             routeReservations.release(session.playerId());
-            notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.route_busy"));
+            notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.route_busy"));
             return;
         }
 
@@ -1751,13 +1753,13 @@ public final class NexusSpaceUnitAuthority {
                 ) > radius
                 || !NexusSafeLanding.isSafeLoaded(targetLevel, landingPos)) {
             routeReservations.release(session.playerId());
-            notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.no_landing"));
+            notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.no_landing"));
             return;
         }
 
         if (!deductTeleportCost(player, finalQuote)) {
             routeReservations.release(session.playerId());
-            notify(player, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.cost"));
+            notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.cost"));
             return;
         }
 
@@ -1774,13 +1776,13 @@ public final class NexusSpaceUnitAuthority {
         if (!teleported) {
             routeReservations.release(session.playerId());
             notify(player, Component.translatable(
-                    "message.deadrecall.space_unit.teleport_cancelled.generic"));
+                    "message.totem.space_unit.teleport_cancelled.generic"));
             return;
         }
         ItemStack completedInterface = player.getItemInHand(session.interactionHand());
         if (NexusSoulboundTeleportItem.bindAfterSuccessfulTeleport(player, completedInterface)) {
             notify(player, Component.translatable(
-                    "message.deadrecall.space_unit.soulbound_updated",
+                    "message.totem.space_unit.soulbound_updated",
                     completedInterface.getHoverName()
             ));
         }
@@ -1788,7 +1790,7 @@ public final class NexusSpaceUnitAuthority {
         applyArrivalDamage(player, targetLevel, finalQuote, targetLevel.getRandom());
         applyStructureWear(player, finalSource.get(), finalTarget.get(), finalQuote, targetLevel.getRandom());
         routeReservations.scheduleRecovery(session.playerId(), targetLevel.getGameTime());
-        notify(player, Component.translatable("message.deadrecall.space_unit.teleport_completed", finalTarget.get().name()));
+        notify(player, Component.translatable("message.totem.space_unit.teleport_completed", finalTarget.get().name()));
     }
 
     private static Optional<MapSource> resolveMapSource(ServerPlayer player, String sourceType, UUID sourceUnitId, boolean notifyFailure) {
@@ -1802,7 +1804,7 @@ public final class NexusSpaceUnitAuthority {
             boolean notifyFailure,
             boolean rescanStructure) {
         if (!SOURCE_TYPE_LODESTONE.equals(sourceType) || sourceUnitId == null) {
-            notifyIfRequested(player, notifyFailure, Component.translatable("message.deadrecall.space_unit.map_source_missing"));
+            notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.map_source_missing"));
             return Optional.empty();
         }
 
@@ -1810,37 +1812,37 @@ public final class NexusSpaceUnitAuthority {
         NexusSpaceUnitSavedData units = units(server);
         Optional<NexusSpaceUnitRecord> sourceUnit = units.get(sourceUnitId);
         if (sourceUnit.isEmpty() || sourceUnit.get().status() != SpaceUnitStatus.ACTIVE) {
-            notifyIfRequested(player, notifyFailure, Component.translatable("message.deadrecall.space_unit.map_source_missing"));
+            notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.map_source_missing"));
             return Optional.empty();
         }
 
         NexusSpaceUnitRecord source = sourceUnit.get();
         if (!source.isLodestoneAnchor()) {
-            notifyIfRequested(player, notifyFailure, Component.translatable("message.deadrecall.space_unit.map_need_lodestone_source"));
+            notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.map_need_lodestone_source"));
             return Optional.empty();
         }
         if (!canView(player, source)) {
-            notifyIfRequested(player, notifyFailure, Component.translatable("message.deadrecall.space_unit.no_permission"));
+            notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.no_permission"));
             return Optional.empty();
         }
         if (!discovery(server).hasDiscovered(player.getUUID(), source.id())) {
-            notifyIfRequested(player, notifyFailure, Component.translatable("message.deadrecall.space_unit.map_source_unexplored"));
+            notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.map_source_unexplored"));
             return Optional.empty();
         }
         if (!isNearSource(player, source)) {
-            notifyIfRequested(player, notifyFailure, Component.translatable("message.deadrecall.space_unit.map_source_too_far"));
+            notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.map_source_too_far"));
             return Optional.empty();
         }
         if (!player.level().getBlockState(source.pos()).is(Blocks.LODESTONE)) {
             disableMissingLodestone(server, source);
-            notifyIfRequested(player, notifyFailure, Component.translatable("message.deadrecall.space_unit.map_source_missing"));
+            notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.map_source_missing"));
             return Optional.empty();
         }
 
         if (rescanStructure) {
             ServerLevel sourceLevel = server.getLevel(source.dimension());
             if (sourceLevel == null) {
-                notifyIfRequested(player, notifyFailure, Component.translatable("message.deadrecall.space_unit.map_source_missing"));
+                notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.map_source_missing"));
                 return Optional.empty();
             }
             source = units.rescanLodestone(sourceLevel, source.id()).orElse(source);
@@ -1859,7 +1861,7 @@ public final class NexusSpaceUnitAuthority {
             boolean notifyFailure,
             boolean rescanStructure) {
         if (targetUnitId == null) {
-            notifyIfRequested(player, notifyFailure, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.target"));
+            notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.teleport_cancelled.target"));
             return Optional.empty();
         }
 
@@ -1873,7 +1875,7 @@ public final class NexusSpaceUnitAuthority {
                 return Optional.empty();
             }
             if (targetPlayer.getUUID().equals(player.getUUID())) {
-                notifyIfRequested(player, notifyFailure, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.target"));
+                notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.teleport_cancelled.target"));
                 return Optional.empty();
             }
 
@@ -1892,28 +1894,28 @@ public final class NexusSpaceUnitAuthority {
         }
 
         if (targetUnit.get().status() != SpaceUnitStatus.ACTIVE) {
-            notifyIfRequested(player, notifyFailure, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.target"));
+            notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.teleport_cancelled.target"));
             return Optional.empty();
         }
 
         NexusSpaceUnitRecord target = targetUnit.get();
         if (!canView(player, target)) {
-            notifyIfRequested(player, notifyFailure, Component.translatable("message.deadrecall.space_unit.no_permission"));
+            notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.no_permission"));
             return Optional.empty();
         }
         if (!discovery(server).hasDiscovered(player.getUUID(), target.id())) {
-            notifyIfRequested(player, notifyFailure, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.target_unexplored"));
+            notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.teleport_cancelled.target_unexplored"));
             return Optional.empty();
         }
         if (target.isLodestoneAnchor()) {
             ServerLevel targetLevel = server.getLevel(target.dimension());
             if (targetLevel == null) {
-                notifyIfRequested(player, notifyFailure, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.target"));
+                notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.teleport_cancelled.target"));
                 return Optional.empty();
             }
             if (!targetLevel.getBlockState(target.pos()).is(Blocks.LODESTONE)) {
                 units(server).disableLodestone(target.dimension(), target.pos(), targetLevel.getGameTime());
-                notifyIfRequested(player, notifyFailure, Component.translatable("message.deadrecall.space_unit.teleport_cancelled.target"));
+                notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.teleport_cancelled.target"));
                 return Optional.empty();
             }
             if (rescanStructure) {
@@ -1928,7 +1930,7 @@ public final class NexusSpaceUnitAuthority {
             SpaceUnitType targetType,
             UUID targetId) {
         if (targetType != SpaceUnitType.PLAYER) {
-            return Component.translatable("message.deadrecall.space_unit.teleport_cancelled.target");
+            return Component.translatable("message.totem.space_unit.teleport_cancelled.target");
         }
 
         MinecraftServer server = player.level().getServer();
@@ -1944,17 +1946,17 @@ public final class NexusSpaceUnitAuthority {
 
     private static Component teleportCancelReason(ServerPlayer player, TeleportSession session) {
         if (!player.isAlive() || player.isRemoved()) {
-            return Component.translatable("message.deadrecall.space_unit.teleport_cancelled.generic");
+            return Component.translatable("message.totem.space_unit.teleport_cancelled.generic");
         }
         Component interfaceReason = teleportInterfaceCancelReason(player, session);
         if (interfaceReason != null) {
             return interfaceReason;
         }
         if (!player.level().dimension().equals(session.startDimension())) {
-            return Component.translatable("message.deadrecall.space_unit.teleport_cancelled.dimension");
+            return Component.translatable("message.totem.space_unit.teleport_cancelled.dimension");
         }
         if (distanceSquared(player.blockPosition(), session.startPos()) > SESSION_MOVE_CANCEL_DISTANCE * SESSION_MOVE_CANCEL_DISTANCE) {
-            return Component.translatable("message.deadrecall.space_unit.teleport_cancelled.moved");
+            return Component.translatable("message.totem.space_unit.teleport_cancelled.moved");
         }
         return null;
     }
@@ -1971,7 +1973,7 @@ public final class NexusSpaceUnitAuthority {
                 || session.boundUnitId() == null
                 || !validateBoundInterfaceSource(player, session.boundUnitId(), false)) {
             return Component.translatable(
-                    "message.deadrecall.space_unit.teleport_cancelled.interface_item");
+                    "message.totem.space_unit.teleport_cancelled.interface_item");
         }
         return null;
     }
@@ -2066,7 +2068,7 @@ public final class NexusSpaceUnitAuthority {
                 8.0D
         );
         if (player.hurtServer(level, level.damageSources().magic(), damage)) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.teleport_arrival_damage"));
+            notify(player, Component.translatable("message.totem.space_unit.teleport_arrival_damage"));
         }
     }
 
@@ -2099,7 +2101,7 @@ public final class NexusSpaceUnitAuthority {
         }
 
         if (worn) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.teleport_structure_worn"));
+            notify(player, Component.translatable("message.totem.space_unit.teleport_structure_worn"));
         }
     }
 
@@ -2397,22 +2399,22 @@ public final class NexusSpaceUnitAuthority {
             boolean sameDimension,
             boolean sameUnit) {
         if (sameUnit) {
-            return "message.deadrecall.space_unit.teleport_blocked.same_source";
+            return "message.totem.space_unit.teleport_blocked.same_source";
         }
         if (routeStability < 0.2D) {
-            return "message.deadrecall.space_unit.teleport_blocked.unstable";
+            return "message.totem.space_unit.teleport_blocked.unstable";
         }
         if (!sameDimension && SOURCE_TYPE_LODESTONE.equals(source.type()) && source.tier() < 1) {
-            return "message.deadrecall.space_unit.teleport_blocked.source_tier";
+            return "message.totem.space_unit.teleport_blocked.source_tier";
         }
         if (!sameDimension && target.lodestoneAnchor() && target.tier() < 1) {
-            return "message.deadrecall.space_unit.teleport_blocked.target_tier";
+            return "message.totem.space_unit.teleport_blocked.target_tier";
         }
         if (cost.foodPointsNeeded() > cost.safeFoodPointsAvailable()) {
-            return "message.deadrecall.space_unit.teleport_blocked.food";
+            return "message.totem.space_unit.teleport_blocked.food";
         }
         if (amethystCost > amethystAvailable) {
-            return "message.deadrecall.space_unit.teleport_blocked.amethyst";
+            return "message.totem.space_unit.teleport_blocked.amethyst";
         }
         return "";
     }
@@ -2775,7 +2777,7 @@ public final class NexusSpaceUnitAuthority {
                 && !validateBoundInterfaceSource(player, context.boundUnitId(), false))) {
             teleportInterfaceContexts.remove(player.getUUID());
             notifyIfRequested(player, notifyFailure, Component.translatable(
-                    "message.deadrecall.space_unit.interface.context_invalid"));
+                    "message.totem.space_unit.interface.context_invalid"));
             return Optional.empty();
         }
         return Optional.of(context);
@@ -2792,7 +2794,7 @@ public final class NexusSpaceUnitAuthority {
         }
         if (!context.get().interfaceType().canManage()) {
             notify(player, Component.translatable(
-                    "message.deadrecall.space_unit.interface.management_unavailable"));
+                    "message.totem.space_unit.interface.management_unavailable"));
             return false;
         }
         UUID boundUnitId = context.get().boundUnitId();
@@ -2801,7 +2803,7 @@ public final class NexusSpaceUnitAuthority {
                 .filter(unit -> unit.canManage(player.getUUID()))
                 .isPresent();
         if (!canManage) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.no_permission"));
+            notify(player, Component.translatable("message.totem.space_unit.no_permission"));
         }
         return canManage;
     }
@@ -2810,12 +2812,12 @@ public final class NexusSpaceUnitAuthority {
         Optional<TeleportInterfaceContext> context = currentInterfaceContext(player);
         if (context.isEmpty()) {
             notify(player, Component.translatable(
-                    "message.deadrecall.space_unit.interface.context_invalid"));
+                    "message.totem.space_unit.interface.context_invalid"));
             return false;
         }
         if (!context.get().interfaceType().canManageFriends()) {
             notify(player, Component.translatable(
-                    "message.deadrecall.space_unit.interface.management_unavailable"));
+                    "message.totem.space_unit.interface.management_unavailable"));
             return false;
         }
         return validateBoundInterfaceSource(player, context.get().boundUnitId(), true);
@@ -2835,7 +2837,16 @@ public final class NexusSpaceUnitAuthority {
 
     private static UUID readDeathNodeId(ItemStack stack) {
         CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
-        return tag.read(TAG_DEATH_NODE_ID, UUIDUtil.CODEC).orElse(null);
+        UUID unitId = tag.read(TAG_DEATH_NODE_ID, UUIDUtil.CODEC).orElse(null);
+        if (unitId == null) {
+            unitId = tag.read(LEGACY_TAG_DEATH_NODE_ID, UUIDUtil.CODEC).orElse(null);
+        }
+        if (unitId != null && tag.contains(LEGACY_TAG_DEATH_NODE_ID)) {
+            tag.store(TAG_DEATH_NODE_ID, UUIDUtil.CODEC, unitId);
+            tag.remove(LEGACY_TAG_DEATH_NODE_ID);
+            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        }
+        return unitId;
     }
 
     private static boolean isNearSource(ServerPlayer player, NexusSpaceUnitRecord source) {
@@ -2899,11 +2910,11 @@ public final class NexusSpaceUnitAuthority {
     }
 
     private static NexusSpaceUnitSavedData units(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
+        return NexusSpaceUnitSavedData.loadCanonical(server.overworld().getDataStorage());
     }
 
     private static NexusSpaceDiscoverySavedData discovery(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(NexusSpaceDiscoverySavedData.TYPE);
+        return NexusSpaceDiscoverySavedData.loadCanonical(server.overworld().getDataStorage());
     }
 
     private static NexusFriendSavedData friends(MinecraftServer server) {
@@ -2911,7 +2922,7 @@ public final class NexusSpaceUnitAuthority {
     }
 
     private static NexusMapBindingSavedData mapBindings(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(NexusMapBindingSavedData.TYPE);
+        return NexusMapBindingSavedData.loadCanonical(server.overworld().getDataStorage());
     }
 
     static boolean validateBoundInterfaceSource(
@@ -2924,7 +2935,7 @@ public final class NexusSpaceUnitAuthority {
                 && unit.status() == SpaceUnitStatus.ACTIVE
                 && canView(player, unit)).isPresent();
         if (!valid && notifyFailure) {
-            notify(player, Component.translatable("message.deadrecall.space_unit.no_permission"));
+            notify(player, Component.translatable("message.totem.space_unit.no_permission"));
         }
         return valid;
     }

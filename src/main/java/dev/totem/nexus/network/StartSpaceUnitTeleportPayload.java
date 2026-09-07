@@ -10,7 +10,7 @@ import java.util.UUID;
 public record StartSpaceUnitTeleportPayload(String sourceType, UUID sourceUnitId, UUID targetUnitId)
         implements CustomPacketPayload {
     public static final Type<StartSpaceUnitTeleportPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "start_space_unit_teleport"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/start_space_unit_teleport"));
 
     public static final StreamCodec<FriendlyByteBuf, StartSpaceUnitTeleportPayload> CODEC =
             StreamCodec.of(

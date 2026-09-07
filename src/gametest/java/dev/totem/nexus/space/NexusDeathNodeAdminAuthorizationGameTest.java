@@ -24,12 +24,12 @@ public final class NexusDeathNodeAdminAuthorizationGameTest {
 
         try {
             CommandNode<CommandSourceStack> root = level.getServer().getCommands().getDispatcher()
-                    .getRoot().getChild("deadrecall");
+                    .getRoot().getChild("totem");
             require(helper, root != null && root.canUse(player.createCommandSourceStack()),
-                    "Normal player cannot use the shared /deadrecall command root");
+                    "Normal player cannot use the shared /totem command root");
             CommandNode<CommandSourceStack> deathNodes = root.getChild("deathnodes");
             require(helper, deathNodes != null && deathNodes.canUse(player.createCommandSourceStack()),
-                    "Normal player cannot open /deadrecall deathnodes");
+                    "Normal player cannot open /totem deathnodes");
 
             boolean snapshotSent = NexusDeathNodeAdminService.sendSnapshot(
                     player,

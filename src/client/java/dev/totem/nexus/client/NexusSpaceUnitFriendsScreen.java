@@ -36,7 +36,7 @@ final class NexusSpaceUnitFriendsScreen extends NexusOwnedScreen {
     }
 
     NexusSpaceUnitFriendsScreen(Screen parent, SpaceUnitFriendsPayload payload, boolean observer, Runnable stop) {
-        super(Component.translatable("message.deadrecall.space_unit.friends_title"), observer, stop);
+        super(Component.translatable("message.totem.space_unit.friends_title"), observer, stop);
         this.parent = parent;
         this.payload = payload;
     }
@@ -45,14 +45,14 @@ final class NexusSpaceUnitFriendsScreen extends NexusOwnedScreen {
     protected void init() {
         CURRENT = this;
         this.refreshButton = Button.builder(
-                        Component.translatable("message.deadrecall.space_unit.friends_refresh"),
+                        Component.translatable("message.totem.space_unit.friends_refresh"),
                         button -> requestRefresh())
                 .bounds(refreshButtonX(), footerButtonY(), 62, 18)
                 .build();
         this.addRenderableWidget(this.refreshButton);
 
         this.removeButton = Button.builder(
-                        Component.translatable("message.deadrecall.space_unit.friends_remove"),
+                        Component.translatable("message.totem.space_unit.friends_remove"),
                         button -> removeSelected())
                 .bounds(removeButtonX(), footerButtonY(), 62, 18)
                 .build();
@@ -106,7 +106,7 @@ final class NexusSpaceUnitFriendsScreen extends NexusOwnedScreen {
         extractor.fill(x, y, x + width, y + height, 0xF016191D);
         extractor.outline(x, y, width, height, 0xFF657383);
         extractor.text(this.font, this.title, x + PANEL_PADDING, y + 10, 0xFFFFFFFF);
-        extractor.text(this.font, Component.translatable("message.deadrecall.space_unit.friends_count", entries().size()),
+        extractor.text(this.font, Component.translatable("message.totem.space_unit.friends_count", entries().size()),
                 x + width - PANEL_PADDING - 88, y + 10, 0xFFB8C0C8);
 
         drawEntries(extractor, mouseX, mouseY);
@@ -160,7 +160,7 @@ final class NexusSpaceUnitFriendsScreen extends NexusOwnedScreen {
 
         List<SpaceUnitFriendsPayload.Entry> entries = entries();
         if (entries.isEmpty()) {
-            extractor.text(this.font, Component.translatable("message.deadrecall.space_unit.friends_empty"),
+            extractor.text(this.font, Component.translatable("message.totem.space_unit.friends_empty"),
                     x + 8, y + 10, 0xFFFFC857);
             return;
         }
@@ -187,11 +187,11 @@ final class NexusSpaceUnitFriendsScreen extends NexusOwnedScreen {
     }
 
     private String statusLine(SpaceUnitFriendsPayload.Entry entry) {
-        return Component.translatable("message.deadrecall.space_unit.friend_status." + statusId(entry.status())).getString()
+        return Component.translatable("message.totem.space_unit.friend_status." + statusId(entry.status())).getString()
                 + " | "
                 + Component.translatable(entry.online()
-                ? "message.deadrecall.space_unit.friend_online"
-                : "message.deadrecall.space_unit.friend_offline").getString();
+                ? "message.totem.space_unit.friend_online"
+                : "message.totem.space_unit.friend_offline").getString();
     }
 
     private String statusId(String status) {

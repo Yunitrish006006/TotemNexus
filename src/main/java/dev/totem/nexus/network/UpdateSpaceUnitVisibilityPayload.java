@@ -14,7 +14,7 @@ public record UpdateSpaceUnitVisibilityPayload(
         String visibility)
         implements CustomPacketPayload {
     public static final Type<UpdateSpaceUnitVisibilityPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "update_space_unit_visibility"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/update_space_unit_visibility"));
 
     public static final StreamCodec<FriendlyByteBuf, UpdateSpaceUnitVisibilityPayload> CODEC =
             StreamCodec.of(

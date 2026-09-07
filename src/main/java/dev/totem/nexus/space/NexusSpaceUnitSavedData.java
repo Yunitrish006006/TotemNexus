@@ -18,6 +18,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
+import net.minecraft.world.level.storage.SavedDataStorage;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -38,6 +39,12 @@ public class NexusSpaceUnitSavedData extends SavedData {
     ).apply(instance, NexusSpaceUnitSavedData::new));
 
     public static final SavedDataType<NexusSpaceUnitSavedData> TYPE = new SavedDataType<>(
+            Identifier.fromNamespaceAndPath("totem", "space_units"),
+            NexusSpaceUnitSavedData::new,
+            CODEC,
+            DataFixTypes.SAVED_DATA_COMMAND_STORAGE
+    );
+    static final SavedDataType<NexusSpaceUnitSavedData> LEGACY_COMPATIBILITY_TYPE = new SavedDataType<>(
             Identifier.fromNamespaceAndPath("deadrecall", "space_units"),
             NexusSpaceUnitSavedData::new,
             CODEC,
@@ -53,6 +60,17 @@ public class NexusSpaceUnitSavedData extends SavedData {
 
     public NexusSpaceUnitSavedData() {
         this(DATA_VERSION, List.of());
+    }
+
+    /** Canonical-first loader with a one-way, non-destructive legacy copy. */
+    public static synchronized NexusSpaceUnitSavedData loadCanonical(SavedDataStorage storage) {
+        NexusSpaceUnitSavedData canonical = storage.get(TYPE);
+        if (canonical != null) return canonical;
+        NexusSpaceUnitSavedData legacy = storage.get(LEGACY_COMPATIBILITY_TYPE);
+        if (legacy == null) return storage.computeIfAbsent(TYPE);
+        NexusSpaceUnitSavedData migrated = new NexusSpaceUnitSavedData(legacy.dataVersion, legacy.unitList());
+        storage.set(TYPE, migrated);
+        return migrated;
     }
 
     private NexusSpaceUnitSavedData(int dataVersion, List<NexusSpaceUnitRecord> units) {
@@ -640,7 +658,7 @@ public class NexusSpaceUnitSavedData extends SavedData {
     }
 
     private static TagKey<Block> blockTag(String path) {
-        return TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("deadrecall", path));
+        return TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("totem", path));
     }
 
     private int dataVersion() {

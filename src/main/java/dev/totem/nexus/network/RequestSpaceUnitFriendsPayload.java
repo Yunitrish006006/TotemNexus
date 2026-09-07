@@ -7,7 +7,7 @@ import net.minecraft.resources.Identifier;
 
 public record RequestSpaceUnitFriendsPayload() implements CustomPacketPayload {
     public static final Type<RequestSpaceUnitFriendsPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "request_space_unit_friends"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/request_space_unit_friends"));
 
     public static final StreamCodec<FriendlyByteBuf, RequestSpaceUnitFriendsPayload> CODEC =
             StreamCodec.of(

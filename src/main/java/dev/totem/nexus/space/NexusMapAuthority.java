@@ -18,8 +18,8 @@ public final class NexusMapAuthority {
         long time = player.level().getGameTime();
         if (sessions.require(player, sourceType, sourceId, time).isEmpty()) return false;
         var storage = player.level().getServer().overworld().getDataStorage();
-        NexusSpaceUnitSavedData units = storage.computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
-        NexusSpaceDiscoverySavedData discovery = storage.computeIfAbsent(NexusSpaceDiscoverySavedData.TYPE);
+        NexusSpaceUnitSavedData units = NexusSpaceUnitSavedData.loadCanonical(storage);
+        NexusSpaceDiscoverySavedData discovery = NexusSpaceDiscoverySavedData.loadCanonical(storage);
         NexusFriendSavedData friends = storage.computeIfAbsent(NexusFriendSavedData.TYPE);
         NexusSpaceUnitRecord target = units.get(targetId).orElse(null);
         if (target == null || target.status() != SpaceUnitStatus.ACTIVE

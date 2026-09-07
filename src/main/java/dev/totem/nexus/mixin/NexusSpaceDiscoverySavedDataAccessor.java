@@ -11,8 +11,8 @@ import java.util.UUID;
 @Mixin(NexusSpaceDiscoverySavedData.class)
 public interface NexusSpaceDiscoverySavedDataAccessor {
     @Accessor("discoveredByPlayer")
-    Map<UUID, Set<UUID>> deadrecall$getDiscoveredByPlayer();
+    Map<UUID, Set<UUID>> totem$getDiscoveredByPlayer();
 
     @Accessor("favoritesByPlayer")
-    Map<UUID, Set<UUID>> deadrecall$getFavoritesByPlayer();
+    Map<UUID, Set<UUID>> totem$getFavoritesByPlayer();
 }

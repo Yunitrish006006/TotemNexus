@@ -660,7 +660,7 @@ public final class NexusDeathNodeAdminService {
             return;
         }
         if (nodeId == null) {
-            player.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.missing_uuid")
+            player.sendSystemMessage(Component.translatable("message.totem.death_node_admin.missing_uuid")
                     .withStyle(ChatFormatting.RED));
             return;
         }
@@ -670,7 +670,7 @@ public final class NexusDeathNodeAdminService {
         Map<UUID, NexusSpaceUnitRecord> unitsById = unitMap(data);
         NexusSpaceUnitRecord unit = unitsById.get(nodeId);
         if (unit == null || unit.type() != SpaceUnitType.DEATH) {
-            player.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.not_found")
+            player.sendSystemMessage(Component.translatable("message.totem.death_node_admin.not_found")
                     .withStyle(ChatFormatting.RED));
             sendSnapshot(player);
             return;
@@ -678,7 +678,7 @@ public final class NexusDeathNodeAdminService {
 
         if (!administrator) {
             if (!unit.owner().equals(player.getUUID())) {
-                player.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.not_found")
+                player.sendSystemMessage(Component.translatable("message.totem.death_node_admin.not_found")
                         .withStyle(ChatFormatting.RED));
                 sendSnapshot(player);
                 return;
@@ -708,7 +708,7 @@ public final class NexusDeathNodeAdminService {
                 return;
             }
             case ACTION_PURGE -> purge(player, data, unitsById, unit, confirmationToken);
-            default -> player.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.unsupported_action")
+            default -> player.sendSystemMessage(Component.translatable("message.totem.death_node_admin.unsupported_action")
                     .withStyle(ChatFormatting.RED));
         }
         sendSnapshot(player);
@@ -724,7 +724,7 @@ public final class NexusDeathNodeAdminService {
             case ACTION_BATCH_DISABLE -> executeBatchDisable(administrator, data, query, confirmationToken);
             case ACTION_BATCH_PURGE -> executeBatchPurge(administrator, data, query, confirmationToken);
             default -> {
-                administrator.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.unsupported_action")
+                administrator.sendSystemMessage(Component.translatable("message.totem.death_node_admin.unsupported_action")
                         .withStyle(ChatFormatting.RED));
                 sendSnapshot(administrator);
             }
@@ -743,7 +743,7 @@ public final class NexusDeathNodeAdminService {
                 purge
         );
         if (targets.isEmpty()) {
-            administrator.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.batch_no_matches")
+            administrator.sendSystemMessage(Component.translatable("message.totem.death_node_admin.batch_no_matches")
                     .withStyle(ChatFormatting.YELLOW));
             sendSnapshot(administrator);
             return;
@@ -759,7 +759,7 @@ public final class NexusDeathNodeAdminService {
                 PURGE_CONFIRMATION_DURATION_MILLIS
         );
         administrator.sendSystemMessage(Component.translatable(
-                "message.deadrecall.death_node_admin.batch_confirmation_issued",
+                "message.totem.death_node_admin.batch_confirmation_issued",
                 targets.size()).withStyle(ChatFormatting.YELLOW));
         sendSnapshot(administrator, query, confirmation);
     }
@@ -789,7 +789,7 @@ public final class NexusDeathNodeAdminService {
         }
         auditBatchMutation(administrator, "batch disabled", query, targets.size());
         administrator.sendSystemMessage(Component.translatable(
-                "message.deadrecall.death_node_admin.batch_disabled", targets.size()).withStyle(ChatFormatting.GREEN));
+                "message.totem.death_node_admin.batch_disabled", targets.size()).withStyle(ChatFormatting.GREEN));
         sendSnapshot(administrator);
     }
 
@@ -819,7 +819,7 @@ public final class NexusDeathNodeAdminService {
         }
         auditBatchMutation(administrator, "batch permanently purged", query, targets.size());
         administrator.sendSystemMessage(Component.translatable(
-                "message.deadrecall.death_node_admin.batch_purged", targets.size()).withStyle(ChatFormatting.GREEN));
+                "message.totem.death_node_admin.batch_purged", targets.size()).withStyle(ChatFormatting.GREEN));
         sendSnapshot(administrator);
     }
 
@@ -829,7 +829,7 @@ public final class NexusDeathNodeAdminService {
             Map<UUID, NexusSpaceUnitRecord> unitsById,
             NexusSpaceUnitRecord unit) {
         if (unit.status() != SpaceUnitStatus.ACTIVE) {
-            administrator.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.already_disabled")
+            administrator.sendSystemMessage(Component.translatable("message.totem.death_node_admin.already_disabled")
                     .withStyle(ChatFormatting.YELLOW));
             return;
         }
@@ -838,7 +838,7 @@ public final class NexusDeathNodeAdminService {
         unitsById.put(disabled.id(), disabled);
         data.setDirty();
         auditMutation(administrator, "disabled", unit);
-        administrator.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.disabled", unit.name())
+        administrator.sendSystemMessage(Component.translatable("message.totem.death_node_admin.disabled", unit.name())
                 .withStyle(ChatFormatting.GREEN));
     }
 
@@ -849,7 +849,7 @@ public final class NexusDeathNodeAdminService {
             NexusSpaceUnitRecord unit,
             UUID confirmationToken) {
         if (unit.status() == SpaceUnitStatus.ACTIVE) {
-            administrator.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.must_disable_before_purge")
+            administrator.sendSystemMessage(Component.translatable("message.totem.death_node_admin.must_disable_before_purge")
                     .withStyle(ChatFormatting.RED));
             return;
         }
@@ -861,7 +861,7 @@ public final class NexusDeathNodeAdminService {
         data.setDirty();
         removeDiscoveryReferences(administrator.level().getServer(), unit.id());
         auditMutation(administrator, "permanently purged", unit);
-        administrator.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.purged", unit.name())
+        administrator.sendSystemMessage(Component.translatable("message.totem.death_node_admin.purged", unit.name())
                 .withStyle(ChatFormatting.GREEN));
     }
 
@@ -872,7 +872,7 @@ public final class NexusDeathNodeAdminService {
             NexusSpaceUnitRecord unit,
             UUID confirmationToken) {
         if (!unit.owner().equals(owner.getUUID())) {
-            owner.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.not_found")
+            owner.sendSystemMessage(Component.translatable("message.totem.death_node_admin.not_found")
                     .withStyle(ChatFormatting.RED));
             return;
         }
@@ -891,13 +891,13 @@ public final class NexusDeathNodeAdminService {
                 unit.pos()
         );
         owner.sendSystemMessage(Component.translatable(
-                "message.deadrecall.death_node_admin.owner_purged",
+                "message.totem.death_node_admin.owner_purged",
                 unit.name()).withStyle(ChatFormatting.GREEN));
     }
 
     private static void requestOwnerPurgeConfirmation(ServerPlayer owner, NexusSpaceUnitRecord unit) {
         if (!unit.owner().equals(owner.getUUID())) {
-            owner.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.not_found")
+            owner.sendSystemMessage(Component.translatable("message.totem.death_node_admin.not_found")
                     .withStyle(ChatFormatting.RED));
             return;
         }
@@ -910,7 +910,7 @@ public final class NexusDeathNodeAdminService {
                 PURGE_CONFIRMATION_DURATION_MILLIS
         );
         owner.sendSystemMessage(Component.translatable(
-                "message.deadrecall.death_node_admin.owner_purge_confirmation_issued")
+                "message.totem.death_node_admin.owner_purge_confirmation_issued")
                 .withStyle(ChatFormatting.YELLOW));
         sendSnapshot(owner, activeQuery(owner), confirmation);
     }
@@ -930,19 +930,19 @@ public final class NexusDeathNodeAdminService {
             case CONFIRMED -> true;
             case MISSING -> {
                 owner.sendSystemMessage(Component.translatable(
-                        "message.deadrecall.death_node_admin.owner_purge_confirmation_required")
+                        "message.totem.death_node_admin.owner_purge_confirmation_required")
                         .withStyle(ChatFormatting.RED));
                 yield false;
             }
             case EXPIRED -> {
                 owner.sendSystemMessage(Component.translatable(
-                        "message.deadrecall.death_node_admin.owner_purge_confirmation_expired")
+                        "message.totem.death_node_admin.owner_purge_confirmation_expired")
                         .withStyle(ChatFormatting.RED));
                 yield false;
             }
             case MISMATCH -> {
                 owner.sendSystemMessage(Component.translatable(
-                        "message.deadrecall.death_node_admin.owner_purge_confirmation_mismatch")
+                        "message.totem.death_node_admin.owner_purge_confirmation_mismatch")
                         .withStyle(ChatFormatting.RED));
                 yield false;
             }
@@ -951,7 +951,7 @@ public final class NexusDeathNodeAdminService {
 
     private static void requestPurgeConfirmation(ServerPlayer administrator, NexusSpaceUnitRecord unit) {
         if (unit.status() == SpaceUnitStatus.ACTIVE) {
-            administrator.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.must_disable_before_purge")
+            administrator.sendSystemMessage(Component.translatable("message.totem.death_node_admin.must_disable_before_purge")
                     .withStyle(ChatFormatting.RED));
             sendSnapshot(administrator, activeQuery(administrator), null);
             return;
@@ -965,7 +965,7 @@ public final class NexusDeathNodeAdminService {
                 nowMillis,
                 PURGE_CONFIRMATION_DURATION_MILLIS
         );
-        administrator.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.purge_confirmation_issued")
+        administrator.sendSystemMessage(Component.translatable("message.totem.death_node_admin.purge_confirmation_issued")
                 .withStyle(ChatFormatting.YELLOW));
         sendSnapshot(administrator, activeQuery(administrator), confirmation);
     }
@@ -981,17 +981,17 @@ public final class NexusDeathNodeAdminService {
         return switch (result) {
             case CONFIRMED -> true;
             case MISSING -> {
-                administrator.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.purge_confirmation_required")
+                administrator.sendSystemMessage(Component.translatable("message.totem.death_node_admin.purge_confirmation_required")
                         .withStyle(ChatFormatting.RED));
                 yield false;
             }
             case EXPIRED -> {
-                administrator.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.purge_confirmation_expired")
+                administrator.sendSystemMessage(Component.translatable("message.totem.death_node_admin.purge_confirmation_expired")
                         .withStyle(ChatFormatting.RED));
                 yield false;
             }
             case MISMATCH -> {
-                administrator.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.purge_confirmation_mismatch")
+                administrator.sendSystemMessage(Component.translatable("message.totem.death_node_admin.purge_confirmation_mismatch")
                         .withStyle(ChatFormatting.RED));
                 yield false;
             }
@@ -1014,17 +1014,17 @@ public final class NexusDeathNodeAdminService {
         return switch (result) {
             case CONFIRMED -> true;
             case MISSING -> {
-                administrator.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.batch_confirmation_required")
+                administrator.sendSystemMessage(Component.translatable("message.totem.death_node_admin.batch_confirmation_required")
                         .withStyle(ChatFormatting.RED));
                 yield false;
             }
             case EXPIRED -> {
-                administrator.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.batch_confirmation_expired")
+                administrator.sendSystemMessage(Component.translatable("message.totem.death_node_admin.batch_confirmation_expired")
                         .withStyle(ChatFormatting.RED));
                 yield false;
             }
             case MISMATCH -> {
-                administrator.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.batch_confirmation_mismatch")
+                administrator.sendSystemMessage(Component.translatable("message.totem.death_node_admin.batch_confirmation_mismatch")
                         .withStyle(ChatFormatting.RED));
                 yield false;
             }
@@ -1034,7 +1034,7 @@ public final class NexusDeathNodeAdminService {
     private static void teleportToNode(ServerPlayer administrator, MinecraftServer server, NexusSpaceUnitRecord unit) {
         ServerLevel targetLevel = server.getLevel(unit.dimension());
         if (targetLevel == null) {
-            administrator.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.dimension_unavailable")
+            administrator.sendSystemMessage(Component.translatable("message.totem.death_node_admin.dimension_unavailable")
                     .withStyle(ChatFormatting.RED));
             return;
         }
@@ -1042,7 +1042,7 @@ public final class NexusDeathNodeAdminService {
         BlockPos anchor = unit.pos();
         var landing = NexusSpaceUnitAuthority.findSafeLandingNear(targetLevel, anchor, ADMIN_TELEPORT_SEARCH_RADIUS);
         if (landing.isEmpty()) {
-            administrator.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.no_safe_landing")
+            administrator.sendSystemMessage(Component.translatable("message.totem.death_node_admin.no_safe_landing")
                     .withStyle(ChatFormatting.RED));
             return;
         }
@@ -1059,7 +1059,7 @@ public final class NexusDeathNodeAdminService {
                 false
         );
         auditMutation(administrator, "teleported to", unit);
-        administrator.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.teleported", unit.name())
+        administrator.sendSystemMessage(Component.translatable("message.totem.death_node_admin.teleported", unit.name())
                 .withStyle(ChatFormatting.GREEN));
     }
 
@@ -1139,8 +1139,8 @@ public final class NexusDeathNodeAdminService {
         NexusSpaceDiscoverySavedData data = discovery(server);
         NexusSpaceDiscoverySavedDataAccessor accessor =
                 (NexusSpaceDiscoverySavedDataAccessor) (Object) data;
-        boolean changed = removeReferences(accessor.deadrecall$getDiscoveredByPlayer(), unitIds);
-        changed = removeReferences(accessor.deadrecall$getFavoritesByPlayer(), unitIds) || changed;
+        boolean changed = removeReferences(accessor.totem$getDiscoveredByPlayer(), unitIds);
+        changed = removeReferences(accessor.totem$getFavoritesByPlayer(), unitIds) || changed;
         if (changed) {
             data.setDirty();
         }
@@ -1149,7 +1149,7 @@ public final class NexusDeathNodeAdminService {
     private static Map<UUID, Set<UUID>> discoveredByPlayer(MinecraftServer server) {
         NexusSpaceDiscoverySavedDataAccessor accessor =
                 (NexusSpaceDiscoverySavedDataAccessor) (Object) discovery(server);
-        return accessor.deadrecall$getDiscoveredByPlayer();
+        return accessor.totem$getDiscoveredByPlayer();
     }
 
     private static boolean removeReferences(Map<UUID, Set<UUID>> referencesByPlayer, Set<UUID> unitIds) {
@@ -1168,15 +1168,15 @@ public final class NexusDeathNodeAdminService {
     }
 
     private static Map<UUID, NexusSpaceUnitRecord> unitMap(NexusSpaceUnitSavedData data) {
-        return ((NexusSpaceUnitSavedDataAccessor) (Object) data).deadrecall$getUnitsById();
+        return ((NexusSpaceUnitSavedDataAccessor) (Object) data).totem$getUnitsById();
     }
 
     private static NexusSpaceUnitSavedData units(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
+        return NexusSpaceUnitSavedData.loadCanonical(server.overworld().getDataStorage());
     }
 
     private static NexusSpaceDiscoverySavedData discovery(MinecraftServer server) {
-        return server.overworld().getDataStorage().computeIfAbsent(NexusSpaceDiscoverySavedData.TYPE);
+        return NexusSpaceDiscoverySavedData.loadCanonical(server.overworld().getDataStorage());
     }
 
     private static String ownerDisplayName(MinecraftServer server, UUID ownerId) {
@@ -1312,7 +1312,7 @@ public final class NexusDeathNodeAdminService {
 
     private static void deny(ServerPlayer player) {
         if (player != null) {
-            player.sendSystemMessage(Component.translatable("message.deadrecall.death_node_admin.permission_denied")
+            player.sendSystemMessage(Component.translatable("message.totem.death_node_admin.permission_denied")
                     .withStyle(ChatFormatting.RED));
         }
     }

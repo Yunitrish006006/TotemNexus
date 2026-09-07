@@ -18,11 +18,11 @@ class TeleportArrayMaterialProfileDefinitionTest {
     void documentCodecRoundTripsEveryDatapackFacingProfileLayer() {
         TeleportArrayMaterialProfileDefinition.Profile profile =
                 new TeleportArrayMaterialProfileDefinition.Profile(
-                        Identifier.fromNamespaceAndPath("deadrecall", "codec_test"),
+                        Identifier.fromNamespaceAndPath("totem", "nexus/codec_test"),
                         "test_family",
                         new TeleportArrayMaterialProfileDefinition.Selector(
                                 List.of(Identifier.fromNamespaceAndPath("minecraft", "iron_block")),
-                                List.of(Identifier.fromNamespaceAndPath("deadrecall", "test_materials"))),
+                                List.of(Identifier.fromNamespaceAndPath("totem", "nexus/test_materials"))),
                         true,
                         new TeleportArrayMaterialProfileDefinition.Attributes(
                                 2, 1, -2, 3, 4, 5, 6, -3, 2, 1, -1, 2, 3, -4),
@@ -44,7 +44,7 @@ class TeleportArrayMaterialProfileDefinitionTest {
                 TeleportArrayMaterialProfileDefinition.Document.CODEC.parse(JsonOps.INSTANCE, encoded)
                         .getOrThrow(IllegalArgumentException::new);
 
-        decoded.validate(Identifier.fromNamespaceAndPath("deadrecall", "codec_test.json"));
+        decoded.validate(Identifier.fromNamespaceAndPath("totem", "nexus/codec_test.json"));
         assertEquals(document, decoded);
         assertEquals(-4, decoded.profiles().getFirst().compile().attributes().crossDimensionCatalystUnits());
     }
@@ -53,13 +53,13 @@ class TeleportArrayMaterialProfileDefinitionTest {
     void codecRejectsOutOfRangeScalarsAndDimensionAffinityValues() {
         assertTrue(TeleportArrayMaterialProfileDefinition.Document.CODEC.parse(JsonOps.INSTANCE,
                 JsonParser.parseString("""
-                        {"schema_version":1,"profiles":[{"id":"deadrecall:bad_scalar","family":"test",
+                        {"schema_version":1,"profiles":[{"id":"totem:nexus/bad_scalar","family":"test",
                         "selector":{"blocks":["minecraft:stone"]},"attributes":{"stability":9}}]}
                         """))
                 .error().isPresent());
         assertTrue(TeleportArrayMaterialProfileDefinition.Document.CODEC.parse(JsonOps.INSTANCE,
                 JsonParser.parseString("""
-                        {"schema_version":1,"profiles":[{"id":"deadrecall:bad_affinity","family":"test",
+                        {"schema_version":1,"profiles":[{"id":"totem:nexus/bad_affinity","family":"test",
                         "selector":{"blocks":["minecraft:stone"]},"dimension_affinity":{"minecraft:the_nether":-9}}]}
                         """))
                 .error().isPresent());
@@ -70,11 +70,11 @@ class TeleportArrayMaterialProfileDefinitionTest {
         TeleportArrayMaterialProfileDefinition.Document wrongSchema =
                 new TeleportArrayMaterialProfileDefinition.Document(2, List.of());
         assertThrows(IllegalArgumentException.class,
-                () -> wrongSchema.validate(Identifier.fromNamespaceAndPath("deadrecall", "wrong.json")));
+                () -> wrongSchema.validate(Identifier.fromNamespaceAndPath("totem", "nexus/wrong.json")));
 
         TeleportArrayMaterialProfileDefinition.Profile missingSelector =
                 new TeleportArrayMaterialProfileDefinition.Profile(
-                        Identifier.fromNamespaceAndPath("deadrecall", "missing_selector"),
+                        Identifier.fromNamespaceAndPath("totem", "nexus/missing_selector"),
                         "test",
                         new TeleportArrayMaterialProfileDefinition.Selector(List.of(), List.of()),
                         true,
@@ -82,32 +82,32 @@ class TeleportArrayMaterialProfileDefinitionTest {
                         Map.of(), 0, false, false);
         assertThrows(IllegalArgumentException.class,
                 () -> new TeleportArrayMaterialProfileDefinition.Document(1, List.of(missingSelector))
-                        .validate(Identifier.fromNamespaceAndPath("deadrecall", "missing.json")));
+                .validate(Identifier.fromNamespaceAndPath("totem", "nexus/missing.json")));
     }
 
     @Test
     void validationKeepsOverlayCompositionBoundedToOneExactLayer() {
         TeleportArrayMaterialProfileDefinition.Profile invalidOverlay =
                 new TeleportArrayMaterialProfileDefinition.Profile(
-                        Identifier.fromNamespaceAndPath("deadrecall", "tag_overlay"), "test",
+                        Identifier.fromNamespaceAndPath("totem", "nexus/tag_overlay"), "test",
                         new TeleportArrayMaterialProfileDefinition.Selector(List.of(),
-                                List.of(Identifier.fromNamespaceAndPath("deadrecall", "materials"))),
+                                List.of(Identifier.fromNamespaceAndPath("totem", "nexus/materials"))),
                         true, TeleportArrayMaterialProfileDefinition.Attributes.ZERO,
                         Map.of(), 0, true, false);
         assertThrows(IllegalArgumentException.class,
                 () -> new TeleportArrayMaterialProfileDefinition.Document(1, List.of(invalidOverlay))
-                        .validate(Identifier.fromNamespaceAndPath("deadrecall", "overlay.json")));
+                        .validate(Identifier.fromNamespaceAndPath("totem", "nexus/overlay.json")));
 
         TeleportArrayMaterialProfileDefinition.Profile misplacedReplace =
                 new TeleportArrayMaterialProfileDefinition.Profile(
-                        Identifier.fromNamespaceAndPath("deadrecall", "base_replace"), "test",
+                        Identifier.fromNamespaceAndPath("totem", "nexus/base_replace"), "test",
                         new TeleportArrayMaterialProfileDefinition.Selector(
                                 List.of(Identifier.fromNamespaceAndPath("minecraft", "stone")), List.of()),
                         true, TeleportArrayMaterialProfileDefinition.Attributes.ZERO,
                         Map.of(), 0, false, true);
         assertThrows(IllegalArgumentException.class,
                 () -> new TeleportArrayMaterialProfileDefinition.Document(1, List.of(misplacedReplace))
-                        .validate(Identifier.fromNamespaceAndPath("deadrecall", "replace.json")));
+                        .validate(Identifier.fromNamespaceAndPath("totem", "nexus/replace.json")));
     }
 
     @Test

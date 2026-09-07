@@ -173,7 +173,7 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
         context.waitFor(client -> reload.get() != null && reload.get().isDone());
         context.waitFor(client -> client.gui.overlay() == null);
         context.runOnClient(client -> {
-            String title = I18n.get("container.deadrecall.space_unit.compass");
+            String title = I18n.get("container.totem.space_unit.compass");
             if (!expectedCompassTitle.equals(title)) {
                 throw new AssertionError(language + " Nexus compass resources were not loaded: " + title);
             }
@@ -186,23 +186,23 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
                 TeleportInterfaceType.BOOK, SpaceUnitMapPayload.NO_MAP_ID,
                 List.of(
                         entry(SOURCE_ID, "Home Nexus", 0, 0,
-                                "message.deadrecall.space_unit.interface_bonus.book.active", false),
+                                "message.totem.space_unit.interface_bonus.book.active", false),
                         entry(UUID.fromString("00000000-0000-0000-0000-000000000499"),
                                 "Hidden Remote Nexus", 24, 24,
-                                "message.deadrecall.space_unit.interface_bonus.book.active", true)));
+                                "message.totem.space_unit.interface_bonus.book.active", true)));
     }
 
     private static SpaceUnitMapPayload compassPayload() {
         List<SpaceUnitMapPayload.Entry> entries = new ArrayList<>();
         entries.add(entry(SOURCE_ID, "Home Nexus", 0, 0,
-                "message.deadrecall.space_unit.interface_bonus.compass", false));
+                "message.totem.space_unit.interface_bonus.compass", false));
         entries.add(entry(COMPASS_TARGET_ID, "Archive Relay", 28, -20,
-                "message.deadrecall.space_unit.interface_bonus.compass", true));
+                "message.totem.space_unit.interface_bonus.compass", true));
         for (int index = 0; index < 9; index++) {
             entries.add(entry(UUID.fromString(String.format(
                             "00000000-0000-0000-0000-%012d", 420 + index)),
                     "Relay " + (index + 1), 40 + index * 6, 12 + index * 4,
-                    "message.deadrecall.space_unit.interface_bonus.compass", true));
+                    "message.totem.space_unit.interface_bonus.compass", true));
         }
         return new SpaceUnitMapPayload(
                 SOURCE_ID, "lodestone", "Home Nexus", "minecraft:overworld", 0, 64, 0,
@@ -215,13 +215,13 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
                 TeleportInterfaceType.FILLED_MAP, MAP_ID,
                 List.of(
                         entry(SOURCE_ID, "Home Nexus", 0, 0,
-                                "message.deadrecall.space_unit.interface_bonus.filled_map.active", false),
+                                "message.totem.space_unit.interface_bonus.filled_map.active", false),
                         entry(MAP_TARGET_ID,
                                 "East Archive", 28, -20,
-                                "message.deadrecall.space_unit.interface_bonus.filled_map.active", true),
+                                "message.totem.space_unit.interface_bonus.filled_map.active", true),
                         entry(UUID.fromString("00000000-0000-0000-0000-000000000403"),
                                 "", -32, 26,
-                                "message.deadrecall.space_unit.interface_bonus.filled_map.active", true)));
+                                "message.totem.space_unit.interface_bonus.filled_map.active", true)));
     }
 
     private static SpaceUnitMapPayload.Entry entry(
@@ -237,7 +237,7 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
                 0, 0,
                 true, interfaceBonusMessageKey,
                 false, true, true, 1, 2, canTeleport,
-                canTeleport ? "" : "message.deadrecall.space_unit.teleport_blocked.same_source");
+                canTeleport ? "" : "message.totem.space_unit.teleport_blocked.same_source");
     }
 
     private static void fillVanillaMapColors(MapItemSavedData data) {

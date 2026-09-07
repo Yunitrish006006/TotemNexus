@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(MapItem.class)
 public abstract class NexusMapItemPostProcessingMixin {
     @Inject(method = "onCraftedPostProcess", at = @At("HEAD"), cancellable = true)
-    private void deadrecall$postProcessNexusMap(ItemStack stack, Level level, CallbackInfo ci) {
+    private void totem$postProcessNexusMap(ItemStack stack, Level level, CallbackInfo ci) {
         if (!(level instanceof ServerLevel serverLevel)) return;
         MapPostProcessing processing = stack.get(DataComponents.MAP_POST_PROCESSING);
         NexusMapLifecycleAuthority.PostProcessResult result =

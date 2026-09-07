@@ -24,8 +24,8 @@ public final class NexusMapQuoteAuthority {
 
     private static NexusMapQuote unavailable(TeleportInterfaceContext context) {
         if (context == null) {
-            return NexusMapQuote.unavailable(TeleportInterfaceType.COMPASS, "message.deadrecall.space_unit.teleport_blocked.source");
+            return NexusMapQuote.unavailable(TeleportInterfaceType.COMPASS, "message.totem.space_unit.teleport_blocked.source");
         }
-        return NexusMapQuote.unavailable(context.interfaceType(), "message.deadrecall.space_unit.teleport_blocked.source");
+        return NexusMapQuote.unavailable(context.interfaceType(), "message.totem.space_unit.teleport_blocked.source");
     }
 }

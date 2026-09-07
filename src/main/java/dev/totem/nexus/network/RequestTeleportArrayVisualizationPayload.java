@@ -16,7 +16,7 @@ public record RequestTeleportArrayVisualizationPayload(
         boolean showBuildSites) implements CustomPacketPayload {
     public static final int MAX_SOURCE_TYPE_LENGTH = 32;
     public static final Type<RequestTeleportArrayVisualizationPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "request_teleport_array_visualization"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/request_teleport_array_visualization"));
     public static final StreamCodec<FriendlyByteBuf, RequestTeleportArrayVisualizationPayload> CODEC = StreamCodec.of(
             (buf, payload) -> {
                 buf.writeUtf(payload.sourceType(), MAX_SOURCE_TYPE_LENGTH);

@@ -20,10 +20,8 @@ public final class TeleportInterfaceItemResolver {
         Optional<ResolvedInterface> resolved = resolve(player.getItemInHand(hand));
         if (resolved.isPresent() && resolved.get().type() == TeleportInterfaceType.FILLED_MAP) {
             var mapData = MapItem.getSavedData(resolved.get().mapId(), player.level());
-            NexusMapBindingSavedData bindings = player.level().getServer().overworld().getDataStorage()
-                    .computeIfAbsent(NexusMapBindingSavedData.TYPE);
-            NexusSpaceUnitSavedData units = player.level().getServer().overworld().getDataStorage()
-                    .computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
+            NexusMapBindingSavedData bindings = NexusMapBindingSavedData.loadCanonical(player.level().getServer().overworld().getDataStorage());
+            NexusSpaceUnitSavedData units = NexusSpaceUnitSavedData.loadCanonical(player.level().getServer().overworld().getDataStorage());
             NexusMapBindingSavedData.Entry serverBinding = bindings.resolve(resolved.get().mapId(), mapData)
                     .filter(entry -> entry.unitId().equals(resolved.get().boundUnitId()))
                     .filter(entry -> units.get(entry.unitId()).filter(entry::matchesUnit).isPresent())

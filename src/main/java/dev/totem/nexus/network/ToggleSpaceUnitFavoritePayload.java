@@ -14,7 +14,7 @@ public record ToggleSpaceUnitFavoritePayload(
         boolean favorite)
         implements CustomPacketPayload {
     public static final Type<ToggleSpaceUnitFavoritePayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("deadrecall", "toggle_space_unit_favorite"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/toggle_space_unit_favorite"));
 
     public static final StreamCodec<FriendlyByteBuf, ToggleSpaceUnitFavoritePayload> CODEC =
             StreamCodec.of(

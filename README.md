@@ -22,8 +22,8 @@ Client 與 Server 都放入：
 | 必要 Totem 模組 | `totem-core >=0.7.16 <0.8.0` |
 | 選配 | TotemRemnant（死亡背包 ↔ Death Node 整合） |
 
-Nexus standalone 不要求 DeadRecall、Remnant 或 Discord Bridge。使用
-DeadRecall 2.4.11 整合 JAR 時不要再安裝獨立 TotemNexus。
+Nexus standalone 不要求舊整合包、Remnant 或 Discord Bridge。舊整合 JAR
+不應再與獨立 TotemNexus 並用。
 
 ## 0.3.13 發布重點
 
@@ -42,8 +42,8 @@ DeadRecall 2.4.11 整合 JAR 時不要再安裝獨立 TotemNexus。
 
 Nexus 的「分散安全重生點」與「傳送陣擴張模式」現在會集中顯示在
 Minecraft 原生世界規則介面的「圖騰世界規則」分類，名稱、說明與擴張模式
-選項皆有繁體中文。既有 `deadrecall:*` 規則 ID、預設值、世界存檔資料及
-伺服器權威更新流程維持不變。
+選項皆有繁體中文。新世界使用 canonical `totem:nexus/*` 規則；遷移層會
+讀取舊規則的非預設值並寫入 canonical 規則。
 
 0.3.11 修正原版遊戲內「世界規則」畫面會拒絕 `local`／`centered` 值、使
 「傳送陣擴張模式」看似沒有儲存的問題。新版同時接受介面使用的小寫值與既有
@@ -128,8 +128,8 @@ UUID，重新對照 Server 端的 Owner、Administrator、Allowed 與可見性�
 Nexus 提供兩套 Server 權威的傳送陣擴張算法，可由世界規則切換：
 
 ```text
-/gamerule deadrecall:teleport_array_expansion_mode local
-/gamerule deadrecall:teleport_array_expansion_mode centered
+/gamerule totem:nexus/teleport_array_expansion_mode local
+/gamerule totem:nexus/teleport_array_expansion_mode centered
 ```
 
 預設 `local` 完全保留原本的不規則局部路徑：從磁石周圍一格、排除中心的
@@ -243,8 +243,8 @@ Overworld 基線；黑曜石提供高穩定、抗磨損與抗干擾，但相位�
 所有遊戲內玩家都可開啟：
 
 ```text
-/deadrecall deathnodes
-/deadrecall deathpoints
+/totem deathnodes
+/totem deathpoints
 ```
 
 一般玩家只會收到自己擁有的死亡節點，可選取單一節點並在 30 秒內二次
@@ -258,15 +258,15 @@ Overworld 基線；黑曜石提供高穩定、抗磨損與抗干擾，但相位�
 
 Nexus 透過 TotemCore event bus 發布公開 Space Unit 更新、死亡背包回收
 與管理稽核摘要。TotemDiscordBridge 可自行訂閱這些型別事件；Nexus
-不直接依賴 Discord，也不再呼叫 DeadRecall 的反射 adapter。沒有任何
+不直接依賴 Discord，也不再呼叫反射 adapter。沒有任何
 subscriber 時，Nexus standalone 行為不受影響。
 
 ## 舊世界相容
 
-Nexus 保留既有的四組 `deadrecall` SavedData keys、payload IDs 與資源
-identifiers。0.2.5 保留 0.2.1 已通過的 root authority seed → external migrate → 第二
-JVM verify，涵蓋 Space Unit、探索／最愛、好友、分散出生點與死亡背包
-反向綁定。
+Nexus 的遷移層只讀取四組舊 `deadrecall` SavedData keys、舊 NBT 綁定與舊
+世界規則，並立即寫入 canonical ID。Payload、指令與資料包只使用新的
+`totem:nexus/*` ID。遷移覆蓋 Space Unit、探索／最愛、好友、分散出生點與
+死亡背包反向綁定。
 
 ## 開發與驗證
 

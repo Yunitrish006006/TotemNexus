@@ -39,7 +39,7 @@ public final class TeleportArrayMaterialScanGameTest {
                 != TotemGameRuleCategories.TOTEM
                 || !NexusTeleportArrayExpansionRules.EXPANSION_MODE_ID.equals(
                 NexusTeleportArrayExpansionRules.EXPANSION_MODE.getIdentifier())
-                || !"gamerule.deadrecall.teleport_array_expansion_mode".equals(
+                || !"gamerule.totem.teleport_array_expansion_mode".equals(
                 NexusTeleportArrayExpansionRules.EXPANSION_MODE.getDescriptionId())
                 || NexusTeleportArrayExpansionRules.EXPANSION_MODE.defaultValue()
                 != NexusTeleportArrayExpansionRules.ExpansionMode.LOCAL
@@ -113,7 +113,7 @@ public final class TeleportArrayMaterialScanGameTest {
     public void distributedSpawnRuleUsesSharedCategoryAndStableContract(GameTestHelper helper) {
         var rule = NexusDistributedSpawnAuthority.DISTRIBUTED_SPAWNING;
         if (rule.category() != TotemGameRuleCategories.TOTEM
-                || !Identifier.fromNamespaceAndPath("deadrecall", "dead_recall_distributed_spawning")
+                || !Identifier.fromNamespaceAndPath("totem", "nexus/distributed_spawning")
                 .equals(rule.getIdentifier())
                 || rule.defaultValue()
                 || rule.valueClass() != Boolean.class

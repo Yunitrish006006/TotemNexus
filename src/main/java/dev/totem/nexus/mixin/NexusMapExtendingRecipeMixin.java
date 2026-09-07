@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class NexusMapExtendingRecipeMixin {
     @Inject(method = "matches(Lnet/minecraft/world/item/crafting/CraftingInput;Lnet/minecraft/world/level/Level;)Z",
             at = @At("RETURN"), cancellable = true)
-    private void deadrecall$requireAvailableAnchor(
+    private void totem$requireAvailableAnchor(
             CraftingInput input,
             Level level,
             CallbackInfoReturnable<Boolean> cir) {
