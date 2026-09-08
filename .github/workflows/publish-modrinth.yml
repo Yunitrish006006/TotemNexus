@@ -150,8 +150,13 @@ jobs:
             modrinth_request /tmp/project.json "$api/project/${project_ref}"
           fi
           project="$(jq -er '.id' /tmp/project.json)"
+          jq '{id,slug,status}' /tmp/project.json | tee /tmp/project-summary.json
+          curl --fail-with-body "${args[@]}" "$api/project/${project}/version?include_changelog=false" >/tmp/versions.json
+          count="$(jq --arg v "$version" '[.[] | select(.version_number == $v)] | length' /tmp/versions.json)"
           sha="$(sha512sum "$artifact" | awk '{print $1}')"
           if [[ "$DRY_RUN" == true ]]; then
+            test "$count" = '0' || { echo "Version ${version} already exists; choose an unused release version." >&2; exit 1; }
+            echo "Validated unused version ${version}; dependencies: Fabric API and external totem-core-0.7.18.jar."
             echo "version=$version" >> "$GITHUB_OUTPUT"
             echo "project_id=$project" >> "$GITHUB_OUTPUT"
             echo "sha512=$sha" >> "$GITHUB_OUTPUT"
@@ -167,17 +172,30 @@ jobs:
             test "$remote_sha" = "$sha" || { echo "Version ${version} exists with a different SHA-512." >&2; exit 1; }
             echo "Modrinth already has byte-identical ${MODULE_ID} ${version}; verifying it."
           else
-            changelog="$(git log -1 --format=%B)"
-            data="$(jq -nc --arg name "${MODULE_ID} ${version}" --arg version "$version" --arg changelog "$changelog" --arg project "$project" --arg minecraft "$minecraft" '{name:$name,version_number:$version,changelog:$changelog,dependencies:[],game_versions:[$minecraft],version_type:"release",loaders:["fabric"],featured:false,status:"listed",project_id:$project,file_parts:["primary"],primary_file:"primary",environment:"client_and_server"}')"
+            changelog_file=".github/staging/modrinth-changelog-${version}.md"
+            if [[ -f "$changelog_file" ]]; then changelog="$(cat "$changelog_file")"; else changelog="$(git log -1 --format=%B)"; fi
+            data="$(jq -nc --arg name "${MODULE_ID} ${version}" --arg version "$version" --arg changelog "$changelog" --arg project "$project" --arg minecraft "$minecraft" '{name:$name,version_number:$version,changelog:$changelog,dependencies:[{project_id:"P7dR8mSH",dependency_type:"required"},{file_name:"totem-core-0.7.18.jar",dependency_type:"required"}],game_versions:[$minecraft],version_type:"release",loaders:["fabric"],featured:false,status:"listed",project_id:$project,file_parts:["primary"],primary_file:"primary",environment:"client_and_server"}')"
             curl --fail-with-body "${args[@]}" -X POST "$api/version" -F "data=${data};type=application/json" -F "primary=@${artifact};filename=$(basename "$artifact");type=application/java-archive" >/tmp/version.json
             version_id="$(jq -er '.id' /tmp/version.json)"
           fi
           curl --fail-with-body "${args[@]}" "$api/version/${version_id}" >/tmp/remote.json
           jq -e --arg project "$project" --arg version "$version" --arg minecraft "$minecraft" --arg filename "$(basename "$artifact")" --arg sha "$sha" '.project_id == $project and .version_number == $version and .game_versions == [$minecraft] and .loaders == ["fabric"] and (([.files[] | select(.primary == true)][0] // .files[0]).filename == $filename) and (([.files[] | select(.primary == true)][0] // .files[0]).hashes.sha512 == $sha)' /tmp/remote.json >/dev/null
+          jq -e --arg fabric 'P7dR8mSH' --arg core_file 'totem-core-0.7.18.jar' -f .github/scripts/verify-modrinth-remote-dependencies.jq /tmp/remote.json >/dev/null
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "project_id=$project" >> "$GITHUB_OUTPUT"
           echo "version_id=$version_id" >> "$GITHUB_OUTPUT"
           echo "sha512=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Retain release artifact and non-sensitive validation metadata
+        if: steps.release.outputs.should_publish == 'true' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-release-${{ github.sha }}
+          path: |
+            build/libs/totem-nexus-*.jar
+            /tmp/project-summary.json
+            /tmp/remote.json
+          if-no-files-found: error
 
       - name: Submit project for public review
         if: steps.release.outputs.should_publish == 'true' && steps.release.outputs.dry_run == 'false'

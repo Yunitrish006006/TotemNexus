@@ -4,26 +4,33 @@ TotemNexus 是 Totem 系列的 Space Unit、好友、地圖、安全傳送、死
 與分散出生點模組。所有座標、權限、成本與安全落點都由 Server 重新
 驗證，Client 只顯示經過篩選的資訊。
 
-目前模組版本為 **0.3.16**，需要 TotemCore **0.7.16 以上、0.8.0 以下**。
+目前模組版本為 **0.3.17**，需要 TotemCore **0.7.18 以上、0.8.0 以下**。
 
 ## 安裝
 
 Client 與 Server 都放入：
 
 1. Fabric API `0.154.2+26.2`
-2. TotemCore `>=0.7.16 <0.8.0`
-3. TotemNexus `0.3.16`
+2. TotemCore `>=0.7.18 <0.8.0`
+3. TotemNexus `0.3.17`
 
 | 項目 | 需求 |
 | --- | --- |
 | Minecraft | 26.2 |
 | Fabric Loader | 0.19.3+ |
 | Java | 25+ |
-| 必要 Totem 模組 | `totem-core >=0.7.16 <0.8.0` |
+| 必要 Totem 模組 | `totem-core >=0.7.18 <0.8.0` |
 | 選配 | TotemRemnant（死亡背包 ↔ Death Node 整合） |
 
 Nexus standalone 不要求舊整合包、Remnant 或 Discord Bridge。舊整合 JAR
 不應再與獨立 TotemNexus 並用。
+
+## 0.3.17 發布重點
+
+- 普通與回生羅盤皆可轉綁，以已探索且有權限的目的地清單傳送，預設依距離排序。
+- 回生羅盤前往自己的 ACTIVE Death Node，偏移降低75%，並取得一次性救援隱形；回收目標背包後保留3秒，總上限60秒。
+- Nexus 地圖可從已繪製範圍內其他合法磁石出發，原始錨點、MapId 與擴張中心不變；地圖不要求羅盤探索紀錄。
+- Observer 回生羅盤同步需搭配 TotemVanillaTweaks 0.1.26 以上。
 
 ## 0.3.13 發布重點
 
