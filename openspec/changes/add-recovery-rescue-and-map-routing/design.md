@@ -1,0 +1,9 @@
+## Decisions
+- The held interface context stores both sourceId and boundUnitId; only FILLED_MAP may differ. MapId and registry anchor proof are always checked against the actual held item. A clicked map source is resolved from loaded server lodestone data; air use chooses the nearest eligible source within the existing radius.
+- Painted coverage requires same dimension, vanilla 128-pixel bounds and a non-transparent vanilla map color at the endpoint pixel. No map pixels enter Observer snapshots.
+- Compass discovery remains per player; map candidates come from active authorized persisted nodes and painted coverage. Exact source/target/item/access/coverage is rechecked during teleport, including final landing.
+- RecoveryGrace uses a server session and persisted consumed player/node pairs. Exact ACTIVE death-node recovery is observed through the existing Core lifecycle adapter; only its owner gets the three-second suffix. Replayed recovery cannot refresh it.
+- Grace controls the vanilla invisibility entity flag, without adding/removing/replacing potion effects. Vanilla effect updates reapply grace while active; cancellation restores vanilla potion/spectator state. Original potion durations and hidden chains continue naturally.
+- Nexus owns the production Screen and rescue/routing logic. VanillaTweaks adds recovery_compass to its server relay variant allowlist and supplies integration/runtime coverage; Core API and provider ownership remain unchanged. The new variant at protocol 3 uses the same production Screen and unchanged payload codec; existing variants are unchanged.
+- Map favorites use the same current server access policy without granting compass discovery. Legacy discovery-only favorite callers retain their existing guard.
+- The live entrypoint remains NexusSpaceUnitAuthority. Dormant extracted cutover authorities are not activated by this change and are not claimed as alternate implementations of these behaviors.

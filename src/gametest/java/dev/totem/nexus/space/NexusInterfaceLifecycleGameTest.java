@@ -612,6 +612,7 @@ public final class NexusInterfaceLifecycleGameTest {
 
         MapItemSavedData mapData = MapItemSavedData.createFresh(
                 center.getX(), center.getZ(), (byte) 0, false, false, Level.OVERWORLD);
+        java.util.Arrays.fill(mapData.colors, (byte) 4);
         mapData.addClientSideDecorations(List.of(new MapDecoration(
                 MapDecorationTypes.BLUE_MARKER, (byte) 2, (byte) -2, (byte) 0,
                 Optional.of(Component.literal("Vanilla Marker")))));
@@ -702,7 +703,21 @@ public final class NexusInterfaceLifecycleGameTest {
                         SpaceStructureSnapshot.EMPTY, level.getGameTime(), level.getGameTime()));
     }
 
+    @GameTest(maxTicks = 260, environment = "totem-nexus-gametest:recovery_teleport")
+    public void recoveryCompassTeleportsToOrdinaryLodestoneWithoutGrace(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.RECOVERY_COMPASS));
+    }
+
+    @GameTest(maxTicks = 260, environment = "totem-nexus-gametest:recovery_death_teleport")
+    public void completedOwnDeathRescueGrantsGraceOnlyAfterSafeLanding(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.RECOVERY_COMPASS), true);
+    }
+
     private static void verifyBoundInterfaceTeleport(GameTestHelper helper, ItemStack input) {
+        verifyBoundInterfaceTeleport(helper, input, false);
+    }
+
+    private static void verifyBoundInterfaceTeleport(GameTestHelper helper, ItemStack input, boolean deathTarget) {
         ServerLevel level = helper.getLevel();
         BlockPos source = helper.absolutePos(new BlockPos(3, 2, 4));
         BlockPos target = helper.absolutePos(new BlockPos(13, 2, 4));
@@ -716,12 +731,28 @@ public final class NexusInterfaceLifecycleGameTest {
         UUID targetId = UUID.randomUUID();
         putLodestone(level, sourceId, player.getUUID(), source, SpaceUnitVisibility.PRIVATE, Set.of());
         putLodestone(level, targetId, player.getUUID(), target, SpaceUnitVisibility.PRIVATE, Set.of());
+        if (deathTarget) {
+            level.getServer().overworld().getDataStorage().computeIfAbsent(NexusSpaceUnitSavedData.TYPE).put(
+                    new NexusSpaceUnitRecord(targetId, SpaceUnitType.DEATH, level.dimension(), target.above(), player.getUUID(),
+                            "Rescue", SpaceUnitVisibility.PRIVATE, SpaceUnitStatus.ACTIVE, Set.of(), Set.of(),
+                            SpaceStructureSnapshot.EMPTY, level.getGameTime(), level.getGameTime()));
+        }
+
         var discovery = level.getServer().overworld().getDataStorage()
                 .computeIfAbsent(NexusSpaceDiscoverySavedData.TYPE);
         discovery.markDiscovered(player.getUUID(), sourceId);
         discovery.markDiscovered(player.getUUID(), targetId);
 
-        ItemStack bound = bindSingle(helper, player, level, source, sourceId, input);
+        UUID mapAnchorId = input.is(Items.MAP) ? UUID.randomUUID() : sourceId;
+        BlockPos mapAnchor = input.is(Items.MAP) ? source.offset(0, 0, 6) : source;
+        if (input.is(Items.MAP)) {
+            level.setBlockAndUpdate(mapAnchor, Blocks.LODESTONE.defaultBlockState());
+            putLodestone(level, mapAnchorId, player.getUUID(), mapAnchor, SpaceUnitVisibility.PRIVATE, Set.of());
+            discovery.removeDiscovered(player.getUUID(), sourceId);
+            discovery.removeDiscovered(player.getUUID(), targetId);
+        }
+        ItemStack bound = bindSingle(helper, player, level, mapAnchor, mapAnchorId, input);
+        if (bound.is(Items.FILLED_MAP)) java.util.Arrays.fill(MapItem.getSavedData(bound, level).colors, (byte) 4);
         player.setItemInHand(InteractionHand.MAIN_HAND, bound.copy());
         player.getAbilities().instabuild = true;
         // Re-establishing after binding models reopening an already issued interface.
@@ -748,17 +779,29 @@ public final class NexusInterfaceLifecycleGameTest {
             if (NexusSpaceUnitAuthority.hasActiveTeleportSession(player.getUUID())) {
                 throw helper.assertionException("Waiting for active bound interface teleport: " + bound.getItem());
             }
-            if (landed.closerThan(source.above(), 2.0D)
+            if (!player.getMainHandItem().getOrDefault(DataComponents.CUSTOM_DATA,
+                    net.minecraft.world.item.component.CustomData.EMPTY).copyTag().contains("totem_nexus_soulbound_token")
                     || horizontalOffset > TeleportInterfaceQuotePolicy.MAX_DEVIATION + 1
                     || Math.abs(landed.getY() - target.above().getY()) > 8) {
                 throw helper.assertionException("Bound interface teleport did not reach its permitted target area: "
                         + bound.getItem() + " at " + landed.toShortString());
             }
+            if (bound.is(Items.FILLED_MAP)) {
+                ItemStack heldMap = player.getMainHandItem();
+                var data = MapItem.getSavedData(heldMap, level);
+                if (!mapAnchorId.equals(NexusInterfaceBinding.read(heldMap))
+                        || !bound.get(DataComponents.MAP_ID).equals(heldMap.get(DataComponents.MAP_ID))
+                        || data.centerX != mapAnchor.getX() || data.centerZ != mapAnchor.getZ())
+                    throw helper.assertionException("Map teleport mutated anchor/MapId/center");
+            }
+            if (NexusRecoveryGrace.active(player) != deathTarget) throw helper.assertionException("Completion rescue eligibility mismatch");
+            if (!NexusSafeLanding.isSafeLoaded(level, player.blockPosition())) throw helper.assertionException("Unsafe arrival");
+            NexusRecoveryGrace.cancel(player);
             player.discard();
         });
     }
 
-    private static void buildFunctionalArray(ServerLevel level, BlockPos anchor) {
+    static void buildFunctionalArray(ServerLevel level, BlockPos anchor) {
         for (int x = -2; x <= 2; x++) {
             for (int z = -2; z <= 2; z++) {
                 BlockPos position = anchor.offset(x, 0, z);
@@ -788,7 +831,9 @@ public final class NexusInterfaceLifecycleGameTest {
                 player, InteractionHand.MAIN_HAND, stack, input, level, anchor, unitId)) {
             throw helper.assertionException("Interface binding failed");
         }
-        return player.getItemInHand(InteractionHand.MAIN_HAND).copy();
+        ItemStack result = player.getItemInHand(InteractionHand.MAIN_HAND).copy();
+        if (result.is(Items.FILLED_MAP)) java.util.Arrays.fill(MapItem.getSavedData(result, level).colors, (byte) 4);
+        return result;
     }
 
     private static ItemStack findBound(

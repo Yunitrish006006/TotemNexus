@@ -3,6 +3,8 @@
   "package": "dev.totem.nexus.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
+    "NexusRecoveryGraceVisibilityMixin",
+    "NexusRecoveryGraceProjectileMixin",
     "NexusContainerMapExpansionGateMixin",
     "NexusExpansionModeGameRuleMixin",
     "NexusCartographyTableMenuMixin",

@@ -51,7 +51,7 @@ class NexusPlayerGuidanceResourceTest {
         JsonObject traditionalChinese = language("zh_tw");
         JsonObject spanish = language("es_es");
 
-        assertEquals(426, english.size(), "The complete English Nexus language surface must remain stable");
+        assertEquals(429, english.size(), "The complete English Nexus language surface must remain stable");
         assertLocaleParity(english, "en_us", traditionalChinese, "zh_tw");
         assertLocaleParity(english, "en_us", spanish, "es_es");
         assertSpanishIdentifiersArePreserved(english, spanish);
@@ -77,13 +77,13 @@ class NexusPlayerGuidanceResourceTest {
         assertTrue(text(traditionalChinese, "message.totem.space_unit.map_need_interface")
                 .contains("Nexus 地圖"));
         assertTrue(text(english, "book.totem.nexus_diagram.interfaces_bind_manage")
-                .contains("Compass: list + teleport"));
+                .contains("Both compasses: destination list"));
         assertTrue(text(english, "book.totem.nexus_diagram.interfaces_bind_manage")
-                .contains("no list"));
+                .contains("Map: markers only"));
         assertTrue(text(traditionalChinese, "book.totem.nexus_diagram.interfaces_bind_manage")
-                .contains("羅盤：清單選點傳送"));
+                .contains("兩種羅盤：清單傳送"));
         assertTrue(text(traditionalChinese, "book.totem.nexus_diagram.interfaces_bind_manage")
-                .contains("沒有清單"));
+                .contains("地圖：標記選點"));
         assertTrue(text(english, "book.totem.nexus_diagram.empty_map_create").contains("new MapId"));
         assertTrue(text(traditionalChinese, "book.totem.nexus_diagram.empty_map_create")
                 .contains("新 MapId"));

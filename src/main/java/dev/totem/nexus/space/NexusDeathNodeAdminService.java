@@ -783,6 +783,7 @@ public final class NexusDeathNodeAdminService {
         long gameTime = administrator.level().getGameTime();
         for (NexusSpaceUnitRecord target : targets) {
             unitsById.put(target.id(), target.withStatus(SpaceUnitStatus.DISABLED, gameTime));
+            NexusRecoveryGrace.invalidated(administrator.level().getServer(), target.id());
         }
         if (!targets.isEmpty()) {
             data.setDirty();
@@ -812,6 +813,7 @@ public final class NexusDeathNodeAdminService {
         Set<UUID> targetIds = targets.stream().map(NexusSpaceUnitRecord::id).collect(java.util.stream.Collectors.toSet());
         for (UUID targetId : targetIds) {
             unitsById.remove(targetId);
+            NexusRecoveryGrace.invalidated(administrator.level().getServer(), targetId);
         }
         if (!targetIds.isEmpty()) {
             data.setDirty();
@@ -836,6 +838,7 @@ public final class NexusDeathNodeAdminService {
 
         NexusSpaceUnitRecord disabled = unit.withStatus(SpaceUnitStatus.DISABLED, administrator.level().getGameTime());
         unitsById.put(disabled.id(), disabled);
+        NexusRecoveryGrace.invalidated(administrator.level().getServer(), unit.id());
         data.setDirty();
         auditMutation(administrator, "disabled", unit);
         administrator.sendSystemMessage(Component.translatable("message.totem.death_node_admin.disabled", unit.name())
@@ -858,6 +861,7 @@ public final class NexusDeathNodeAdminService {
         }
 
         unitsById.remove(unit.id());
+        NexusRecoveryGrace.invalidated(administrator.level().getServer(), unit.id());
         data.setDirty();
         removeDiscoveryReferences(administrator.level().getServer(), unit.id());
         auditMutation(administrator, "permanently purged", unit);
@@ -881,6 +885,7 @@ public final class NexusDeathNodeAdminService {
         }
 
         unitsById.remove(unit.id());
+        NexusRecoveryGrace.invalidated(owner.level().getServer(), unit.id());
         data.setDirty();
         removeDiscoveryReferences(owner.level().getServer(), unit.id());
         LOGGER.info(

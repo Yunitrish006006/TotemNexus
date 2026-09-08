@@ -32,13 +32,7 @@ final class NexusInterfacePayloadPolicy {
         if (mapData == null) return List.of();
         return serverAuthorizedUnits.stream()
                 .filter(unit -> unit.status() == SpaceUnitStatus.ACTIVE)
-                .filter(unit -> FilledMapCoverage.covers(
-                        mapData.dimension,
-                        mapData.centerX,
-                        mapData.centerZ,
-                        mapData.scale,
-                        unit.dimension(),
-                        unit.pos()))
+                .filter(unit -> FilledMapCoverage.isDrawn(mapData, unit.dimension(), unit.pos()))
                 .toList();
     }
 }

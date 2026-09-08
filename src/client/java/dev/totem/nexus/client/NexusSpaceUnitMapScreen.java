@@ -76,7 +76,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     private String searchQuery = "";
     private TypeFilter typeFilter = TypeFilter.ALL;
     private FriendFilter friendFilter = FriendFilter.ALL;
-    private SortMode sortMode = SortMode.NAME;
+    private SortMode sortMode = SortMode.DISTANCE;
     private EditBox searchField;
     private Button typeFilterButton;
     private Button friendFilterButton;
@@ -158,7 +158,8 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         return switch (this.payload.interfaceType()) {
             case COMPASS -> "compass";
             case FILLED_MAP -> "map";
-            case RECOVERY_COMPASS, BOOK -> "management";
+            case RECOVERY_COMPASS -> "recovery_compass";
+            case BOOK -> "management";
         };
     }
 
@@ -195,7 +196,8 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         return Component.translatable(switch (payload.interfaceType()) {
             case COMPASS -> "container.totem.space_unit.compass";
             case FILLED_MAP -> "container.totem.space_unit.map";
-            case RECOVERY_COMPASS, BOOK -> "container.totem.space_unit.management";
+            case RECOVERY_COMPASS -> "container.totem.space_unit.recovery_compass";
+            case BOOK -> "container.totem.space_unit.management";
         });
     }
 
@@ -208,7 +210,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private boolean hasDestinationList() {
-        return this.payload.interfaceType() == TeleportInterfaceType.COMPASS;
+        return this.payload.interfaceType().hasDestinationList();
     }
 
     @Override
@@ -1911,9 +1913,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
                     .comparingInt(SpaceUnitMapPayload.Entry::prepareTicks)
                     .thenComparing(byName);
         };
-        return Comparator
-                .comparing((SpaceUnitMapPayload.Entry entry) -> !entry.favorite())
-                .thenComparing(modeComparator);
+        return modeComparator;
     }
 
     private int sortDistance(SpaceUnitMapPayload.Entry entry) {

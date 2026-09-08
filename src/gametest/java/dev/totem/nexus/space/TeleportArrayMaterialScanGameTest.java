@@ -39,7 +39,7 @@ public final class TeleportArrayMaterialScanGameTest {
                 != TotemGameRuleCategories.TOTEM
                 || !NexusTeleportArrayExpansionRules.EXPANSION_MODE_ID.equals(
                 NexusTeleportArrayExpansionRules.EXPANSION_MODE.getIdentifier())
-                || !"gamerule.totem.teleport_array_expansion_mode".equals(
+                || !"gamerule.totem.nexus.teleport_array_expansion_mode".equals(
                 NexusTeleportArrayExpansionRules.EXPANSION_MODE.getDescriptionId())
                 || NexusTeleportArrayExpansionRules.EXPANSION_MODE.defaultValue()
                 != NexusTeleportArrayExpansionRules.ExpansionMode.LOCAL

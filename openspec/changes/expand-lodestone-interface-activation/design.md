@@ -1,3 +1,5 @@
+> Historical baseline: recovery-compass capabilities and map source/anchor coupling are superseded by [add-recovery-rescue-and-map-routing](../add-recovery-rescue-and-map-routing/design.md). Recovery compasses now have list-based teleport selection; map sources may differ from the original anchor within server-validated painted coverage. Books remain management-only.
+
 ## Context
 
 `TeleportInterfaceItemResolver` recognizes ordinary compasses, recovery

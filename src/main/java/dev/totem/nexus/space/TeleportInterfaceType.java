@@ -6,7 +6,7 @@ import java.util.Optional;
 /** Stable persisted/UI identifiers for Space Unit teleport interfaces. */
 public enum TeleportInterfaceType {
     COMPASS("compass", true, false),
-    RECOVERY_COMPASS("recovery_compass", false, false),
+    RECOVERY_COMPASS("recovery_compass", true, false),
     BOOK("book", false, false),
     FILLED_MAP("filled_map", true, true);
     private final String id;
@@ -23,6 +23,7 @@ public enum TeleportInterfaceType {
     public boolean canManage() { return true; }
     public boolean canManageFriends() { return true; }
     public boolean canSelectTeleportDestination() { return teleportDestinationSelection; }
+    public boolean hasDestinationList() { return this == COMPASS || this == RECOVERY_COMPASS; }
     public boolean hasMapVisualization() { return mapVisualization; }
     /** Compatibility surface; capabilities are no longer ordinary-compass-only. */
     @Deprecated(forRemoval = false)

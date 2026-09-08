@@ -53,6 +53,7 @@ class NexusMapBindingAndPayloadPolicyTest {
     @Test
     void payloadPolicySeparatesManagementCompassAndMapProjection() {
         MapItemSavedData mapData = MapItemSavedData.createFresh(0, 0, (byte) 0, false, false, Level.OVERWORLD);
+        java.util.Arrays.fill(mapData.colors, (byte) 4);
         BlockPos center = new BlockPos(mapData.centerX, 64, mapData.centerZ);
         UUID sourceId = UUID.fromString("00000000-0000-0000-0000-000000000211");
         NexusSpaceUnitRecord source = unit(sourceId, Level.OVERWORLD, center, SpaceUnitStatus.ACTIVE);

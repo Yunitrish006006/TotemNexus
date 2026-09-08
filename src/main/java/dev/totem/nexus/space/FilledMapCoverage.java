@@ -28,6 +28,16 @@ public final class FilledMapCoverage {
         return bounds(centerX, centerZ, scale).contains(targetPos.getX(), targetPos.getZ());
     }
 
+    /** The persisted vanilla color, not the client canvas, proves this pixel was painted. */
+    public static boolean isDrawn(MapItemSavedData map, ResourceKey<Level> dimension, BlockPos pos) {
+        if (map == null || map.scale < 0 || map.scale > MapItemSavedData.MAX_SCALE
+                || !covers(map.dimension, map.centerX, map.centerZ, map.scale, dimension, pos)) return false;
+        Bounds bounds = bounds(map.centerX, map.centerZ, map.scale);
+        int x = (int) (((long) pos.getX() - bounds.minXInclusive()) >> map.scale);
+        int z = (int) (((long) pos.getZ() - bounds.minZInclusive()) >> map.scale);
+        return (Byte.toUnsignedInt(map.colors[x + z * MAP_PIXELS_PER_SIDE]) >>> 2) != 0;
+    }
+
     public static Bounds bounds(int centerX, int centerZ, int scale) {
         if (scale < 0 || scale > MapItemSavedData.MAX_SCALE) {
             throw new IllegalArgumentException("Filled-map scale is outside the vanilla range: " + scale);

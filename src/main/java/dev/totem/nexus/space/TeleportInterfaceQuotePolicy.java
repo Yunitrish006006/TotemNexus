@@ -21,7 +21,7 @@ public final class TeleportInterfaceQuotePolicy {
         int deviation = clamp(baseDeviation, 0, MAX_DEVIATION);
         int wear = clamp(baseWearChance, 0, MAX_WEAR_CHANCE_PERCENT);
         if (interfaceType == TeleportInterfaceType.RECOVERY_COMPASS && targetType == SpaceUnitType.DEATH && targetOwnedByPlayer)
-            return new Quote(food, prepare, floor(deviation, .5D), wear, true, "message.totem.space_unit.interface_bonus.recovery_compass.active");
+            return new Quote(food, prepare, floor(deviation, .25D), wear, true, "message.totem.space_unit.interface_bonus.recovery_compass.active");
         if (interfaceType == TeleportInterfaceType.BOOK && targetType == SpaceUnitType.LODESTONE && prepare > 0)
             return new Quote(food, clamp(Math.max(BOOK_MIN_PREPARE_TICKS, ceil(prepare, .8D)), BOOK_MIN_PREPARE_TICKS, MAX_PREPARE_TICKS), deviation, floor(wear, .75D), true, "message.totem.space_unit.interface_bonus.book.active");
         if (interfaceType == TeleportInterfaceType.FILLED_MAP && filledMapCoversTarget && (food > 0 || deviation > 0))

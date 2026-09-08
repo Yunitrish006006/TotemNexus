@@ -55,6 +55,16 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                                 && TARGET.equals(compass.selectedUnitIdForVisualTest());
                     });
             exercise(context, nexus,
+                    clientScreen(context, () -> recoveryScreen("Rescue Home", false)),
+                    clientScreen(context, () -> recoveryScreen("Updated Rescue Home", true)),
+                    "nexus-observer-owner-recovery-compass", screen -> {
+                        NexusSpaceUnitMapScreen recovery = (NexusSpaceUnitMapScreen) screen;
+                        return recovery.observerPayload().interfaceType().hasDestinationList()
+                                && !recovery.observerPayload().interfaceType().hasMapVisualization()
+                                && "Updated Rescue Home".equals(recovery.observerPayload().sourceName())
+                                && TARGET.equals(recovery.selectedUnitIdForVisualTest());
+                    });
+            exercise(context, nexus,
                     clientScreen(context, () -> mapScreen("Map Home", 8801, false)),
                     clientScreen(context, () -> mapScreen("Remote Map Home", 8801, true)),
                     "nexus-observer-owner-map-data-unavailable", screen -> {
@@ -176,6 +186,15 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                 throw new AssertionError("Map Observer fixture could not set zoom and pan state");
             }
         }
+        return screen;
+    }
+
+    private static NexusSpaceUnitMapScreen recoveryScreen(String name, boolean select) {
+        NexusSpaceUnitMapScreen screen = new NexusSpaceUnitMapScreen(new SpaceUnitMapPayload(
+                SOURCE, "lodestone", name, "minecraft:overworld", 1, 64, 1,
+                TeleportInterfaceType.RECOVERY_COMPASS, SpaceUnitMapPayload.NO_MAP_ID,
+                List.of(entry(SOURCE, name, false), entry(TARGET, "Rescue Target", true))));
+        if (select && !screen.keyPressed(new KeyEvent(264, 0, 0))) throw new AssertionError("Recovery selection failed");
         return screen;
     }
 

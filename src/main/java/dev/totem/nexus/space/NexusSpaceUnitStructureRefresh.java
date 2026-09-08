@@ -29,7 +29,7 @@ public final class NexusSpaceUnitStructureRefresh {
         }
 
         ServerLevel level = server.getLevel(record.dimension());
-        if (level == null || !level.getBlockState(record.pos()).is(Blocks.LODESTONE)) {
+        if (level == null || !level.isLoaded(record.pos()) || !level.getBlockState(record.pos()).is(Blocks.LODESTONE)) {
             return existing;
         }
 

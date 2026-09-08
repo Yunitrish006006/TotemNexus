@@ -34,7 +34,11 @@ public final class NexusDeathNodeAuthority {
     }
 
     public boolean recover(ServerPlayer player, UUID nodeId) {
-        return nodeId != null && NexusSpaceUnitSavedData.loadCanonical(player.level().getServer().overworld().getDataStorage())
-                .recoverDeathUnit(nodeId, player.level().getGameTime());
+        if (nodeId == null) return false;
+        var units = NexusSpaceUnitSavedData.loadCanonical(player.level().getServer().overworld().getDataStorage());
+        var before = units.get(nodeId).orElse(null);
+        boolean result = units.recoverDeathUnit(nodeId, player.level().getGameTime());
+        if (result) NexusRecoveryGrace.recovered(player, before);
+        return result;
     }
 }

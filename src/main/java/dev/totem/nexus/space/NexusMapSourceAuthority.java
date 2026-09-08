@@ -13,6 +13,10 @@ public final class NexusMapSourceAuthority {
     public static final double SOURCE_OPEN_RADIUS = 8.0D;
 
     public Optional<NexusSpaceUnitRecord> validateLodestone(ServerPlayer player, UUID sourceId) {
+        return validateLodestone(player, sourceId, null);
+    }
+
+    public Optional<NexusSpaceUnitRecord> validateLodestone(ServerPlayer player, UUID sourceId, TeleportInterfaceContext context) {
         if (player == null || sourceId == null) return Optional.empty();
         var storage = player.level().getServer().overworld().getDataStorage();
         NexusSpaceUnitSavedData units = NexusSpaceUnitSavedData.loadCanonical(storage);
@@ -21,7 +25,7 @@ public final class NexusMapSourceAuthority {
         NexusSpaceUnitRecord source = units.get(sourceId).orElse(null);
         if (source == null || !source.isLodestoneAnchor() || source.status() != SpaceUnitStatus.ACTIVE
                 || !source.canView(player.getUUID(), friends.areFriends(player.getUUID(), source.owner()))
-                || !discovery.hasDiscovered(player.getUUID(), source.id())
+                || (context == null ? !discovery.hasDiscovered(player.getUUID(), source.id()) : !NexusInterfaceAccess.allows(player, context, source))
                 || !isWithinOpenRadius(player.level().dimension(), player.position(), source)
                 || !player.level().isLoaded(source.pos())) return Optional.empty();
         if (!player.level().getBlockState(source.pos()).is(Blocks.LODESTONE)) {

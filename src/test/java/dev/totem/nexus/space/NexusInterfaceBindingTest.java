@@ -66,9 +66,10 @@ class NexusInterfaceBindingTest {
             assertTrue(type.canDiscover());
             assertTrue(type.canManage());
             assertTrue(type.canManageFriends());
-            assertEquals(type == TeleportInterfaceType.COMPASS || type == TeleportInterfaceType.FILLED_MAP,
+            assertEquals(type != TeleportInterfaceType.BOOK,
                     type.canSelectTeleportDestination());
             assertEquals(type == TeleportInterfaceType.FILLED_MAP, type.hasMapVisualization());
+            assertEquals(type == TeleportInterfaceType.COMPASS || type == TeleportInterfaceType.RECOVERY_COMPASS, type.hasDestinationList());
         }
         assertEquals(TeleportInterfaceType.COMPASS,
                 TeleportInterfaceItemResolver.resolve(new ItemStack(Items.COMPASS)).orElseThrow().type());

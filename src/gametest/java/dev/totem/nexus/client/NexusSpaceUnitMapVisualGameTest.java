@@ -56,6 +56,8 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
             context.setScreen(() -> null);
             context.waitForScreen(null);
 
+            exerciseRecoveryList(context, "totem-nexus-recovery-teleport-list-en-us");
+
             context.runOnClient(client -> {
                 MapItemSavedData data = MapItemSavedData.createFresh(
                         0, 0, (byte) 0, false, false, Level.OVERWORLD);
@@ -87,6 +89,8 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
             context.takeScreenshot("totem-nexus-compass-teleport-list-zh-tw");
             context.setScreen(() -> null);
             context.waitForScreen(null);
+
+            exerciseRecoveryList(context, "totem-nexus-recovery-teleport-list-zh-tw");
 
             context.setScreen(() -> new NexusSpaceUnitMapScreen(filledMapPayload()));
             context.waitForScreen(NexusSpaceUnitMapScreen.class);
@@ -192,7 +196,21 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
                                 "message.totem.space_unit.interface_bonus.book.active", true)));
     }
 
-    private static SpaceUnitMapPayload compassPayload() {
+    private static void exerciseRecoveryList(ClientGameTestContext context, String screenshot) {
+        context.setScreen(() -> new NexusSpaceUnitMapScreen(compassPayload(TeleportInterfaceType.RECOVERY_COMPASS)));
+        context.waitForScreen(NexusSpaceUnitMapScreen.class);
+        context.waitFor(client -> ((NexusSpaceUnitMapScreen) client.gui.screen()).compassTeleportPresentationForVisualTest());
+        selectCompassDestination(context);
+        context.waitFor(client -> ((NexusSpaceUnitMapScreen) client.gui.screen()).teleportButtonActiveForVisualTest());
+        context.waitTicks(2);
+        context.takeScreenshot(screenshot);
+        context.setScreen(() -> null);
+        context.waitForScreen(null);
+    }
+
+    private static SpaceUnitMapPayload compassPayload() { return compassPayload(TeleportInterfaceType.COMPASS); }
+
+    private static SpaceUnitMapPayload compassPayload(TeleportInterfaceType type) {
         List<SpaceUnitMapPayload.Entry> entries = new ArrayList<>();
         entries.add(entry(SOURCE_ID, "Home Nexus", 0, 0,
                 "message.totem.space_unit.interface_bonus.compass", false));
@@ -206,7 +224,7 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
         }
         return new SpaceUnitMapPayload(
                 SOURCE_ID, "lodestone", "Home Nexus", "minecraft:overworld", 0, 64, 0,
-                TeleportInterfaceType.COMPASS, SpaceUnitMapPayload.NO_MAP_ID, entries);
+                type, SpaceUnitMapPayload.NO_MAP_ID, entries);
     }
 
     private static SpaceUnitMapPayload filledMapPayload() {

@@ -240,6 +240,7 @@ public class NexusSpaceUnitSavedData extends SavedData {
         NexusSpaceUnitRecord disabled = unit.get().withStatus(SpaceUnitStatus.DISABLED, gameTime);
         this.unitsById.put(disabled.id(), disabled);
         setDirty();
+        NexusRecoveryGrace.invalidated(unitId);
         return true;
     }
 
@@ -424,6 +425,7 @@ public class NexusSpaceUnitSavedData extends SavedData {
             return false;
         }
         this.unitsById.remove(unitId);
+        NexusRecoveryGrace.invalidated(unitId);
         setDirty();
         return true;
     }
@@ -494,6 +496,7 @@ public class NexusSpaceUnitSavedData extends SavedData {
                 || !unit.get().isLodestoneAnchor()
                 || unit.get().status() != SpaceUnitStatus.ACTIVE
                 || !unit.get().dimension().equals(level.dimension())
+                || !level.isLoaded(unit.get().pos())
                 || !level.getBlockState(unit.get().pos()).is(Blocks.LODESTONE)) {
             return List.of();
         }

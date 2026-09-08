@@ -22,7 +22,7 @@ import java.util.UUID;
 /** Nexus-owned factories for modern and compatibility production screens. */
 public final class NexusObserverScreenProvider implements ObserverScreenProvider {
     private static final Set<String> VARIANTS = Set.of(
-            "compass", "map", "management", "map_legacy", "friends", "friends_legacy",
+            "compass", "recovery_compass", "map", "management", "map_legacy", "friends", "friends_legacy",
             "registration", "registration_legacy");
     private static final String SELECTED_UNIT_ID = "selected_unit_id";
     private static final String MAP_ZOOM = "map_zoom";
@@ -70,7 +70,7 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
     @Override public ObserverScreenHandle create(ObserverScreenContext context, ObserverScreenSnapshot snapshot) {
         if (!supports(snapshot)) throw new IllegalArgumentException("Incompatible Nexus Observer snapshot");
         Screen screen = switch (snapshot.variant()) {
-            case "compass", "map", "management" -> createMapScreen(context, snapshot);
+            case "compass", "recovery_compass", "map", "management" -> createMapScreen(context, snapshot);
             case "map_legacy" -> new NexusMapScreen(decode(snapshot, SpaceUnitMapPayload.CODEC), true,
                     context.stopObserving());
             case "friends" -> new NexusSpaceUnitFriendsScreen(null,
@@ -105,7 +105,8 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
         return switch (interfaceType) {
             case COMPASS -> "compass";
             case FILLED_MAP -> "map";
-            case RECOVERY_COMPASS, BOOK -> "management";
+            case RECOVERY_COMPASS -> "recovery_compass";
+            case BOOK -> "management";
         };
     }
 

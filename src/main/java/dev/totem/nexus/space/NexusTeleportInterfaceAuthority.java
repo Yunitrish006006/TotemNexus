@@ -31,12 +31,12 @@ public final class NexusTeleportInterfaceAuthority {
         Optional<TeleportInterfaceItemResolver.ResolvedInterface> resolved =
                 TeleportInterfaceItemResolver.resolve(player, hand);
         if (resolved.isEmpty()) return Optional.empty();
-        if (!sourceId.equals(resolved.get().boundUnitId())
-                || mapSources.validateLodestone(player, sourceId).isEmpty()) return Optional.empty();
+        if (!resolved.get().type().hasMapVisualization() && !sourceId.equals(resolved.get().boundUnitId())) return Optional.empty();
         long gameTime = player.level().getServer().overworld().getGameTime();
         TeleportInterfaceContext context = new TeleportInterfaceContext(player.getUUID(), resolved.get().type(),
                 sourceType, sourceId, hand, resolved.get().mapId(), resolved.get().boundUnitId(),
                 gameTime, gameTime + CONTEXT_TICKS);
+        if (mapSources.validateLodestone(player, sourceId, context).isEmpty()) return Optional.empty();
         sessions.put(context);
         return Optional.of(context);
     }
@@ -44,8 +44,7 @@ public final class NexusTeleportInterfaceAuthority {
     /** Opens a lodestone session only after the server has validated the actual source unit. */
     public Optional<TeleportInterfaceContext> establishLodestone(ServerPlayer player, InteractionHand hand, UUID sourceId) {
         if (player == null) return Optional.empty();
-        return mapSources.validateLodestone(player, sourceId)
-                .flatMap(source -> establish(player, hand, SpaceUnitType.LODESTONE.id(), source.id()));
+        return establish(player, hand, SpaceUnitType.LODESTONE.id(), sourceId);
     }
 
     /** Opens a player-anchor session using the server player's own identity only. */

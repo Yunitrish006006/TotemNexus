@@ -30,7 +30,7 @@ public final class NexusTeleportManual {
 
     // Page 1 used to duplicate acquisition instructions. TotemCore's starter guide is now the
     // canonical source index, while the actual lodestone source remains supported here.
-    private static final List<String> PAGE_KEYS = IntStream.rangeClosed(2, 24)
+    private static final List<String> PAGE_KEYS = IntStream.rangeClosed(2, 26)
             .mapToObj(page -> "book.totem.nexus_teleport_manual.page." + page)
             .toList();
     private static final TotemManualSection SECTION = new TotemManualSection(

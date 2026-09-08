@@ -33,7 +33,7 @@ public record TeleportInterfaceContext(UUID playerId, TeleportInterfaceType inte
             throw new IllegalArgumentException("Invalid teleport interface context identity");
         if ((interfaceType == TeleportInterfaceType.FILLED_MAP) != (mapId != null))
             throw new IllegalArgumentException("Only a filled-map context may carry a map ID");
-        if (SpaceUnitType.LODESTONE.id().equals(sourceType) && !sourceId.equals(boundUnitId))
+        if (SpaceUnitType.LODESTONE.id().equals(sourceType) && interfaceType != TeleportInterfaceType.FILLED_MAP && !sourceId.equals(boundUnitId))
             throw new IllegalArgumentException("A lodestone context must match the held interface binding");
     }
     public boolean matchesSource(String sourceType, UUID sourceId) { return this.sourceType.equals(sourceType) && this.sourceId.equals(sourceId); }

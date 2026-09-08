@@ -307,7 +307,7 @@ public final class NexusDistributedSpawnGameTest {
                 (recipient, unit) -> NexusMapQuote.unavailable(TeleportInterfaceType.COMPASS, "pending_authority"));
         TeleportInterfaceSessionStore sessions = new TeleportInterfaceSessionStore();
         sessions.put(new TeleportInterfaceContext(viewer.getUUID(), TeleportInterfaceType.COMPASS, "lodestone", sourceId,
-                net.minecraft.world.InteractionHand.MAIN_HAND, null, 0, 1000));
+                net.minecraft.world.InteractionHand.MAIN_HAND, null, 0, helper.getLevel().getServer().overworld().getGameTime() + 1000));
         NexusMapOpenAuthority authority = new NexusMapOpenAuthority(sessions, payloads, new NexusMapQuoteAuthority());
         if (!authority.setFavorite(viewer, "lodestone", sourceId, targetId, true) || sent.size() != 1
                 || !discovery.isFavorite(viewer.getUUID(), targetId)
@@ -337,7 +337,7 @@ public final class NexusDistributedSpawnGameTest {
         viewer.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,
                 new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COMPASS));
         sessions.put(new TeleportInterfaceContext(viewer.getUUID(), TeleportInterfaceType.COMPASS, "compass", source,
-                net.minecraft.world.InteractionHand.MAIN_HAND, null, 0, 1000));
+                net.minecraft.world.InteractionHand.MAIN_HAND, null, 0, helper.getLevel().getServer().overworld().getGameTime() + 1000));
         NexusMapAuthority authority = new NexusMapAuthority(sessions);
         if (authority.setFavorite(viewer, "compass", UUID.randomUUID(), targetId, true)
                 || !authority.setFavorite(viewer, "compass", source, targetId, true)
@@ -360,7 +360,7 @@ public final class NexusDistributedSpawnGameTest {
         UUID source = UUID.randomUUID();
         TeleportInterfaceSessionStore sessions = new TeleportInterfaceSessionStore();
         sessions.put(new TeleportInterfaceContext(player.getUUID(), TeleportInterfaceType.COMPASS, "compass", source,
-                net.minecraft.world.InteractionHand.MAIN_HAND, null, 0, 1000));
+                net.minecraft.world.InteractionHand.MAIN_HAND, null, 0, helper.getLevel().getServer().overworld().getGameTime() + 1000));
         if (sessions.require(player, "compass", source, 0).isEmpty()) {
             helper.fail("Valid held interface context was rejected");
             return;
@@ -447,6 +447,7 @@ public final class NexusDistributedSpawnGameTest {
         discovery.markDiscovered(viewer, visible.id()); discovery.setFavorite(viewer, visible.id(), true);
         var mapData = net.minecraft.world.level.saveddata.maps.MapItemSavedData.createFresh(
                 source.pos().getX(), source.pos().getZ(), (byte) 0, false, false, helper.getLevel().dimension());
+        java.util.Arrays.fill(mapData.colors, (byte) 4);
         var payload = NexusMapPayloadFactory.build(viewer, source, TeleportInterfaceType.FILLED_MAP,
                 new net.minecraft.world.level.saveddata.maps.MapId(91), mapData,
                 java.util.List.of(source, visible, hidden, disabled), discovery, new NexusFriendSavedData(),

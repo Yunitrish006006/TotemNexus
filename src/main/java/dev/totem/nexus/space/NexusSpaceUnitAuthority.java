@@ -87,6 +87,7 @@ public final class NexusSpaceUnitAuthority {
     }
 
     public static void register() {
+        NexusRecoveryGrace.register();
         NexusSpaceUnitDegradationRules.registerReloadListener();
         TeleportArrayMaterialProfiles.registerReloadListener();
 
@@ -250,7 +251,9 @@ public final class NexusSpaceUnitAuthority {
         if (unitId == null) {
             return false;
         }
-        return units(level.getServer()).disableDeathUnit(player.getUUID(), unitId, level.getGameTime());
+        boolean changed = units(level.getServer()).disableDeathUnit(player.getUUID(), unitId, level.getGameTime());
+        if (changed) NexusRecoveryGrace.invalidated(level.getServer(), unitId);
+        return changed;
     }
 
     /**
@@ -277,7 +280,7 @@ public final class NexusSpaceUnitAuthority {
         if (player == null || unitId == null) {
             return false;
         }
-        return units(player.level().getServer()).recoverDeathUnit(unitId, player.level().getGameTime());
+        return new NexusDeathNodeAuthority().recover(player, unitId);
     }
 
     public static void sendSpaceUnitMap(ServerPlayer player) {
@@ -308,6 +311,7 @@ public final class NexusSpaceUnitAuthority {
             String sourceType,
             UUID sourceUnitId,
             UUID targetUnitId) {
+        NexusRecoveryGrace.cancel(player);
         teleportSessions.remove(player.getUUID());
         routeReservations.release(player.getUUID());
         closeLandingSearch(player.getUUID());
@@ -387,7 +391,8 @@ public final class NexusSpaceUnitAuthority {
     }
 
     public static void setFavorite(ServerPlayer player, String sourceType, UUID sourceUnitId, UUID targetUnitId, boolean favorite) {
-        if (requireInterfaceContext(player, sourceType, sourceUnitId, true).isEmpty()) {
+        Optional<TeleportInterfaceContext> context = requireInterfaceContext(player, sourceType, sourceUnitId, true);
+        if (context.isEmpty()) {
             return;
         }
         MinecraftServer server = player.level().getServer();
@@ -396,14 +401,12 @@ public final class NexusSpaceUnitAuthority {
 
         Optional<NexusSpaceUnitRecord> target = units.get(targetUnitId);
         if (target.isEmpty()
-                || target.get().status() != SpaceUnitStatus.ACTIVE
-                || !canView(player, target.get())
-                || !discovery.hasDiscovered(player.getUUID(), target.get().id())) {
+                || !NexusInterfaceAccess.allows(player, context.get(), target.get())) {
             notify(player, Component.translatable("message.totem.space_unit.no_permission"));
             return;
         }
 
-        boolean changed = discovery.setFavorite(player.getUUID(), target.get().id(), favorite);
+        boolean changed = discovery.setAuthorizedFavorite(player.getUUID(), target.get().id(), favorite);
         if (changed) {
             notify(player, Component.translatable(favorite
                     ? "message.totem.space_unit.favorite_added"
@@ -1040,6 +1043,12 @@ public final class NexusSpaceUnitAuthority {
 
     private static List<NexusSpaceUnitRecord> visibleDiscoveredUnits(ServerPlayer player) {
         MinecraftServer server = player.level().getServer();
+        TeleportInterfaceContext context = currentInterfaceContext(player).orElse(null);
+        if (context != null && context.interfaceType().hasMapVisualization()) {
+            List<NexusSpaceUnitRecord> candidates = new ArrayList<>(units(server).activeLodestones());
+            candidates.addAll(units(server).deathNodes());
+            return candidates.stream().filter(unit -> NexusInterfaceAccess.allows(player, context, unit)).toList();
+        }
         return units(server).getVisibleDiscoveredUnits(player.getUUID(), discovery(server), friends(server));
     }
 
@@ -1062,7 +1071,7 @@ public final class NexusSpaceUnitAuthority {
         }
 
         ServerLevel level = server.getLevel(unit.dimension());
-        if (level != null && !level.getBlockState(unit.pos()).is(Blocks.LODESTONE)) {
+        if (level != null && level.isLoaded(unit.pos()) && !level.getBlockState(unit.pos()).is(Blocks.LODESTONE)) {
             boolean disabled = units(server).disableLodestone(unit.dimension(), unit.pos(), level.getGameTime());
             if (disabled && isPublicLodestone(unit)) {
                 publishPublicSpaceUnitUpdate("server", "公開磁石已失效：" + unit.name());
@@ -1320,9 +1329,8 @@ public final class NexusSpaceUnitAuthority {
             unit = units.getOrCreateLodestone(level, pos, player);
         }
 
-        if (input.type() == TeleportInterfaceItemResolver.RegistrationInputType.NEXUS_MAP
-                && !unit.id().equals(input.boundUnitId())) {
-            notify(player, Component.translatable("message.totem.space_unit.interface.map_source_mismatch"));
+        if (input.type() == TeleportInterfaceItemResolver.RegistrationInputType.NEXUS_MAP) {
+            openLodestoneMap(player, hand, unit.id());
             return InteractionResult.SUCCESS;
         }
         if (!bindInterface(player, hand, stack, input, level, pos, unit.id())) {
@@ -1396,6 +1404,15 @@ public final class NexusSpaceUnitAuthority {
             InteractionHand hand,
             TeleportInterfaceItemResolver.ResolvedInterface resolved) {
         UUID sourceUnitId = resolved.boundUnitId();
+        if (resolved.type().hasMapVisualization()) {
+            sourceUnitId = units(player.level().getServer()).activeLodestones().stream()
+                    .filter(unit -> isNearSource(player, unit) && player.level().isLoaded(unit.pos()))
+                    .filter(unit -> canView(player, unit))
+                    .filter(unit -> FilledMapCoverage.isDrawn(MapItem.getSavedData(resolved.mapId(), player.level()), unit.dimension(), unit.pos()))
+                    .filter(unit -> player.level().getBlockState(unit.pos()).is(Blocks.LODESTONE))
+                    .min(java.util.Comparator.comparingDouble(unit -> player.position().distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(unit.pos()))))
+                    .map(NexusSpaceUnitRecord::id).orElse(null);
+        }
         if (sourceUnitId == null || !validateBoundInterfaceSource(player, sourceUnitId, true)) {
             notify(player, Component.translatable("message.totem.space_unit.map_need_bound_interface"));
             return;
@@ -1453,12 +1470,12 @@ public final class NexusSpaceUnitAuthority {
         }
 
         NexusSpaceDiscoverySavedData discovery = discovery(server);
-        if (!discovery.hasDiscovered(player.getUUID(), source.id())) {
+        if (!NexusInterfaceAccess.allows(player, interfaceContext.orElseThrow(), source)) {
             clearInterfaceContext(player.getUUID());
             notify(player, Component.translatable("message.totem.space_unit.map_source_unexplored"));
             return;
         }
-        if (!isNearSource(player, source)) {
+        if (!isNearSource(player, source) || !player.level().isLoaded(source.pos())) {
             clearInterfaceContext(player.getUUID());
             notify(player, Component.translatable("message.totem.space_unit.map_source_too_far"));
             return;
@@ -1786,6 +1803,7 @@ public final class NexusSpaceUnitAuthority {
                     completedInterface.getHoverName()
             ));
         }
+        NexusRecoveryGrace.completed(player, session.interfaceType(), finalTarget.get().id());
         targetLevel.playSound(null, landingPos, SoundEvents.ENDERMAN_TELEPORT, SoundSource.PLAYERS, 0.85F, 1.1F);
         applyArrivalDamage(player, targetLevel, finalQuote, targetLevel.getRandom());
         applyStructureWear(player, finalSource.get(), finalTarget.get(), finalQuote, targetLevel.getRandom());
@@ -1825,11 +1843,11 @@ public final class NexusSpaceUnitAuthority {
             notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.no_permission"));
             return Optional.empty();
         }
-        if (!discovery(server).hasDiscovered(player.getUUID(), source.id())) {
+        if (!NexusInterfaceAccess.allows(player, currentInterfaceContext(player).orElse(null), source)) {
             notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.map_source_unexplored"));
             return Optional.empty();
         }
-        if (!isNearSource(player, source)) {
+        if (!isNearSource(player, source) || !player.level().isLoaded(source.pos())) {
             notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.map_source_too_far"));
             return Optional.empty();
         }
@@ -1868,6 +1886,7 @@ public final class NexusSpaceUnitAuthority {
         MinecraftServer server = player.level().getServer();
         Optional<NexusSpaceUnitRecord> targetUnit = units(server).get(targetUnitId);
         if (targetUnit.isEmpty()) {
+            if (currentInterfaceContext(player).map(c -> c.interfaceType().canSelectTeleportDestination()).orElse(false)) return Optional.empty();
             ServerPlayer targetPlayer = server.getPlayerList().getPlayer(targetUnitId);
             if (targetPlayer == null) {
                 notifyIfRequested(player, notifyFailure, Component.translatable(
@@ -1903,13 +1922,13 @@ public final class NexusSpaceUnitAuthority {
             notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.no_permission"));
             return Optional.empty();
         }
-        if (!discovery(server).hasDiscovered(player.getUUID(), target.id())) {
+        if (!NexusInterfaceAccess.allows(player, currentInterfaceContext(player).orElse(null), target)) {
             notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.teleport_cancelled.target_unexplored"));
             return Optional.empty();
         }
         if (target.isLodestoneAnchor()) {
             ServerLevel targetLevel = server.getLevel(target.dimension());
-            if (targetLevel == null) {
+            if (targetLevel == null || !targetLevel.isLoaded(target.pos())) {
                 notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.teleport_cancelled.target"));
                 return Optional.empty();
             }
@@ -1971,7 +1990,7 @@ public final class NexusSpaceUnitAuthority {
                 || !java.util.Objects.equals(resolved.get().mapId(), session.mapId())
                 || !java.util.Objects.equals(resolved.get().boundUnitId(), session.boundUnitId())
                 || session.boundUnitId() == null
-                || !validateBoundInterfaceSource(player, session.boundUnitId(), false)) {
+                || !validateBoundInterfaceSource(player, session.sourceUnitId(), false)) {
             return Component.translatable(
                     "message.totem.space_unit.teleport_cancelled.interface_item");
         }
@@ -2203,7 +2222,10 @@ public final class NexusSpaceUnitAuthority {
                 ? MapItem.getSavedData(mapId, player.level())
                 : null;
         List<NexusSpaceUnitRecord> payloadUnits = NexusInterfacePayloadPolicy.selectAuthorizedUnits(
-                interfaceType, source.id(), visibleUnits, mapData);
+                interfaceType, source.id(), visibleUnits, mapData).stream()
+                .sorted(java.util.Comparator.comparingInt((NexusSpaceUnitRecord unit) ->
+                        unit.dimension().equals(source.dimension()) ? distanceBlocks(source.pos(), unit.pos()) : Integer.MAX_VALUE)
+                        .thenComparing(unit -> unit.id().toString())).toList();
         List<SpaceUnitMapPayload.Entry> entries = new ArrayList<>(
                 Math.min(payloadUnits.size(), SpaceUnitMapPayload.MAX_ENTRIES));
         NexusSpaceDiscoverySavedData discoveryData = discovery(server);
@@ -2365,14 +2387,7 @@ public final class NexusSpaceUnitAuthority {
         if (mapData == null) {
             return FilledMapCoverageStatus.UNAVAILABLE;
         }
-        boolean covered = FilledMapCoverage.covers(
-                mapData.dimension,
-                mapData.centerX,
-                mapData.centerZ,
-                mapData.scale,
-                target.dimension(),
-                target.pos()
-        );
+        boolean covered = FilledMapCoverage.isDrawn(mapData, target.dimension(), target.pos());
         return new FilledMapCoverageStatus(true, covered);
     }
 
@@ -2726,7 +2741,7 @@ public final class NexusSpaceUnitAuthority {
         if (resolved.isEmpty() || !SOURCE_TYPE_LODESTONE.equals(sourceType) || sourceId == null) {
             return Optional.empty();
         }
-        if (!sourceId.equals(resolved.get().boundUnitId())
+        if ((!resolved.get().type().hasMapVisualization() && !sourceId.equals(resolved.get().boundUnitId()))
                 || !validateBoundInterfaceSource(player, sourceId, false)) return Optional.empty();
 
         long gameTime = player.level().getServer().overworld().getGameTime();
@@ -2741,6 +2756,12 @@ public final class NexusSpaceUnitAuthority {
                 gameTime,
                 gameTime + TELEPORT_INTERFACE_CONTEXT_TICKS
         );
+        if (context.interfaceType().hasMapVisualization()) {
+            NexusSpaceUnitRecord source = units(player.level().getServer()).get(sourceId).orElse(null);
+            if (!NexusInterfaceAccess.allows(player, context, source) || !isNearSource(player, source)
+                    || !player.level().isLoaded(source.pos())
+                    || !player.level().getBlockState(source.pos()).is(Blocks.LODESTONE)) return Optional.empty();
+        }
         teleportInterfaceContexts.put(player.getUUID(), context);
         return Optional.of(context);
     }
@@ -2774,7 +2795,7 @@ public final class NexusSpaceUnitAuthority {
                 || context.isExpired(gameTime)
                 || !context.isStillHeldBy(player)
                 || (SOURCE_TYPE_LODESTONE.equals(context.sourceType())
-                && !validateBoundInterfaceSource(player, context.boundUnitId(), false))) {
+                && !validateBoundInterfaceSource(player, context.sourceId(), false))) {
             teleportInterfaceContexts.remove(player.getUUID());
             notifyIfRequested(player, notifyFailure, Component.translatable(
                     "message.totem.space_unit.interface.context_invalid"));
@@ -2797,7 +2818,7 @@ public final class NexusSpaceUnitAuthority {
                     "message.totem.space_unit.interface.management_unavailable"));
             return false;
         }
-        UUID boundUnitId = context.get().boundUnitId();
+        UUID boundUnitId = context.get().sourceId();
         boolean canManage = boundUnitId != null && units(player.level().getServer()).get(boundUnitId)
                 .filter(unit -> unit.isLodestoneAnchor() && unit.status() == SpaceUnitStatus.ACTIVE)
                 .filter(unit -> unit.canManage(player.getUUID()))

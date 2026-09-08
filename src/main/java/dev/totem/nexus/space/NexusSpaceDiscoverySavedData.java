@@ -139,7 +139,11 @@ public class NexusSpaceDiscoverySavedData extends SavedData {
         if (favorite && !hasDiscovered(playerId, unitId)) {
             return false;
         }
+        return setAuthorizedFavorite(playerId, unitId, favorite);
+    }
 
+    /** Caller must revalidate current interface access; favorites never grant exploration. */
+    boolean setAuthorizedFavorite(UUID playerId, UUID unitId, boolean favorite) {
         boolean changed;
         if (favorite) {
             Set<UUID> favorites = this.favoritesByPlayer.computeIfAbsent(playerId, ignored -> new HashSet<>());
