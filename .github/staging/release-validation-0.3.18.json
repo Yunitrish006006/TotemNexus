@@ -5,7 +5,7 @@
   "core_commit": "f87cd10fe8aefce77925b9e75dad237f17f38966",
   "core_version": "0.7.18",
   "artifact": "totem-nexus-0.3.18.jar",
-  "sha512": "ef302efaff2022729911d617e06e11f5ddaee18c241ca76ab2b00c900d105acbf7767491b5d2a586c80e33c3f44bc4d53d01ad89dbc6bceb772fc52e08cb36a7",
+  "sha512": "9e6ede3e571469a61107ea2ce96f0c3d5df894891f2857a65c15351fe258ba38a65343874f1f3458bd2f0bdddba838ed8414af99b24bcdaac6614822b11c7ebe",
   "unit_tests": 87,
   "server_gametests": 94,
   "candidate_equivalence": {
@@ -21,5 +21,7 @@
     "production_runtime_module_absent": "passed, 32 screenshots"
   },
   "independent_review": "No blocking findings; production code, Minecraft 26.2 bytecode compatibility and regression tests reviewed.",
-  "remote_validation": "Exact release commit Build and Modrinth readback are recorded separately by the owned workflow."
+  "remote_validation": "Exact release commit Build and Modrinth readback are recorded separately by the owned workflow.",
+  "preliminary_sha512": "ef302efaff2022729911d617e06e11f5ddaee18c241ca76ab2b00c900d105acbf7767491b5d2a586c80e33c3f44bc4d53d01ad89dbc6bceb772fc52e08cb36a7",
+  "artifact_validation_note": "SHA-512 recorded after completion of the local Gradle build; matches the published primary JAR. Earlier hash was read before final archive normalization."
 }
