@@ -1,0 +1,25 @@
+{
+  "version": "0.3.18",
+  "java": 25,
+  "minecraft": "26.2",
+  "core_commit": "f87cd10fe8aefce77925b9e75dad237f17f38966",
+  "core_version": "0.7.18",
+  "artifact": "totem-nexus-0.3.18.jar",
+  "sha512": "ef302efaff2022729911d617e06e11f5ddaee18c241ca76ab2b00c900d105acbf7767491b5d2a586c80e33c3f44bc4d53d01ad89dbc6bceb772fc52e08cb36a7",
+  "unit_tests": 87,
+  "server_gametests": 94,
+  "candidate_equivalence": {
+    "all_code_and_assets_byte_identical": true,
+    "fabric_mod_json_only_version_changed": true,
+    "manifest_attributes_identical": true
+  },
+  "reused_candidate_validation": {
+    "source": "artifacts/remnant-doubleclick-fix",
+    "client_gametests": "passed across complete class batches",
+    "owner_present_integration": "passed, 10 screenshots",
+    "three_jvm_e2e": "passed",
+    "production_runtime_module_absent": "passed, 32 screenshots"
+  },
+  "independent_review": "No blocking findings; production code, Minecraft 26.2 bytecode compatibility and regression tests reviewed.",
+  "remote_validation": "Exact release commit Build and Modrinth readback are recorded separately by the owned workflow."
+}

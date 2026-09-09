@@ -12,6 +12,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.MapItem;
@@ -502,6 +503,17 @@ public final class NexusInterfaceLifecycleGameTest {
                 != NexusMapLifecycleAuthority.PostProcessResult.DENIED
                 || !originalId.equals(missingResult.get(DataComponents.MAP_ID))) {
             helper.fail("Missing-anchor SCALE changed the existing Nexus map");
+            return;
+        }
+
+        // A stale result must still be denied before vanilla consumes crafting inputs.
+        player.inventoryMenu.getSlot(1).set(new ItemStack(Items.PAPER, 8));
+        player.inventoryMenu.getSlot(0).set(missingResult.copy());
+        player.inventoryMenu.clicked(0, 0, ContainerInput.PICKUP, player);
+        if (!player.inventoryMenu.getSlot(0).getItem().isEmpty()
+                || !player.inventoryMenu.getCarried().isEmpty()
+                || player.inventoryMenu.getSlot(1).getItem().getCount() != 8) {
+            helper.fail("Denied map result escaped the container gate or consumed inputs");
             return;
         }
 

@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
   group: modrinth-${{ github.workflow }}-${{ github.ref }}
@@ -28,7 +29,7 @@ env:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 75
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -100,6 +101,26 @@ jobs:
             ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" -PtotemCoreJar="$core_jar" remapJar --no-daemon --stacktrace
           fi
           test -f "$artifact"
+
+      - name: Require successful Build for this commit
+        if: steps.release.outputs.should_publish == 'true' && steps.release.outputs.dry_run == 'false'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for attempt in {1..120}; do
+            runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/build.yml/runs?head_sha=${GITHUB_SHA}&event=push&per_page=10")"
+            latest="$(jq -c '.workflow_runs | sort_by(.run_number) | last // null' <<<"$runs")"
+            if [[ "$(jq -r '.status // empty' <<<"$latest")" == completed ]]; then
+              test "$(jq -r '.conclusion' <<<"$latest")" = success || { echo 'Build failed; refusing publication.' >&2; exit 1; }
+              echo "Verified Build for ${GITHUB_SHA}."
+              exit 0
+            fi
+            sleep 20
+          done
+          echo 'Timed out waiting for Build; refusing publication.' >&2
+          exit 1
 
       - name: Validate or publish to Modrinth
         id: modrinth

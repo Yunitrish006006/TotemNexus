@@ -9,6 +9,7 @@
   ],
   "entrypoints": {
     "fabric-gametest": [
+      "dev.totem.nexus.space.NexusVanillaContainerGameTest",
       "dev.totem.nexus.space.NexusDistributedSpawnGameTest",
       "dev.totem.nexus.space.NexusInterfaceLifecycleGameTest",
       "dev.totem.nexus.space.NexusRecoveryRoutingGameTest",

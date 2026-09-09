@@ -29,7 +29,9 @@ public abstract class NexusContainerMapExpansionGateMixin {
             CallbackInfo ci) {
         if (!(player.level() instanceof ServerLevel serverLevel)) return;
         AbstractContainerMenu menu = (AbstractContainerMenu) (Object) this;
-        if (!menu.isValidSlotIndex(slotId)) return;
+        // Packet-valid indices include outside-click / quick-craft sentinels.
+        // Only real slots can contain a map result; let vanilla handle sentinels.
+        if (slotId < 0 || slotId >= menu.slots.size()) return;
         Slot slot = menu.getSlot(slotId);
         ItemStack result = slot.getItem();
         MapPostProcessing processing = result.get(DataComponents.MAP_POST_PROCESSING);
