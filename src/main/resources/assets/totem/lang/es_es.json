@@ -140,7 +140,7 @@
   "message.totem.space_unit.interface_bonus.compass": "Ruta base: sin bonificación numérica",
   "message.totem.space_unit.interface_bonus.filled_map.active": "Cobertura de mapa activa: comida y desviación -20%",
   "message.totem.space_unit.interface_bonus.filled_map.inactive": "La bonificación de mapa requiere que el objetivo esté dentro de la dimensión y cobertura de este mapa",
-  "message.totem.space_unit.interface_bonus.recovery_compass.active": "Precisión de rescate: desviación reducida un 75%",
+  "message.totem.space_unit.interface_bonus.recovery_compass.active": "Rescate cercano: a 6 bloques de la mochila",
   "message.totem.space_unit.interface_bonus.recovery_compass.inactive": "La precisión de muerte requiere tu propio nodo de muerte",
   "message.totem.space_unit.interface_name.book": "Libro",
   "message.totem.space_unit.interface_name.compass": "Brújula normal",
@@ -426,6 +426,6 @@
   "book.totem.nexus_diagram.recovery_short": "1–30 s",
   "book.totem.nexus_diagram.owner_admin": "Reparar: propietario/admin.",
   "container.totem.space_unit.recovery_compass": "Brújula de recuperación Nexus",
-  "book.totem.nexus_teleport_manual.page.25": "§lRescate Nexus§r\nAmbas brújulas muestran destinos explorados y autorizados por distancia. La brújula de recuperación hacia tu nodo de muerte activo reduce la desviación un 75% y da invisibilidad una vez. La llegada debe ser segura.",
-  "book.totem.nexus_teleport_manual.page.26": "§lGracia de rescate§r\nRecoger esa mochila deja 3 s, con límite total de 60 s. Atacar, PvP, proyectiles ofensivos, otro viaje, nodo inválido o desconexión cancelan. Otras mochilas no activan el plazo. Las pociones existentes se conservan."
+  "book.totem.nexus_teleport_manual.page.25": "§lTeletransporte portátil§r\nLas brújulas y mapas Nexus parten de tu posición, incluso fuera de estructuras. Dentro de una estructura construida obtienes estabilidad y bonificaciones de materiales. Los destinos del mapa requieren cobertura dibujada.",
+  "book.totem.nexus_teleport_manual.page.26": "§lRecuperar la mochila§r\nLa llegada sigue la mochila, normalmente a 2–4 bloques y nunca a más de 6, con un camino corto. Recuperar la tuya otorga Desvanecimiento: debilidad, visión nocturna, invisibilidad y resistencia. Termina 3s tras recogerla; combate, otro viaje, muerte o desconexión lo cancelan."
 }

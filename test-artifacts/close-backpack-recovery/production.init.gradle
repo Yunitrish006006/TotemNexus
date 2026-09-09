@@ -1,0 +1,21 @@
+allprojects {
+    afterEvaluate { p ->
+        if (p.name != 'TotemNexus' && p.findProperty('archives_base_name') != 'totem-nexus') return
+        p.dependencies.add('productionRuntimeMods', p.files('/home/thomas/workspace/TotemCore/build/libs/totem-core-0.7.19.jar'))
+        p.dependencies.add('productionRuntimeMods', p.fileTree('/tmp/remnant-doubleclick-observer-gradle/caches/modules-2/files-2.1/net.fabricmc.fabric-api') { include '**/*.jar'; exclude '**/*-sources.jar' })
+        def tests = p.tasks.register('recoveryProductionGametestJar', Jar) {
+            dependsOn(p.sourceSets.gametest.classesTaskName, p.sourceSets.gametest.processResourcesTaskName)
+            archiveClassifier = 'recovery-production-gametest'
+            from(p.sourceSets.gametest.output) { exclude 'fabric.mod.json' }
+            from('/tmp/nexus-recovery-production-fabric.mod.json') { rename { 'fabric.mod.json' } }
+        }
+        def taskType = p.plugins.getPlugin('fabric-loom').class.classLoader.loadClass('net.fabricmc.loom.task.prod.ClientProductionRunTask')
+        p.tasks.register('runRecoveryProductionClientGameTest', taskType) {
+            dependsOn(tests)
+            mods.from(tests.flatMap { it.archiveFile })
+            jvmArgs.add('-Dfabric.client.gametest')
+            jvmArgs.add('-Dfabric.client.gametest.disableNetworkSynchronizer=true')
+            useXVFB = true
+        }
+    }
+}

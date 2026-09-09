@@ -9,8 +9,17 @@ import java.util.UUID;
 public final class NexusTeleportResolver {
     private NexusTeleportResolver() { }
     public static Optional<NexusTeleportQuoteCalculator.Source> source(ServerPlayer player, String sourceType, UUID sourceId) {
-        if ("player".equals(sourceType) && player.getUUID().equals(sourceId))
-            return Optional.of(new NexusTeleportQuoteCalculator.Source(player.getUUID(), "player", player.level().dimension(), player.blockPosition(), .6D, 0, 0));
+        return source(player, sourceType, sourceId, NexusSpaceUnitAuthority.currentInterfaceContext(player).orElse(null));
+    }
+    static Optional<NexusTeleportQuoteCalculator.Source> source(ServerPlayer player, String sourceType, UUID sourceId,
+                                                               TeleportInterfaceContext context) {
+        if ("player".equals(sourceType) && player.getUUID().equals(sourceId)) {
+            var array = context == null ? Optional.<NexusSpaceUnitRecord>empty() : NexusPortableSource.array(player, context);
+            var material = array.map(NexusSpaceUnitRecord::structure).orElse(SpaceStructureSnapshot.EMPTY);
+            return Optional.of(new NexusTeleportQuoteCalculator.Source(player.getUUID(), "player", player.level().dimension(),
+                    player.blockPosition(), NexusPortableSource.stability(array), material.tier(),
+                    material.amethystCatalystBlocks(), material.materialAttributes()));
+        }
         if (!"lodestone".equals(sourceType) || sourceId == null) return Optional.empty();
         NexusSpaceUnitSavedData units = NexusSpaceUnitSavedData.loadCanonical(player.level().getServer().overworld().getDataStorage());
         NexusSpaceDiscoverySavedData discovery = NexusSpaceDiscoverySavedData.loadCanonical(player.level().getServer().overworld().getDataStorage());
@@ -28,6 +37,7 @@ public final class NexusTeleportResolver {
         Optional<NexusSpaceUnitRecord> unit = units.get(targetId);
         if (unit.isPresent()) return unit.filter(value -> value.status() == SpaceUnitStatus.ACTIVE
                         && value.canView(player.getUUID(), friends.areFriends(player.getUUID(), value.owner())) && discovery.hasDiscovered(player.getUUID(), value.id()))
+                .map(value -> value.type() == SpaceUnitType.DEATH ? NexusDeathTarget.latest(server, value) : value)
                 .map(value -> new NexusTeleportQuoteCalculator.Target(value.id(), value.type(), value.dimension(), value.pos(), value.structure().resonance(), value.structure().tier(), value.structure().wear(), value.isLodestoneAnchor(), value.owner(), value.structure().amethystCatalystBlocks(), value.structure().materialAttributes()));
         ServerPlayer friend = server.getPlayerList().getPlayer(targetId);
         if (friend == null || friend.getUUID().equals(player.getUUID()) || !friend.isAlive() || friend.isRemoved() || !friends.areFriends(player.getUUID(), friend.getUUID())) return Optional.empty();

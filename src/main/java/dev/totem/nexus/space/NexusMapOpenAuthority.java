@@ -32,7 +32,10 @@ public final class NexusMapOpenAuthority {
     }
 
     public boolean openPlayerAnchor(ServerPlayer player, InteractionHand hand) {
-        return false;
+        var context = interfaces.establishPlayerAnchor(player, hand);
+        if (context.isEmpty()) return false;
+        payloads.sendCalculated(player, context.get(), NexusPortableSource.playerRecord(player, context.get()), quotes);
+        return true;
     }
 
     /** Refreshes an existing held-interface map without trusting a client map model. */
@@ -53,6 +56,8 @@ public final class NexusMapOpenAuthority {
 
     private static java.util.Optional<NexusSpaceUnitRecord> sourceFor(ServerPlayer player, TeleportInterfaceContext context) {
         if (player == null || context == null) return java.util.Optional.empty();
+        if ("player".equals(context.sourceType()) && player.getUUID().equals(context.sourceId()))
+            return java.util.Optional.of(NexusPortableSource.playerRecord(player, context));
         if (!SpaceUnitType.LODESTONE.id().equals(context.sourceType())) return java.util.Optional.empty();
         var storage = player.level().getServer().overworld().getDataStorage();
         NexusSpaceUnitSavedData units = NexusSpaceUnitSavedData.loadCanonical(storage);

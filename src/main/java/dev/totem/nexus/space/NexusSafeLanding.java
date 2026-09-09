@@ -48,6 +48,19 @@ public final class NexusSafeLanding {
         return new Search(level, anchor, horizontalDeviation, List.of());
     }
 
+    static Search beginRecovery(ServerLevel level, BlockPos backpack) {
+        List<ColumnOffset> offsets = new ArrayList<>();
+        for (int x = -6; x <= 6; x++) for (int z = -6; z <= 6; z++)
+            if (x*x + z*z <= 36) offsets.add(new ColumnOffset(x, z));
+        offsets.sort(java.util.Comparator.comparingInt((ColumnOffset o) -> {
+            int square = o.x()*o.x() + o.z()*o.z();
+            return square >= 4 && square <= 16 ? 0 : 1;
+        }).thenComparingInt(o -> o.x()*o.x() + o.z()*o.z()));
+        Search search = new Search(level, backpack, NexusRecoveryLanding.RADIUS, List.copyOf(offsets));
+        search.recovery = true;
+        return search;
+    }
+
     static Search begin(
             ServerLevel level,
             BlockPos target,
@@ -137,6 +150,7 @@ public final class NexusSafeLanding {
         private int elapsedTicks;
         private int priorityIndex;
         private boolean closed;
+        private boolean recovery;
         private Progress terminal;
 
         private Search(
@@ -173,7 +187,7 @@ public final class NexusSafeLanding {
         }
 
         public Progress advance() {
-            return advance(DEFAULT_COLUMN_BUDGET);
+            return advance(recovery ? 8 : DEFAULT_COLUMN_BUDGET);
         }
 
         Progress advance(int columnBudget) {
@@ -210,7 +224,8 @@ public final class NexusSafeLanding {
                     continue;
                 }
 
-                Optional<BlockPos> landing = findInColumn(this.level, chunk, column);
+                Optional<BlockPos> landing = recovery ? findRecoveryInColumn(this.level, column, anchor)
+                        : findInColumn(this.level, chunk, column);
                 if (landing.isPresent()) {
                     return finish(Progress.found(landing.get()));
                 }
@@ -220,7 +235,7 @@ public final class NexusSafeLanding {
         }
 
         private boolean hasNextColumn() {
-            return this.priorityIndex < this.priorityOffsets.size() || this.cursor.hasNext();
+            return this.priorityIndex < this.priorityOffsets.size() || (!recovery && this.cursor.hasNext());
         }
 
         private ColumnOffset nextColumn() {
@@ -306,6 +321,14 @@ public final class NexusSafeLanding {
     }
 
     record ColumnOffset(int x, int z) {
+    }
+
+    private static Optional<BlockPos> findRecoveryInColumn(ServerLevel level, BlockPos column, BlockPos backpack) {
+        for (int dy : new int[]{0, 1, -1, 2, -2, 3, -3}) {
+            BlockPos candidate = column.offset(0, dy, 0);
+            if (NexusRecoveryLanding.reachable(level, candidate, backpack)) return Optional.of(candidate);
+        }
+        return Optional.empty();
     }
 
     private static int clampRadius(int radius) {

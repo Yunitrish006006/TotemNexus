@@ -1,0 +1,1 @@
+Woodcutter semantic view closed after Target close state.

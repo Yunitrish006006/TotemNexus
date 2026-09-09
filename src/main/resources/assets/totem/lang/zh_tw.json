@@ -140,7 +140,7 @@
   "message.totem.space_unit.interface_bonus.compass": "基準路線：無數值加成",
   "message.totem.space_unit.interface_bonus.filled_map.active": "地圖覆蓋加成生效：食物與偏差降低 20%",
   "message.totem.space_unit.interface_bonus.filled_map.inactive": "地圖加成只適用於同一維度且位於此地圖覆蓋範圍內的目標",
-  "message.totem.space_unit.interface_bonus.recovery_compass.active": "救援精準化：偏差降低 75%",
+  "message.totem.space_unit.interface_bonus.recovery_compass.active": "近距離救援：距背包最多 6 格",
   "message.totem.space_unit.interface_bonus.recovery_compass.inactive": "死亡精準化只適用於自己的死亡節點",
   "message.totem.space_unit.interface_name.book": "普通書",
   "message.totem.space_unit.interface_name.compass": "普通羅盤",
@@ -426,6 +426,6 @@
   "book.totem.nexus_diagram.recovery_short": "1–30秒",
   "book.totem.nexus_diagram.owner_admin": "維修：擁有者／管理員",
   "container.totem.space_unit.recovery_compass": "Nexus 回生羅盤",
-  "book.totem.nexus_teleport_manual.page.25": "§l回生救援§r\n兩種羅盤皆列出已探索、有權限的目的地，預設由近到遠排序。回生羅盤抵達自己的有效死亡節點時，偏差降低75%，並獲得該節點限一次的救援隱形。仍須通過安全落點檢查。",
-  "book.totem.nexus_teleport_manual.page.26": "§l救援隱形§r\n回收此次目標背包後再保留3秒；抵達起最長60秒。攻擊、PvP、攻擊性投射物、另一次傳送、節點失效或登出會解除。其他背包不觸發倒數；不能重傳刷新；原有隱形藥水不受影響。"
+  "book.totem.nexus_teleport_manual.page.25": "§l隨身傳送§r\n羅盤與 Nexus 地圖可從玩家位置出發，陣外也能傳送。站在實際建成的傳送陣範圍內，會增加穩定度並套用材料能力。地圖目的地仍須在已繪製範圍內。",
+  "book.totem.nexus_teleport_manual.page.26": "§l死亡背包與虛化§r\n落點跟隨背包，優先相距2～4格，最多6格且可短途步行抵達。抵達自己的背包附近會獲得虛化：虛弱、夜視、隱形、抗性。成功拾取目標背包後3秒解除；攻擊、PvP、另次傳送、失效、死亡或登出立即解除。"
 }

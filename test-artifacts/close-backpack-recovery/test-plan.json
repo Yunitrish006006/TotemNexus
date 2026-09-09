@@ -1,0 +1,37 @@
+{
+  "modules": [
+    "totem-core",
+    "totem-nexus",
+    "totem-remnant"
+  ],
+  "risks": [
+    "observer",
+    "client-server",
+    "privacy"
+  ],
+  "validationCategories": [
+    "gradle-build",
+    "existing-unit-or-gametest",
+    "unit-tests",
+    "consumer-impact-review",
+    "cross-module-build",
+    "gametest",
+    "server-authority",
+    "inventory-conservation",
+    "save-reload",
+    "client-gametest",
+    "observer-provider-compat",
+    "input-packet-suppression",
+    "privacy-redaction",
+    "close-cleanup",
+    "three-jvm-e2e",
+    "production-runtime-probe",
+    "dedicated-server-load-check",
+    "client-runtime-check"
+  ],
+  "notes": [
+    "totem-core: Shared API changes require checking every consumer; Observer changes additionally require client visual/E2E/runtime evidence.",
+    "totem-nexus: Teleport, cost, permissions, and death-node lifecycle are server-authoritative.",
+    "totem-remnant: Backpack/death-capture changes must cover anti-nesting, inventory conservation, and persistence."
+  ]
+}

@@ -1,0 +1,24 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.6.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build
+
+> Configure project :
+Fabric Loom: 1.17.12
+
+> Task :deleteGameTestRunDir
+> Task :acceptGameTestEula
+> Task :generateLog4jConfig
+> Task :generateDLIConfig
+> Task :configureLaunch
+> Task :downloadAssets
+> Task :configureClientLaunch
+> Task :compileJava
+> Task :compileE2eJava
+> Task :processE2eResources
+> Task :e2eClasses
+> Task :prepareE2eClientLaunchInputs
+
+BUILD SUCCESSFUL in 40s
+9 actionable tasks: 9 executed
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.6.1/userguide/configuration_cache_enabling.html
+Dedicated server + Target JVM + Observer JVM framebuffer-free Observer E2E passed.
+Verified world/HUD, crafting, unsupported metadata fallback, every registered semantic bridge through Statistics, Stop, and server cleanup.

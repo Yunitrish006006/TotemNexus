@@ -27,6 +27,16 @@ public final class NexusDeathBackpackNodeAdapter implements DeathBackpackNodeLif
     }
 
     @Override
+    public void moved(ServerLevel level, UUID nodeId, UUID entityId, UUID ownerId, BlockPos position) {
+        var entity = level.getEntity(entityId);
+        if (!(entity instanceof net.minecraft.world.entity.item.ItemEntity item) || item.isRemoved()
+                || !nodeId.equals(DeathNodeBackpackBinding.read(item.getItem()))
+                || !item.blockPosition().equals(position)) return;
+        NexusSpaceUnitSavedData.loadCanonical(level.getServer().overworld().getDataStorage())
+                .moveDeathBackpack(nodeId, entityId, ownerId, level.dimension(), position, level.getGameTime());
+    }
+
+    @Override
     public void rollback(ServerPlayer owner, ServerLevel level, UUID nodeId) {
         authority.disable(owner, level, nodeId);
     }

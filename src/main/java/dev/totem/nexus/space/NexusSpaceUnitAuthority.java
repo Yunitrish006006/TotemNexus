@@ -303,7 +303,10 @@ public final class NexusSpaceUnitAuthority {
             return;
         }
 
-        notify(player, Component.translatable("message.totem.space_unit.map_source_missing"));
+        resolveMapSource(player, sourceType, sourceUnitId, true).ifPresent(source -> {
+            synchronizeHeldVanillaMap(player, currentInterfaceContext(player).orElseThrow());
+            ServerPlayNetworking.send(player, buildMapPayload(player, source, visibleDiscoveredUnits(player)));
+        });
     }
 
     public static void startTeleport(
@@ -1403,6 +1406,14 @@ public final class NexusSpaceUnitAuthority {
             ServerPlayer player,
             InteractionHand hand,
             TeleportInterfaceItemResolver.ResolvedInterface resolved) {
+        if (resolved.type().canSelectTeleportDestination()) {
+            if (establishInterfaceContext(player, hand, SOURCE_TYPE_PLAYER, player.getUUID()).isPresent()) {
+                sendSpaceUnitMap(player, SOURCE_TYPE_PLAYER, player.getUUID());
+            } else {
+                notify(player, Component.translatable("message.totem.space_unit.map_need_bound_interface"));
+            }
+            return;
+        }
         UUID sourceUnitId = resolved.boundUnitId();
         if (resolved.type().hasMapVisualization()) {
             sourceUnitId = units(player.level().getServer()).activeLodestones().stream()
@@ -1425,6 +1436,11 @@ public final class NexusSpaceUnitAuthority {
             ServerPlayer player,
             InteractionHand hand,
             UUID sourceUnitId) {
+        var held = TeleportInterfaceItemResolver.resolve(player, hand);
+        if (held.filter(value -> value.type().canSelectTeleportDestination()).isPresent()) {
+            openBoundInterface(player, hand, held.orElseThrow());
+            return;
+        }
         if (establishInterfaceContext(
                 player,
                 hand,
@@ -1569,7 +1585,8 @@ public final class NexusSpaceUnitAuthority {
             return;
         }
 
-        NexusSafeLanding.Search search = NexusSafeLanding.begin(
+        NexusSafeLanding.Search search = finalTarget.get().type() == SpaceUnitType.DEATH
+                ? NexusSafeLanding.beginRecovery(targetLevel, finalTarget.get().pos()) : NexusSafeLanding.begin(
                 targetLevel,
                 finalTarget.get().pos(),
                 finalTarget.get().lodestoneAnchor(),
@@ -1579,7 +1596,7 @@ public final class NexusSpaceUnitAuthority {
         );
         LandingSearchSession previous = landingSearchSessions.put(
                 player.getUUID(),
-                new LandingSearchSession(session, search)
+                new LandingSearchSession(session, search, player.level().getServer().overworld().getGameTime() + 200)
         );
         if (previous != null) {
             previous.search().close();
@@ -1602,6 +1619,8 @@ public final class NexusSpaceUnitAuthority {
             }
 
             Component cancelReason = teleportCancelReason(player, session);
+            if (server.overworld().getGameTime() >= pending.deadline())
+                cancelReason = Component.translatable("message.totem.space_unit.teleport_cancelled.no_landing");
             if (cancelReason != null) {
                 iterator.remove();
                 pending.search().close();
@@ -1674,18 +1693,25 @@ public final class NexusSpaceUnitAuthority {
                 pending.search().close();
                 entry.setValue(new LandingSearchSession(
                         session,
-                        NexusSafeLanding.begin(
+                        target.get().type() == SpaceUnitType.DEATH
+                                ? NexusSafeLanding.beginRecovery(targetLevel, target.get().pos()) : NexusSafeLanding.begin(
                                 targetLevel,
                                 target.get().pos(),
                                 target.get().lodestoneAnchor(),
                                 currentRadius,
                                 targetLevel.getRandom(),
                                 target.get().type() == SpaceUnitType.PLAYER
-                        )
+                        ), pending.deadline()
                 ));
                 continue;
             }
 
+            if (target.get().type() == SpaceUnitType.DEATH
+                    && NexusDeathTarget.live(server, units(server).get(target.get().id()).orElse(null)) == null) {
+                // Full terrain can finish loading before persistent entities are integrated.
+                // Retain the ticket and original bounded deadline until the exact backpack is available.
+                continue;
+            }
             NexusSafeLanding.Progress progress = pending.search().advance();
             if (progress.state() == NexusSafeLanding.State.SEARCHING) {
                 continue;
@@ -1774,6 +1800,17 @@ public final class NexusSpaceUnitAuthority {
             return;
         }
 
+        if (finalTarget.get().type() == SpaceUnitType.DEATH) {
+            var node = units(player.level().getServer()).get(finalTarget.get().id()).orElse(null);
+            var backpack = NexusDeathTarget.live(player.level().getServer(), node);
+            if (backpack == null || backpack.level() != targetLevel
+                    || !NexusRecoveryLanding.reachable(targetLevel, landingPos, backpack.blockPosition())) {
+                routeReservations.release(session.playerId());
+                notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.no_landing"));
+                return;
+            }
+        }
+
         if (!deductTeleportCost(player, finalQuote)) {
             routeReservations.release(session.playerId());
             notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.cost"));
@@ -1821,6 +1858,16 @@ public final class NexusSpaceUnitAuthority {
             UUID sourceUnitId,
             boolean notifyFailure,
             boolean rescanStructure) {
+        if (SOURCE_TYPE_PLAYER.equals(sourceType)) {
+            if (!player.getUUID().equals(sourceUnitId)
+                    || requireInterfaceContext(player, sourceType, sourceUnitId, notifyFailure).isEmpty()) return Optional.empty();
+            var array = NexusPortableSource.array(player, currentInterfaceContext(player).orElseThrow(), rescanStructure);
+            return Optional.of(new MapSource(player.getUUID(), SOURCE_TYPE_PLAYER,
+                    array.map(NexusSpaceUnitRecord::name).orElse(player.getName().getString()),
+                    player.level().dimension(), player.blockPosition().immutable(),
+                    NexusPortableSource.stability(array), array.map(u -> u.structure().tier()).orElse(0),
+                    SpaceUnitType.PLAYER, array.map(NexusSpaceUnitRecord::id).orElse(null)));
+        }
         if (!SOURCE_TYPE_LODESTONE.equals(sourceType) || sourceUnitId == null) {
             notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.map_source_missing"));
             return Optional.empty();
@@ -1941,6 +1988,10 @@ public final class NexusSpaceUnitAuthority {
                 target = units(server).rescanLodestone(targetLevel, target.id()).orElse(target);
             }
         }
+        if (target.type() == SpaceUnitType.DEATH) {
+            if (target.backpackId().isEmpty()) return Optional.empty();
+            target = NexusDeathTarget.latest(server, target);
+        }
         return Optional.of(TeleportTarget.unit(target));
     }
 
@@ -1990,7 +2041,7 @@ public final class NexusSpaceUnitAuthority {
                 || !java.util.Objects.equals(resolved.get().mapId(), session.mapId())
                 || !java.util.Objects.equals(resolved.get().boundUnitId(), session.boundUnitId())
                 || session.boundUnitId() == null
-                || !validateBoundInterfaceSource(player, session.sourceUnitId(), false)) {
+                || !validateBoundInterfaceSource(player, session.boundUnitId(), false)) {
             return Component.translatable(
                     "message.totem.space_unit.teleport_cancelled.interface_item");
         }
@@ -2105,10 +2156,10 @@ public final class NexusSpaceUnitAuthority {
         MinecraftServer server = player.level().getServer();
         NexusSpaceUnitSavedData units = units(server);
         boolean worn = false;
-        if (SOURCE_TYPE_LODESTONE.equals(source.type())) {
+        if (source.arrayId() != null) {
             ServerLevel sourceLevel = server.getLevel(source.dimension());
             if (sourceLevel != null) {
-                worn = units.applyLodestoneWear(sourceLevel, source.id(), chance, random);
+                worn = units.applyLodestoneWear(sourceLevel, source.arrayId(), chance, random);
             }
         }
 
@@ -2287,7 +2338,7 @@ public final class NexusSpaceUnitAuthority {
                 interfaceType,
                 mapId == null ? SpaceUnitMapPayload.NO_MAP_ID : mapId.id(),
                 entries,
-                materialSummaryFor(player, source.id())
+                materialSummaryFor(player, source.arrayId())
         );
     }
 
@@ -2299,7 +2350,7 @@ public final class NexusSpaceUnitAuthority {
             MapId mapId) {
         boolean sameDimension = source.dimension().equals(target.dimension());
         boolean sameUnit = SOURCE_TYPE_LODESTONE.equals(source.type()) && source.id().equals(target.id());
-        SpaceStructureSnapshot sourceMaterial = materialStructure(player, source.id());
+        SpaceStructureSnapshot sourceMaterial = materialStructure(player, source.arrayId());
         SpaceStructureSnapshot targetMaterial = materialStructure(player, target.id());
         int materialFoodEfficiency = sourceMaterial.foodEfficiency() + targetMaterial.foodEfficiency();
         int materialPhaseSpeed = sourceMaterial.phaseSpeed() + targetMaterial.phaseSpeed();
@@ -2416,7 +2467,7 @@ public final class NexusSpaceUnitAuthority {
         if (sameUnit) {
             return "message.totem.space_unit.teleport_blocked.same_source";
         }
-        if (routeStability < 0.2D) {
+        if (routeStability < 0.2D && !SOURCE_TYPE_PLAYER.equals(source.type())) {
             return "message.totem.space_unit.teleport_blocked.unstable";
         }
         if (!sameDimension && SOURCE_TYPE_LODESTONE.equals(source.type()) && source.tier() < 1) {
@@ -2435,7 +2486,9 @@ public final class NexusSpaceUnitAuthority {
     }
 
     private static double routeStability(MapSource source, TeleportTarget target, boolean sameDimension, int distanceBlocks) {
-        double stability = Math.min(unitStability(source), unitStability(target));
+        double stability = SOURCE_TYPE_PLAYER.equals(source.type())
+                ? unitStability(source) * unitStability(target)
+                : Math.min(unitStability(source), unitStability(target));
         if (!sameDimension) {
             stability *= 0.65D;
         } else {
@@ -2586,8 +2639,8 @@ public final class NexusSpaceUnitAuthority {
             MapSource source,
             TeleportTarget target) {
         List<TeleportRouteReservationStore.Endpoint> endpoints = new ArrayList<>(2);
-        if (SOURCE_TYPE_LODESTONE.equals(source.type())) {
-            endpoints.add(routeReservationEndpoint(player, source.id()));
+        if (source.arrayId() != null) {
+            endpoints.add(routeReservationEndpoint(player, source.arrayId()));
         }
         if (target.lodestoneAnchor()
                 && endpoints.stream().noneMatch(endpoint -> endpoint.unitId().equals(target.id()))) {
@@ -2738,10 +2791,15 @@ public final class NexusSpaceUnitAuthority {
             UUID sourceId) {
         Optional<TeleportInterfaceItemResolver.ResolvedInterface> resolved =
                 TeleportInterfaceItemResolver.resolve(player, hand);
-        if (resolved.isEmpty() || !SOURCE_TYPE_LODESTONE.equals(sourceType) || sourceId == null) {
+        if (resolved.isEmpty() || sourceId == null) {
             return Optional.empty();
         }
-        if ((!resolved.get().type().hasMapVisualization() && !sourceId.equals(resolved.get().boundUnitId()))
+        boolean portable = SOURCE_TYPE_PLAYER.equals(sourceType)
+                && player.getUUID().equals(sourceId) && resolved.get().type().canSelectTeleportDestination();
+        if (portable) {
+            if (!validateBoundInterfaceSource(player, resolved.get().boundUnitId(), false)) return Optional.empty();
+        } else if (!SOURCE_TYPE_LODESTONE.equals(sourceType)
+                || (!resolved.get().type().hasMapVisualization() && !sourceId.equals(resolved.get().boundUnitId()))
                 || !validateBoundInterfaceSource(player, sourceId, false)) return Optional.empty();
 
         long gameTime = player.level().getServer().overworld().getGameTime();
@@ -2756,7 +2814,7 @@ public final class NexusSpaceUnitAuthority {
                 gameTime,
                 gameTime + TELEPORT_INTERFACE_CONTEXT_TICKS
         );
-        if (context.interfaceType().hasMapVisualization()) {
+        if (!portable && context.interfaceType().hasMapVisualization()) {
             NexusSpaceUnitRecord source = units(player.level().getServer()).get(sourceId).orElse(null);
             if (!NexusInterfaceAccess.allows(player, context, source) || !isNearSource(player, source)
                     || !player.level().isLoaded(source.pos())
@@ -2794,6 +2852,9 @@ public final class NexusSpaceUnitAuthority {
                 || !context.matchesSource(sourceType, sourceId)
                 || context.isExpired(gameTime)
                 || !context.isStillHeldBy(player)
+                || (SOURCE_TYPE_PLAYER.equals(context.sourceType())
+                && (!player.getUUID().equals(context.sourceId()) || !context.interfaceType().canSelectTeleportDestination()
+                || !validateBoundInterfaceSource(player, context.boundUnitId(), false)))
                 || (SOURCE_TYPE_LODESTONE.equals(context.sourceType())
                 && !validateBoundInterfaceSource(player, context.sourceId(), false))) {
             teleportInterfaceContexts.remove(player.getUUID());
@@ -2818,7 +2879,7 @@ public final class NexusSpaceUnitAuthority {
                     "message.totem.space_unit.interface.management_unavailable"));
             return false;
         }
-        UUID boundUnitId = context.get().sourceId();
+        UUID boundUnitId = context.get().boundUnitId();
         boolean canManage = boundUnitId != null && units(player.level().getServer()).get(boundUnitId)
                 .filter(unit -> unit.isLodestoneAnchor() && unit.status() == SpaceUnitStatus.ACTIVE)
                 .filter(unit -> unit.canManage(player.getUUID()))
@@ -3028,7 +3089,13 @@ public final class NexusSpaceUnitAuthority {
             BlockPos pos,
             double stability,
             int tier,
-            SpaceUnitType unitType) {
+            SpaceUnitType unitType,
+            UUID arrayId) {
+        private MapSource(UUID id, String type, String name, net.minecraft.resources.ResourceKey<Level> dimension,
+                          BlockPos pos, double stability, int tier, SpaceUnitType unitType) {
+            this(id, type, name, dimension, pos, stability, tier, unitType,
+                    SOURCE_TYPE_LODESTONE.equals(type) ? id : null);
+        }
     }
 
     private record TeleportTarget(
@@ -3076,7 +3143,8 @@ public final class NexusSpaceUnitAuthority {
 
     private record LandingSearchSession(
             TeleportSession teleport,
-            NexusSafeLanding.Search search) {
+            NexusSafeLanding.Search search,
+            long deadline) {
     }
 
     private record ManageableLodestone(

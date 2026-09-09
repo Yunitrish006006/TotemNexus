@@ -248,6 +248,11 @@ public record NexusSpaceUnitRecord(
         );
     }
 
+    public NexusSpaceUnitRecord withLocation(ResourceKey<Level> nextDimension, BlockPos nextPos, long tick) {
+        return new NexusSpaceUnitRecord(id, type, nextDimension, nextPos.immutable(), owner, name,
+                visibility, status, administrators, allowedPlayers, structure, createdGameTime, tick, backpackId);
+    }
+
     private static String defaultName(SpaceUnitType type, BlockPos pos) {
         return switch (type) {
             case DEATH -> "Death Echo " + pos.getX() + ", " + pos.getY() + ", " + pos.getZ();

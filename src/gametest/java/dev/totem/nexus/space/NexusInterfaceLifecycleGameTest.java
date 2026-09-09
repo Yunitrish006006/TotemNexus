@@ -743,11 +743,20 @@ public final class NexusInterfaceLifecycleGameTest {
         UUID targetId = UUID.randomUUID();
         putLodestone(level, sourceId, player.getUUID(), source, SpaceUnitVisibility.PRIVATE, Set.of());
         putLodestone(level, targetId, player.getUUID(), target, SpaceUnitVisibility.PRIVATE, Set.of());
+        final net.minecraft.world.entity.item.ItemEntity[] deathBackpack = {null};
         if (deathTarget) {
             level.getServer().overworld().getDataStorage().computeIfAbsent(NexusSpaceUnitSavedData.TYPE).put(
                     new NexusSpaceUnitRecord(targetId, SpaceUnitType.DEATH, level.dimension(), target.above(), player.getUUID(),
                             "Rescue", SpaceUnitVisibility.PRIVATE, SpaceUnitStatus.ACTIVE, Set.of(), Set.of(),
                             SpaceStructureSnapshot.EMPTY, level.getGameTime(), level.getGameTime()));
+            var backpack = new ItemStack(Items.CHEST);
+            DeathNodeBackpackBinding.write(backpack, targetId);
+            var entity = new net.minecraft.world.entity.item.ItemEntity(level, target.getX() + .5,
+                    target.getY() + 1, target.getZ() + .5, backpack);
+            entity.setNoGravity(true); entity.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO); entity.setNeverPickUp();
+            level.addFreshEntity(entity);
+            new NexusDeathNodeAuthority().bind(level, targetId, entity.getUUID());
+            deathBackpack[0] = entity;
         }
 
         var discovery = level.getServer().overworld().getDataStorage()
@@ -770,19 +779,24 @@ public final class NexusInterfaceLifecycleGameTest {
         // Re-establishing after binding models reopening an already issued interface.
         NexusSpaceUnitAuthority.clearInterfaceContext(player.getUUID());
         if (NexusSpaceUnitAuthority.establishInterfaceContext(
-                player, InteractionHand.MAIN_HAND, NexusSpaceUnitAuthority.SOURCE_TYPE_LODESTONE, sourceId).isEmpty()) {
+                player, InteractionHand.MAIN_HAND, NexusSpaceUnitAuthority.SOURCE_TYPE_PLAYER, player.getUUID()).isEmpty()) {
             player.discard();
             helper.fail("Previously issued interface did not establish a teleport context");
             return;
         }
         NexusSpaceUnitAuthority.startTeleport(
-                player, NexusSpaceUnitAuthority.SOURCE_TYPE_LODESTONE, sourceId, targetId);
+                player, NexusSpaceUnitAuthority.SOURCE_TYPE_PLAYER, player.getUUID(), targetId);
         if (!NexusSpaceUnitAuthority.hasActiveTeleportSession(player.getUUID())) {
             player.discard();
             helper.fail("Valid bound interface did not start a teleport session: " + bound.getItem());
             return;
         }
 
+        if (deathTarget) helper.runAtTickTime(20, () -> {
+            deathBackpack[0].setPos(target.getX() + 2.5, target.getY() + 1, target.getZ() + .5);
+            new NexusDeathBackpackNodeAdapter(new NexusDeathNodeAuthority()).moved(level, targetId,
+                    deathBackpack[0].getUUID(), player.getUUID(), deathBackpack[0].blockPosition());
+        });
         helper.succeedWhen(() -> {
             BlockPos landed = player.blockPosition();
             int horizontalOffset = Math.max(
@@ -806,6 +820,8 @@ public final class NexusInterfaceLifecycleGameTest {
                         || data.centerX != mapAnchor.getX() || data.centerZ != mapAnchor.getZ())
                     throw helper.assertionException("Map teleport mutated anchor/MapId/center");
             }
+            if (deathTarget && !NexusRecoveryLanding.reachable(level, landed, deathBackpack[0].blockPosition()))
+                throw helper.assertionException("Arrival did not follow moving backpack within short walk");
             if (NexusRecoveryGrace.active(player) != deathTarget) throw helper.assertionException("Completion rescue eligibility mismatch");
             if (!NexusSafeLanding.isSafeLoaded(level, player.blockPosition())) throw helper.assertionException("Unsafe arrival");
             NexusRecoveryGrace.cancel(player);

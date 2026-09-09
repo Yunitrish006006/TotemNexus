@@ -1,0 +1,1 @@
+Observer received and rendered Remnant backpack semantic state from the Target JVM.

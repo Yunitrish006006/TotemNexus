@@ -9,6 +9,7 @@
   ],
   "entrypoints": {
     "fabric-gametest": [
+      "dev.totem.nexus.space.NexusPortableRecoveryGameTest",
       "dev.totem.nexus.space.NexusVanillaContainerGameTest",
       "dev.totem.nexus.space.NexusDistributedSpawnGameTest",
       "dev.totem.nexus.space.NexusInterfaceLifecycleGameTest",
@@ -20,6 +21,7 @@
       "dev.totem.nexus.space.TeleportRouteReservationGameTest"
     ],
     "fabric-client-gametest": [
+      "dev.totem.nexus.client.NexusPhasingVisualGameTest",
       "dev.totem.nexus.client.NexusObserverProviderClientGameTest",
       "dev.totem.nexus.client.NexusFriendsVisualGameTest",
       "dev.totem.nexus.client.NexusManualVisualGameTest",

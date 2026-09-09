@@ -140,7 +140,7 @@
   "message.totem.space_unit.interface_bonus.compass": "基本経路: 数値ボーナスなし",
   "message.totem.space_unit.interface_bonus.filled_map.active": "地図範囲が有効: 食料消費とずれ -20%",
   "message.totem.space_unit.interface_bonus.filled_map.inactive": "地図ボーナスには、目標がこの地図の次元および範囲内にある必要があります",
-  "message.totem.space_unit.interface_bonus.recovery_compass.active": "死亡精度が有効: ずれ -50%",
+  "message.totem.space_unit.interface_bonus.recovery_compass.active": "近距離救援：バックパックから6ブロック以内",
   "message.totem.space_unit.interface_bonus.recovery_compass.inactive": "死亡精度には自分の死亡ノードが必要です",
   "message.totem.space_unit.interface_name.book": "本",
   "message.totem.space_unit.interface_name.compass": "通常のコンパス",

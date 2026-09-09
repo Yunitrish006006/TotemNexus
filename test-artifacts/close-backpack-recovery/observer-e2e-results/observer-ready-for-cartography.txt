@@ -1,0 +1,1 @@
+Target may send Cartography semantic state through the dedicated server.

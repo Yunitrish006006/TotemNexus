@@ -1,0 +1,1 @@
+Observer rendered metadata-only placeholder for unsupported Screen.

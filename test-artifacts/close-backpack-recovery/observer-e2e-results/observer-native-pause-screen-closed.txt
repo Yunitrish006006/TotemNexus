@@ -1,0 +1,1 @@
+PauseScreen semantic view closed after metadata close.

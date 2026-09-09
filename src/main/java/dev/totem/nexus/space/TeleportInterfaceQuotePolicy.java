@@ -18,14 +18,14 @@ public final class TeleportInterfaceQuotePolicy {
         if (interfaceType == null || targetType == null) throw new IllegalArgumentException("Interface and target types are required");
         int food = clamp(baseFoodCost, 0, MAX_FOOD_COST);
         int prepare = clamp(basePrepareTicks, 0, MAX_PREPARE_TICKS);
-        int deviation = clamp(baseDeviation, 0, MAX_DEVIATION);
+        int deviation = targetType == SpaceUnitType.DEATH ? 6 : clamp(baseDeviation, 0, MAX_DEVIATION);
         int wear = clamp(baseWearChance, 0, MAX_WEAR_CHANCE_PERCENT);
         if (interfaceType == TeleportInterfaceType.RECOVERY_COMPASS && targetType == SpaceUnitType.DEATH && targetOwnedByPlayer)
-            return new Quote(food, prepare, floor(deviation, .25D), wear, true, "message.totem.space_unit.interface_bonus.recovery_compass.active");
+            return new Quote(food, prepare, deviation, wear, true, "message.totem.space_unit.interface_bonus.recovery_compass.active");
         if (interfaceType == TeleportInterfaceType.BOOK && targetType == SpaceUnitType.LODESTONE && prepare > 0)
             return new Quote(food, clamp(Math.max(BOOK_MIN_PREPARE_TICKS, ceil(prepare, .8D)), BOOK_MIN_PREPARE_TICKS, MAX_PREPARE_TICKS), deviation, floor(wear, .75D), true, "message.totem.space_unit.interface_bonus.book.active");
         if (interfaceType == TeleportInterfaceType.FILLED_MAP && filledMapCoversTarget && (food > 0 || deviation > 0))
-            return new Quote(food == 0 ? 0 : Math.max(1, ceil(food, .8D)), prepare, floor(deviation, .8D), wear, true, "message.totem.space_unit.interface_bonus.filled_map.active");
+            return new Quote(food == 0 ? 0 : Math.max(1, ceil(food, .8D)), prepare, targetType == SpaceUnitType.DEATH ? deviation : floor(deviation, .8D), wear, true, "message.totem.space_unit.interface_bonus.filled_map.active");
         return new Quote(food, prepare, deviation, wear, false, inactiveMessageKey(interfaceType));
     }
     private static String inactiveMessageKey(TeleportInterfaceType type) { return switch (type) {

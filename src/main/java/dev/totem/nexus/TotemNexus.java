@@ -14,6 +14,7 @@ public final class TotemNexus implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        dev.totem.nexus.effect.NexusEffects.register();
         NexusFriendSavedData.registerLifecycle();
         NexusTeleportManual.register();
         NexusAuthorityBootstrap.register();

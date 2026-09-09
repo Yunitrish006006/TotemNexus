@@ -1,0 +1,1 @@
+Observer rendered Nexus friends semantic state.

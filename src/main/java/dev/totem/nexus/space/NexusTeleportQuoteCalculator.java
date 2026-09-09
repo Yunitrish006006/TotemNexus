@@ -56,7 +56,7 @@ public final class NexusTeleportQuoteCalculator {
 
     private static String blocked(Source s, Target t, double stability, int foodNeeded, int safeFood, int amethyst, int available, boolean sameDimension, boolean sameUnit) {
         if (sameUnit) return "message.totem.space_unit.teleport_blocked.same_source";
-        if (stability < .2D) return "message.totem.space_unit.teleport_blocked.unstable";
+        if (stability < .2D && !s.type.equals("player")) return "message.totem.space_unit.teleport_blocked.unstable";
         if (!sameDimension && s.type.equals("lodestone") && s.tier < 1) return "message.totem.space_unit.teleport_blocked.source_tier";
         if (!sameDimension && t.lodestone && t.tier < 1) return "message.totem.space_unit.teleport_blocked.target_tier";
         if (foodNeeded > safeFood) return "message.totem.space_unit.teleport_blocked.food";
@@ -64,7 +64,8 @@ public final class NexusTeleportQuoteCalculator {
         return "";
     }
     private static double stability(Source s, Target t, boolean sameDimension, int distance) {
-        double result = Math.min(unitStability(s.type, s.stability), unitStability(t.type, t.stability));
+        double result = s.type.equals("player") ? unitStability(s.type, s.stability) * unitStability(t.type, t.stability)
+                : Math.min(unitStability(s.type, s.stability), unitStability(t.type, t.stability));
         result *= sameDimension ? Math.max(.55D, 1D - distance / 12000D) : .65D;
         result *= switch (t.type) { case DEATH -> .72D; case PLAYER -> .65D; case TEMPORARY -> .85D; default -> 1D; };
         if (s.type.equals("player")) result *= .85D;

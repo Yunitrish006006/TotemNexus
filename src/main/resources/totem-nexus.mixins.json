@@ -3,6 +3,7 @@
   "package": "dev.totem.nexus.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
+    "NexusPhasingEffectMixin",
     "NexusRecoveryGraceVisibilityMixin",
     "NexusRecoveryGraceProjectileMixin",
     "NexusContainerMapExpansionGateMixin",
@@ -22,7 +23,10 @@
   ],
   "client": [
     "client.NexusSpaceUnitMapScreenMixin",
-    "client.NexusSpaceUnitMaterialReferenceMixin"
+    "client.NexusSpaceUnitMaterialReferenceMixin",
+    "client.NexusPhasingNightVisionMixin",
+    "client.NexusPhasingLightmapMixin",
+    "client.NexusPhasingFogMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -50,8 +50,8 @@ public final class NexusRecoveryRoutingGameTest {
         require(h, !discovery(p).hasDiscovered(p.getUUID(), c.id()), "Map silently changed discovery");
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.invoker().interact(p, level, InteractionHand.MAIN_HAND,
                 new BlockHitResult(Vec3.atCenterOf(b.pos()), Direction.UP, b.pos(), false));
-        require(h, NexusSpaceUnitAuthority.currentInterfaceContext(p).orElseThrow().sourceId().equals(b.id()), "Clicked source was not selected");
-        NexusSpaceUnitAuthority.setFavorite(p, "lodestone", b.id(), c.id(), true);
+        require(h, NexusSpaceUnitAuthority.currentInterfaceContext(p).orElseThrow().sourceId().equals(p.getUUID()), "Portable block activation did not use player source");
+        NexusSpaceUnitAuthority.setFavorite(p, "player", p.getUUID(), c.id(), true);
         require(h, discovery(p).isFavorite(p.getUUID(), c.id()) && !discovery(p).hasDiscovered(p.getUUID(), c.id()),
                 "Map favorite failed or granted compass discovery");
         require(h, map.get(DataComponents.MAP_ID).equals(mapId) && NexusInterfaceBinding.read(map).equals(a.id())
@@ -63,7 +63,7 @@ public final class NexusRecoveryRoutingGameTest {
                 SpaceUnitStatus.ACTIVE, Set.of(), Set.of(), SpaceStructureSnapshot.EMPTY, 1, 1);
         units(p).put(outside);
         require(h, !NexusInterfaceAccess.allows(p, context, outside), "Coverage outside accepted");
-        NexusSpaceUnitAuthority.setFavorite(p, "lodestone", b.id(), outside.id(), true);
+        NexusSpaceUnitAuthority.setFavorite(p, "player", p.getUUID(), outside.id(), true);
         require(h, !discovery(p).isFavorite(p.getUUID(), outside.id()), "Forged map favorite escaped coverage");
         p.setPos(Vec3.atCenterOf(outside.pos()));
         require(h, NexusSpaceUnitAuthority.establishInterfaceContext(p, InteractionHand.MAIN_HAND, "lodestone", outside.id()).isEmpty(), "Outside source accepted");
@@ -150,16 +150,19 @@ public final class NexusRecoveryRoutingGameTest {
         });
     }
 
-    @GameTest(maxTicks = 1220)
-    public void rescueTimeoutDoesNotRefreshAndEndsWithoutPotion(GameTestHelper h) {
+    @GameTest(maxTicks = 1280)
+    public void searchingOutlastsSixtySecondsThenRecoveryEndsAfterThree(GameTestHelper h) {
         var p = h.makeMockServerPlayerInLevel(); var node = death(h, p);
         require(h, NexusRecoveryGrace.completed(p, TeleportInterfaceType.RECOVERY_COMPASS, node.id()), "First rescue denied");
-        require(h, !NexusRecoveryGrace.completed(p, TeleportInterfaceType.RECOVERY_COMPASS, node.id()), "Repeated rescue refreshed");
-        h.runAtTickTime(1199, () -> { NexusRecoveryGrace.tick(p); require(h, p.isInvisible(), "Grace ended before 60 seconds"); });
-        h.runAtTickTime(1200, () -> {
+        h.runAtTickTime(1201, () -> {
             NexusRecoveryGrace.tick(p);
-            require(h, !NexusRecoveryGrace.active(p) && !p.isInvisible(), "Timeout failed");
-            require(h, !NexusRecoveryGrace.completed(p, TeleportInterfaceType.RECOVERY_COMPASS, node.id()), "Timeout reset consumed grant");
+            require(h, NexusRecoveryGrace.active(p) && p.isInvisible(), "Searching timed out after 60 seconds");
+            new NexusDeathNodeAuthority().recover(p, node.id());
+        });
+        h.runAtTickTime(1260, () -> { NexusRecoveryGrace.tick(p); require(h, NexusRecoveryGrace.active(p), "Suffix ended early"); });
+        h.runAtTickTime(1261, () -> {
+            NexusRecoveryGrace.tick(p);
+            require(h, !NexusRecoveryGrace.active(p) && !p.isInvisible(), "Recovery suffix did not end");
             p.discard(); h.succeed();
         });
     }
@@ -168,8 +171,11 @@ public final class NexusRecoveryRoutingGameTest {
     public void ineligibleTargetsAndInterfacesNeverGrantAndAllOffensiveLifecycleEventsCancel(GameTestHelper h) {
         var p = h.makeMockServerPlayerInLevel(); var victim = h.makeMockServerPlayerInLevel();
         var node = death(h, p); var other = death(h, victim);
-        for (var type : new TeleportInterfaceType[]{TeleportInterfaceType.COMPASS, TeleportInterfaceType.FILLED_MAP, TeleportInterfaceType.BOOK})
-            require(h, !NexusRecoveryGrace.completed(p, type, node.id()), "Wrong interface granted grace");
+        require(h, !NexusRecoveryGrace.completed(p, TeleportInterfaceType.BOOK, node.id()), "Management interface granted grace");
+        for (var type : new TeleportInterfaceType[]{TeleportInterfaceType.COMPASS, TeleportInterfaceType.FILLED_MAP}) {
+            require(h, NexusRecoveryGrace.completed(p, type, node.id()), "Portable death teleport did not grant Phasing");
+            NexusRecoveryGrace.cancel(p);
+        }
         require(h, !NexusRecoveryGrace.completed(p, TeleportInterfaceType.RECOVERY_COMPASS, other.id()), "Foreign death granted grace");
         var lodestone = lodestone(h, p, h.absolutePos(new BlockPos(2, 2, 2)));
         require(h, !NexusRecoveryGrace.completed(p, TeleportInterfaceType.RECOVERY_COMPASS, lodestone.id()), "Lodestone granted grace");
@@ -197,7 +203,8 @@ public final class NexusRecoveryRoutingGameTest {
         var logged = grant(h, p);
         ServerPlayConnectionEvents.DISCONNECT.invoker().onPlayDisconnect(p.connection, h.getLevel().getServer());
         require(h, !NexusRecoveryGrace.active(p) && !p.isInvisible(), "Logout retained grace");
-        require(h, !NexusRecoveryGrace.completed(p, TeleportInterfaceType.RECOVERY_COMPASS, logged.id()), "Logout reset consumed grant");
+        require(h, NexusRecoveryGrace.completed(p, TeleportInterfaceType.RECOVERY_COMPASS, logged.id()), "New successful teleport failed to grant again");
+        NexusRecoveryGrace.cancel(p);
         p.discard(); victim.discard(); h.succeed();
     }
 
@@ -209,7 +216,15 @@ public final class NexusRecoveryRoutingGameTest {
     private static NexusSpaceUnitRecord death(GameTestHelper h, ServerPlayer p) {
         var authority = new NexusDeathNodeAuthority();
         UUID id = authority.create(p, h.getLevel(), h.absolutePos(new BlockPos(3, 3, 3)));
-        authority.bind(h.getLevel(), id, UUID.randomUUID());
+        var stack = new ItemStack(Items.CHEST);
+        var tag = new net.minecraft.nbt.CompoundTag();
+        tag.store("totem_remnant_space_death_node_id", net.minecraft.core.UUIDUtil.CODEC, id);
+        stack.set(DataComponents.CUSTOM_DATA, net.minecraft.world.item.component.CustomData.of(tag));
+        var pos = h.absolutePos(new BlockPos(3, 3, 3));
+        var entity = new net.minecraft.world.entity.item.ItemEntity(h.getLevel(), pos.getX() + .5, pos.getY(), pos.getZ() + .5, stack);
+        entity.setNoGravity(true); entity.setDeltaMovement(Vec3.ZERO); entity.setNeverPickUp();
+        h.getLevel().addFreshEntity(entity);
+        authority.bind(h.getLevel(), id, entity.getUUID());
         return units(p).get(id).orElseThrow();
     }
     private static NexusSpaceUnitRecord lodestone(GameTestHelper h, ServerPlayer p, BlockPos pos) {

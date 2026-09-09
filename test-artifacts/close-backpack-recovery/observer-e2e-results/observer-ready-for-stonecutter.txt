@@ -1,0 +1,1 @@
+Target may send Stonecutter semantic state through the dedicated server.

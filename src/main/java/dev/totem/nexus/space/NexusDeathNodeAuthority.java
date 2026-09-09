@@ -26,6 +26,7 @@ public final class NexusDeathNodeAuthority {
         if (!bound) {
             throw new IllegalStateException("Could not persist death backpack reverse binding");
         }
+        NexusRecoveryGrace.trackBackpack(level, nodeId, backpackEntityId);
     }
 
     public boolean disable(ServerPlayer player, ServerLevel level, UUID nodeId) {

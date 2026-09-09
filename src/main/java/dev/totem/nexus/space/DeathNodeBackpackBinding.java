@@ -24,6 +24,7 @@ public final class DeathNodeBackpackBinding {
         if (backpack.isEmpty()) return null;
         CompoundTag tag = backpack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         UUID nodeId = tag.read(TAG_DEATH_NODE_ID, UUIDUtil.CODEC).orElse(null);
+        if (nodeId == null) nodeId = tag.read("totem_remnant_space_death_node_id", UUIDUtil.CODEC).orElse(null);
         if (nodeId == null) {
             nodeId = tag.read(LEGACY_TAG_DEATH_NODE_ID, UUIDUtil.CODEC).orElse(null);
         }

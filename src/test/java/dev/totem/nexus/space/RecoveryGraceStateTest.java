@@ -16,9 +16,10 @@ class RecoveryGraceStateTest {
         assertFalse(recovered.expired(259));
         assertTrue(recovered.expired(260));
         assertSame(recovered, recovered.recover(player, node, backpack, 250));
-        assertEquals(1300, state.recover(player, node, backpack, 1290).deadlineTick());
+        assertEquals(1350, state.recover(player, node, backpack, 1290).deadlineTick());
         assertFalse(state.expired(1299));
-        assertTrue(state.expired(1300));
+        assertFalse(state.expired(1300));
+        assertFalse(state.expired(1_000_000));
     }
     @Test void consumedGrantsSurviveSaveReloadAndArePerPlayerAndNode() {
         UUID player = UUID.randomUUID(), node = UUID.randomUUID();

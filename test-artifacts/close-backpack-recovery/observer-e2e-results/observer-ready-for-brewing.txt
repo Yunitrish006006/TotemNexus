@@ -1,0 +1,1 @@
+Target may send Brewing Stand semantic state through the dedicated server.

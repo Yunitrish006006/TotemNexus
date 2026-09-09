@@ -1,0 +1,421 @@
+{
+  "touchedModules": [
+    "totem-core",
+    "totem-nexus",
+    "totem-remnant"
+  ],
+  "impactedModules": [
+    "totem-core",
+    "totem-nexus",
+    "totem-remnant",
+    "totem-alchemy",
+    "totem-automata",
+    "totem-discord-bridge",
+    "totem-enchanting",
+    "totem-excavation",
+    "totem-locksmith",
+    "totem-vanilla-tweaks",
+    "totem-villagers"
+  ],
+  "contracts": [
+    {
+      "id": "hard:totem-alchemy:totem-core",
+      "type": "hard-core",
+      "from": "totem-alchemy",
+      "to": "totem-core",
+      "version": ">=0.7.15 <0.8.0",
+      "feature": "TotemAlchemy requires TotemCore >=0.7.15 <0.8.0",
+      "fallback": null,
+      "featureIds": []
+    },
+    {
+      "id": "hard:totem-automata:totem-core",
+      "type": "hard-core",
+      "from": "totem-automata",
+      "to": "totem-core",
+      "version": ">=0.7.14 <0.8.0",
+      "feature": "TotemAutomata requires TotemCore >=0.7.14 <0.8.0",
+      "fallback": null,
+      "featureIds": []
+    },
+    {
+      "id": "hard:totem-discord-bridge:totem-core",
+      "type": "hard-core",
+      "from": "totem-discord-bridge",
+      "to": "totem-core",
+      "version": ">=0.7.0 <0.8.0",
+      "feature": "TotemDiscordBridge requires TotemCore >=0.7.0 <0.8.0",
+      "fallback": null,
+      "featureIds": []
+    },
+    {
+      "id": "hard:totem-enchanting:totem-core",
+      "type": "hard-core",
+      "from": "totem-enchanting",
+      "to": "totem-core",
+      "version": ">=0.7.0 <0.8.0",
+      "feature": "TotemEnchanting requires TotemCore >=0.7.0 <0.8.0",
+      "fallback": null,
+      "featureIds": []
+    },
+    {
+      "id": "hard:totem-excavation:totem-core",
+      "type": "hard-core",
+      "from": "totem-excavation",
+      "to": "totem-core",
+      "version": ">=0.7.13 <0.8.0",
+      "feature": "TotemExcavation requires TotemCore >=0.7.13 <0.8.0",
+      "fallback": null,
+      "featureIds": []
+    },
+    {
+      "id": "hard:totem-locksmith:totem-core",
+      "type": "hard-core",
+      "from": "totem-locksmith",
+      "to": "totem-core",
+      "version": ">=0.7.15 <0.8.0",
+      "feature": "TotemLocksmith access control consumes the Core Friendship API for friendship-based authorization.",
+      "fallback": null,
+      "featureIds": [
+        "totem-locksmith.feature-2",
+        "totem-core.feature-3"
+      ],
+      "auditStatus": "verified",
+      "auditNote": "LocksmithAccessService uses TotemFriendshipApi as the server-authoritative friendship source for access decisions."
+    },
+    {
+      "id": "hard:totem-nexus:totem-core",
+      "type": "hard-core",
+      "from": "totem-nexus",
+      "to": "totem-core",
+      "version": ">=0.7.16 <0.8.0",
+      "feature": "TotemNexus consumes the Core Friendship API for friend relationships and player targets.",
+      "fallback": null,
+      "featureIds": [
+        "totem-nexus.feature-5",
+        "totem-core.feature-3"
+      ],
+      "auditStatus": "verified",
+      "auditNote": "NexusFriendSavedData and NexusFriendshipApi delegate friendship state and mutual-friend checks to TotemFriendshipApi."
+    },
+    {
+      "id": "hard:totem-remnant:totem-core",
+      "type": "hard-core",
+      "from": "totem-remnant",
+      "to": "totem-core",
+      "version": ">=0.7.15 <0.8.0",
+      "feature": "TotemRemnant requires TotemCore >=0.7.15 <0.8.0",
+      "fallback": null,
+      "featureIds": []
+    },
+    {
+      "id": "hard:totem-vanilla-tweaks:totem-core",
+      "type": "hard-core",
+      "from": "totem-vanilla-tweaks",
+      "to": "totem-core",
+      "version": ">=0.7.14 <0.8.0",
+      "feature": "TotemVanillaTweaks requires TotemCore >=0.7.14 <0.8.0",
+      "fallback": null,
+      "featureIds": []
+    },
+    {
+      "id": "hard:totem-villagers:totem-core",
+      "type": "hard-core",
+      "from": "totem-villagers",
+      "to": "totem-core",
+      "version": ">=0.7.12 <0.8.0",
+      "feature": "TotemVillagers requires TotemCore >=0.7.12 <0.8.0",
+      "fallback": null,
+      "featureIds": []
+    },
+    {
+      "id": "villagers-remnant",
+      "type": "fabric-suggests",
+      "classification": "A｜Fabric suggests",
+      "from": "totem-villagers",
+      "to": "totem-remnant",
+      "source": "TotemVillagers",
+      "target": "TotemRemnant ≥0.2.13",
+      "feature": "工具匠依伺服器即時 Smithing 配方製造並販售 Basic／Standard／Advanced／Netherite 四階背包。",
+      "fallback": "未安裝時不註冊替代背包、工作單或交易列，其餘村民工作經濟照常運作。",
+      "evidence": "TotemVillagers fabric.mod.json suggests、README Optional TotemRemnant backpack smithing、RemnantBackpackOrders。",
+      "featureIds": [
+        "totem-villagers.feature-1",
+        "totem-villagers.feature-2",
+        "totem-remnant.feature-1"
+      ],
+      "auditStatus": "verified",
+      "auditNote": "Toolsmith work orders, workshop completion, merchant offers, and pricing participate in four-tier Remnant backpack production and sales."
+    },
+    {
+      "id": "remnant-trinkets",
+      "type": "fabric-suggests",
+      "classification": "A｜Fabric suggests",
+      "from": "totem-remnant",
+      "to": "external:trinkets",
+      "source": "TotemRemnant",
+      "target": "Trinkets Updated ≥4.1.0-beta.2",
+      "feature": "Fabric suggests Trinkets Updated >=4.1.0-beta.2; active production bridge not independently verified in this audit.",
+      "fallback": "未安裝時只略過飾品欄 provider；一般背包、玩家物品欄死亡擷取與回收維持可用。",
+      "evidence": "TotemRemnant fabric.mod.json suggests、README 選配整合、installTrinketsIntegration 與 TrinketsDeathBackpackInventoryProvider。",
+      "featureIds": [],
+      "implementationStatus": "metadata-only",
+      "auditNote": "Keep this relationship at module level until current production source evidence for the Trinkets inventory/death bridge is restored."
+    },
+    {
+      "id": "automata-remnant",
+      "type": "runtime-optional",
+      "classification": "B｜Runtime optional",
+      "from": "totem-automata",
+      "to": "totem-remnant",
+      "source": "TotemAutomata",
+      "target": "TotemRemnant",
+      "feature": "辨識可整理的分級背包目的地，並套用 Remnant 可攜容器與防巢狀 policy。",
+      "fallback": "未安裝時不辨識 Remnant 背包目的地，容器插入退回 Minecraft 的 canFitInsideContainerItems 安全規則。",
+      "evidence": "TotemAutomata README、RemnantBackpackBridge、ContainerSafetyBridge；TotemRemnant PortableContainerSafetyApi。",
+      "featureIds": [
+        "totem-automata.feature-1",
+        "totem-remnant.feature-1",
+        "totem-remnant.feature-5"
+      ],
+      "auditStatus": "verified"
+    },
+    {
+      "id": "remnant-nexus",
+      "type": "runtime-optional",
+      "classification": "B｜Runtime optional",
+      "from": "totem-remnant",
+      "to": "totem-nexus",
+      "source": "TotemRemnant",
+      "target": "TotemNexus",
+      "feature": "建立、綁定與回收死亡 Space Unit，並在死亡前保留第一件 Nexus 授權的傳送介面。",
+      "fallback": "未安裝時不建立死亡節點也不保留 Nexus 傳送物；死亡背包仍可獨立建立與回收。",
+      "evidence": "TotemRemnant／TotemNexus README、Core DeathBackpackNodeLifecycle／DeathRetainedItemPolicy、NexusAuthorityBootstrap。",
+      "featureIds": [
+        "totem-remnant.feature-4",
+        "totem-nexus.feature-6"
+      ],
+      "auditStatus": "verified"
+    },
+    {
+      "id": "vanilla-nexus-observer",
+      "type": "runtime-optional",
+      "classification": "B｜Runtime compat／Observer",
+      "from": "totem-vanilla-tweaks",
+      "to": "totem-nexus",
+      "source": "TotemVanillaTweaks",
+      "target": "TotemNexus",
+      "feature": "Observer nexus@3",
+      "fallback": "provider 缺少或協定／variant 不相容時只顯示 unsupported metadata，不建立替代 UI，也不傳 framebuffer。",
+      "evidence": "TotemVanillaTweaks README；TotemNexus fabric.mod.json observer entrypoints、NexusObserverScreenProvider、NexusDeathAdminObserverScreenProvider。",
+      "featureIds": [
+        "totem-vanilla-tweaks.feature-1",
+        "totem-nexus.feature-1",
+        "totem-nexus.feature-2",
+        "totem-nexus.feature-4",
+        "totem-nexus.feature-5"
+      ],
+      "protocol": 3,
+      "auditStatus": "verified",
+      "auditNote": "Generic Nexus Observer covers compass/map/management, legacy map, friends, and registration. Death-node admin remains a separate provider."
+    },
+    {
+      "id": "vanilla-remnant-observer",
+      "type": "runtime-optional",
+      "classification": "B｜Runtime compat／Observer",
+      "from": "totem-vanilla-tweaks",
+      "to": "totem-remnant",
+      "source": "TotemVanillaTweaks",
+      "target": "TotemRemnant",
+      "feature": "使用 Remnant 擁有的 remnant_backpack protocol v1 provider，以正式 Backpack Screen 唯讀重建。",
+      "fallback": "provider 缺少或協定不相容時只顯示 unsupported metadata，不建立替代 UI，也不傳 framebuffer。",
+      "evidence": "TotemVanillaTweaks README；TotemRemnant fabric.mod.json observer entrypoint 與 RemnantBackpackObserverScreenProvider。",
+      "featureIds": [
+        "totem-vanilla-tweaks.feature-1",
+        "totem-remnant.feature-3"
+      ],
+      "auditStatus": "verified",
+      "auditNote": "The current curated feature vocabulary has no standalone Remnant backpack GUI/Observer feature; the inventory sidebar remains the closest UI-owned endpoint."
+    },
+    {
+      "id": "event-remnant-death",
+      "type": "eventbus",
+      "classification": "EventBus（非模組軟依賴）",
+      "from": "totem-core",
+      "to": "totem-discord-bridge",
+      "relatedNodes": [
+        "totem-core",
+        "totem-remnant",
+        "totem-discord-bridge"
+      ],
+      "feature": "TotemRemnant 將死亡背包建立／回收事件發布到 TotemCore EventBus；TotemDiscordBridge 可選配訂閱。",
+      "fallback": "DiscordBridge 未安裝時沒有訂閱者，Remnant 的死亡背包流程不受影響。",
+      "featureIds": [
+        "totem-remnant.feature-4",
+        "totem-discord-bridge.feature-1"
+      ],
+      "implementationStatus": "contract-defined",
+      "auditNote": "Core defines the Remnant death-backpack lifecycle contract; the current Remnant publisher call was not independently located during this audit."
+    },
+    {
+      "id": "event-nexus-audit",
+      "type": "eventbus",
+      "classification": "EventBus（非模組軟依賴）",
+      "from": "totem-core",
+      "to": "totem-discord-bridge",
+      "relatedNodes": [
+        "totem-core",
+        "totem-nexus",
+        "totem-discord-bridge"
+      ],
+      "feature": "TotemNexus 將公開 Space Unit、死亡回收與管理稽核事件發布到 TotemCore EventBus；TotemDiscordBridge 可選配訂閱。",
+      "fallback": "DiscordBridge 未安裝時事件安全成為無訂閱者通知，Nexus 功能照常運作。",
+      "featureIds": [
+        "totem-nexus.feature-1",
+        "totem-nexus.feature-6",
+        "totem-discord-bridge.feature-1"
+      ],
+      "auditStatus": "verified",
+      "auditNote": "Nexus publishes both public Space Unit updates and death/admin audit events."
+    },
+    {
+      "id": "event-locksmith-break",
+      "type": "eventbus",
+      "classification": "EventBus（非模組軟依賴）",
+      "from": "totem-core",
+      "to": "totem-discord-bridge",
+      "relatedNodes": [
+        "totem-core",
+        "totem-locksmith",
+        "totem-discord-bridge"
+      ],
+      "feature": "TotemLocksmith 發布 LockedContainerNetworkBrokenEvent 到 TotemCore EventBus；TotemDiscordBridge 可選配轉送稽核訊息。",
+      "fallback": "DiscordBridge 未安裝時不產生 Discord 通知，鎖網路破壞與伺服器權限判定不受影響。",
+      "featureIds": [
+        "totem-locksmith.feature-4",
+        "totem-discord-bridge.feature-1"
+      ],
+      "auditStatus": "verified"
+    },
+    {
+      "id": "observer:totem-nexus:nexus@3",
+      "type": "observer-provider",
+      "from": "totem-vanilla-tweaks",
+      "to": "totem-nexus",
+      "providerOwner": "totem-nexus",
+      "family": "nexus",
+      "protocol": 3,
+      "variants": [
+        "compass",
+        "map",
+        "management",
+        "map_legacy",
+        "friends",
+        "friends_legacy",
+        "registration",
+        "registration_legacy"
+      ],
+      "feature": "Observer provider nexus protocol 3",
+      "fallback": "Missing or incompatible provider must report unsupported metadata; no mirror Screen.",
+      "featureIds": []
+    },
+    {
+      "id": "observer:totem-nexus:nexus_death_node_admin@1",
+      "type": "observer-provider",
+      "from": "totem-vanilla-tweaks",
+      "to": "totem-nexus",
+      "providerOwner": "totem-nexus",
+      "family": "nexus_death_node_admin",
+      "protocol": 1,
+      "variants": [
+        ""
+      ],
+      "feature": "Observer provider nexus_death_node_admin protocol 1",
+      "fallback": "Missing or incompatible provider must report unsupported metadata; no mirror Screen.",
+      "featureIds": []
+    },
+    {
+      "id": "observer:totem-remnant:remnant_backpack@1",
+      "type": "observer-provider",
+      "from": "totem-vanilla-tweaks",
+      "to": "totem-remnant",
+      "providerOwner": "totem-remnant",
+      "family": "remnant_backpack",
+      "protocol": 1,
+      "variants": [
+        ""
+      ],
+      "feature": "Observer provider remnant_backpack protocol 1",
+      "fallback": "Missing or incompatible provider must report unsupported metadata; no mirror Screen.",
+      "featureIds": []
+    }
+  ],
+  "risks": [
+    "observer",
+    "client-server",
+    "privacy",
+    "fabric-compat",
+    "inventory",
+    "server-authoritative",
+    "authorization",
+    "networking",
+    "shared-contract"
+  ],
+  "requiresIndependentReview": true,
+  "indexRefresh": {
+    "mode": "incremental",
+    "reason": "source-change-detected",
+    "checkedModules": [
+      "totem-core",
+      "totem-nexus",
+      "totem-remnant"
+    ],
+    "refreshedModules": [
+      "totem-core",
+      "totem-nexus",
+      "totem-remnant"
+    ],
+    "changedFiles": [
+      "totem-core:gradle.properties",
+      "totem-nexus:README.md",
+      "totem-nexus:build.gradle",
+      "totem-nexus:gradle.properties",
+      "totem-nexus:src/gametest/java/dev/totem/nexus/client/NexusObserverProviderClientGameTest.java",
+      "totem-nexus:src/gametest/java/dev/totem/nexus/client/NexusPhasingVisualGameTest.java",
+      "totem-nexus:src/gametest/java/dev/totem/nexus/space/NexusInterfaceLifecycleGameTest.java",
+      "totem-nexus:src/gametest/java/dev/totem/nexus/space/NexusPortableRecoveryGameTest.java",
+      "totem-nexus:src/gametest/java/dev/totem/nexus/space/NexusRecoveryRoutingGameTest.java",
+      "totem-nexus:src/gametest/resources/data/totem-nexus-gametest/test_environment/portable_recovery_landing.json",
+      "totem-nexus:src/gametest/resources/data/totem-nexus-gametest/test_environment/recovery_no_landing.json",
+      "totem-nexus:src/gametest/resources/data/totem-nexus-gametest/test_environment/remnant_recovery_integration.json",
+      "totem-nexus:src/gametest/resources/fabric.mod.json",
+      "totem-nexus:src/main/java/dev/totem/nexus/space/NexusDeathNodeAuthority.java",
+      "totem-nexus:src/main/java/dev/totem/nexus/space/NexusMapQuoteAuthority.java",
+      "totem-nexus:src/main/java/dev/totem/nexus/space/NexusPortableSource.java",
+      "totem-nexus:src/main/java/dev/totem/nexus/space/NexusRecoveryGrace.java",
+      "totem-nexus:src/main/java/dev/totem/nexus/space/NexusSpaceUnitAuthority.java",
+      "totem-nexus:src/main/java/dev/totem/nexus/space/NexusTeleportResolver.java",
+      "totem-nexus:src/main/resources/assets/totem/lang/en_us.json",
+      "totem-nexus:src/main/resources/assets/totem/lang/es_es.json",
+      "totem-nexus:src/main/resources/assets/totem/lang/ja_jp.json",
+      "totem-nexus:src/main/resources/assets/totem/lang/zh_tw.json",
+      "totem-nexus:src/main/resources/fabric.mod.json",
+      "totem-nexus:src/test/java/dev/totem/nexus/space/NexusTeleportQuoteCalculatorTest.java",
+      "totem-remnant:README.md",
+      "totem-remnant:build.gradle",
+      "totem-remnant:gradle.properties",
+      "totem-remnant:src/gametest/java/dev/totem/remnant/death/DeathBackpackLifecycleGameTest.java",
+      "totem-remnant:src/main/resources/fabric.mod.json"
+    ],
+    "removedFiles": []
+  },
+  "graphPreview": {
+    "status": "ok",
+    "regenerated": true,
+    "output": "graph-v2.html",
+    "generatedAt": "2026-09-09T17:24:53.762Z",
+    "codeIndexed": true,
+    "codeNodes": 2577,
+    "codeEdges": 2577
+  }
+}

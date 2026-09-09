@@ -12,6 +12,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class NexusTeleportQuoteCalculatorTest {
     private static final UUID PLAYER = UUID.fromString("00000000-0000-0000-0000-000000000101");
@@ -73,6 +74,27 @@ class NexusTeleportQuoteCalculatorTest {
         assertEquals(crossDimension.baseAmethystCost() + 1, crossDimension.amethystCost());
         assertEquals(0, sameDimension.catalystDiscount());
         assertEquals(0, sameDimension.amethystCost());
+    }
+
+    @Test
+    void portableLowStabilityRemainsUsableAndArrayStrictlyImprovesTheSameRoute() {
+        var target = new NexusTeleportQuoteCalculator.Target(UUID.randomUUID(), SpaceUnitType.DEATH,
+                Level.NETHER, new BlockPos(100, 64, 100), .55D, 0, 0, false, PLAYER, 0);
+        var field = new NexusTeleportQuoteCalculator.Source(PLAYER, "player", Level.OVERWORLD,
+                new BlockPos(0, 64, 0), .6D, 0, 0);
+        var array = new NexusTeleportQuoteCalculator.Source(PLAYER, "player", Level.OVERWORLD,
+                field.pos(), .95D, 0, 0);
+        var resources = new NexusTeleportQuoteCalculator.Resources(PLAYER, false, 20, 20, 100, 64);
+        var outside = NexusTeleportQuoteCalculator.calculate(field, target, TeleportInterfaceType.COMPASS, resources, false);
+        var inside = NexusTeleportQuoteCalculator.calculate(array, target, TeleportInterfaceType.COMPASS, resources, false);
+        assertTrue(outside.resonance() < .2D);
+        assertTrue(outside.canTeleport(), outside.blockedReason());
+        assertTrue(inside.canTeleport(), inside.blockedReason());
+        assertTrue(inside.resonance() > outside.resonance());
+        assertTrue(inside.prepareTicks() < outside.prepareTicks());
+        assertTrue(inside.damageChancePercent() < outside.damageChancePercent());
+        var noShards = new NexusTeleportQuoteCalculator.Resources(PLAYER, false, 20, 20, 100, 0);
+        assertFalse(NexusTeleportQuoteCalculator.calculate(field, target, TeleportInterfaceType.COMPASS, noShards, false).canTeleport());
     }
 
     private static NexusMapQuote quote(

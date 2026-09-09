@@ -15,7 +15,7 @@ public final class NexusMapQuoteAuthority {
         if (player == null || context == null || targetId == null || !context.playerId().equals(player.getUUID())) {
             return unavailable(context);
         }
-        return NexusTeleportResolver.source(player, context.sourceType(), context.sourceId())
+        return NexusTeleportResolver.source(player, context.sourceType(), context.sourceId(), context)
                 .flatMap(source -> NexusTeleportResolver.target(player, targetId)
                         .map(resolvedTarget -> NexusTeleportQuoteCalculator.calculate(source, resolvedTarget, context.interfaceType(),
                                 NexusTeleportCost.resources(player), false)))

@@ -51,7 +51,8 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                     clientScreen(context, () -> compassScreen("Remote Home", true)),
                     "nexus-observer-owner-compass", screen -> {
                         NexusSpaceUnitMapScreen compass = (NexusSpaceUnitMapScreen) screen;
-                        return "Remote Home".equals(compass.observerPayload().sourceName())
+                        return "player".equals(compass.observerPayload().sourceType())
+                                && "Remote Home".equals(compass.observerPayload().sourceName())
                                 && TARGET.equals(compass.selectedUnitIdForVisualTest());
                     });
             exercise(context, nexus,
@@ -191,7 +192,7 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
 
     private static NexusSpaceUnitMapScreen recoveryScreen(String name, boolean select) {
         NexusSpaceUnitMapScreen screen = new NexusSpaceUnitMapScreen(new SpaceUnitMapPayload(
-                SOURCE, "lodestone", name, "minecraft:overworld", 1, 64, 1,
+                SOURCE, "player", name, "minecraft:overworld", 1, 64, 1,
                 TeleportInterfaceType.RECOVERY_COMPASS, SpaceUnitMapPayload.NO_MAP_ID,
                 List.of(entry(SOURCE, name, false), entry(TARGET, "Rescue Target", true))));
         if (select && !screen.keyPressed(new KeyEvent(264, 0, 0))) throw new AssertionError("Recovery selection failed");
@@ -199,13 +200,13 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
     }
 
     private static SpaceUnitMapPayload compass(String name) {
-        return new SpaceUnitMapPayload(SOURCE, "lodestone", name, "minecraft:overworld",
+        return new SpaceUnitMapPayload(SOURCE, "player", name, "minecraft:overworld",
                 1, 64, 1, TeleportInterfaceType.COMPASS, SpaceUnitMapPayload.NO_MAP_ID,
                 List.of(entry(SOURCE, name, false), entry(TARGET, "Remote Target", true)));
     }
 
     private static SpaceUnitMapPayload filledMap(String name, int mapId) {
-        return new SpaceUnitMapPayload(SOURCE, "lodestone", name, "minecraft:overworld",
+        return new SpaceUnitMapPayload(SOURCE, "player", name, "minecraft:overworld",
                 1, 64, 1, TeleportInterfaceType.FILLED_MAP, mapId,
                 List.of(entry(SOURCE, name, false), entry(TARGET, "Remote Target", true)));
     }

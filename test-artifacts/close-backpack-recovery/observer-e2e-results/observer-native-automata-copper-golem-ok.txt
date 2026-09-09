@@ -1,0 +1,1 @@
+Observer received and rendered Automata Copper Golem semantic state without API-key text.

@@ -1,0 +1,1 @@
+Initial recovery destination list and remote cursor rendered.

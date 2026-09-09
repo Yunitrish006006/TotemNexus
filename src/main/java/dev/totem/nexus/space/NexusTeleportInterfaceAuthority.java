@@ -27,16 +27,19 @@ public final class NexusTeleportInterfaceAuthority {
 
     public Optional<TeleportInterfaceContext> establish(ServerPlayer player, InteractionHand hand,
                                                         String sourceType, UUID sourceId) {
-        if (player == null || !SpaceUnitType.LODESTONE.id().equals(sourceType) || sourceId == null) return Optional.empty();
+        if (player == null || sourceId == null) return Optional.empty();
         Optional<TeleportInterfaceItemResolver.ResolvedInterface> resolved =
                 TeleportInterfaceItemResolver.resolve(player, hand);
         if (resolved.isEmpty()) return Optional.empty();
-        if (!resolved.get().type().hasMapVisualization() && !sourceId.equals(resolved.get().boundUnitId())) return Optional.empty();
+        boolean portable = "player".equals(sourceType) && player.getUUID().equals(sourceId)
+                && resolved.get().type().canSelectTeleportDestination();
+        if (!portable && (!"lodestone".equals(sourceType)
+                || (!resolved.get().type().hasMapVisualization() && !sourceId.equals(resolved.get().boundUnitId())))) return Optional.empty();
         long gameTime = player.level().getServer().overworld().getGameTime();
         TeleportInterfaceContext context = new TeleportInterfaceContext(player.getUUID(), resolved.get().type(),
                 sourceType, sourceId, hand, resolved.get().mapId(), resolved.get().boundUnitId(),
                 gameTime, gameTime + CONTEXT_TICKS);
-        if (mapSources.validateLodestone(player, sourceId, context).isEmpty()) return Optional.empty();
+        if (portable ? !validBoundAnchor(player, context) : mapSources.validateLodestone(player, sourceId, context).isEmpty()) return Optional.empty();
         sessions.put(context);
         return Optional.of(context);
     }
@@ -49,12 +52,22 @@ public final class NexusTeleportInterfaceAuthority {
 
     /** Opens a player-anchor session using the server player's own identity only. */
     public Optional<TeleportInterfaceContext> establishPlayerAnchor(ServerPlayer player, InteractionHand hand) {
-        return Optional.empty();
+        return player == null ? Optional.empty() : establish(player, hand, "player", player.getUUID());
     }
 
     public Optional<TeleportInterfaceContext> require(ServerPlayer player, String sourceType, UUID sourceId) {
         if (player == null) return Optional.empty();
-        return sessions.require(player, sourceType, sourceId, player.level().getServer().overworld().getGameTime());
+        return sessions.require(player, sourceType, sourceId, player.level().getServer().overworld().getGameTime())
+                .filter(context -> !"player".equals(sourceType) || (player.getUUID().equals(sourceId)
+                        && context.interfaceType().canSelectTeleportDestination() && validBoundAnchor(player, context)));
+    }
+
+    private static boolean validBoundAnchor(ServerPlayer player, TeleportInterfaceContext context) {
+        var storage = player.level().getServer().overworld().getDataStorage();
+        var friends = storage.computeIfAbsent(NexusFriendSavedData.TYPE);
+        return NexusSpaceUnitSavedData.loadCanonical(storage).get(context.boundUnitId())
+                .filter(u -> u.isLodestoneAnchor() && u.status() == SpaceUnitStatus.ACTIVE
+                        && u.canView(player.getUUID(), friends.areFriends(player.getUUID(), u.owner()))).isPresent();
     }
 
     public void disconnect(UUID playerId) {

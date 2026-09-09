@@ -1,0 +1,1 @@
+Target sent structured state; framebuffer transport classes/fields are absent from production client.

@@ -11,7 +11,7 @@ class TeleportInterfaceQuotePolicyTest {
         TeleportInterfaceQuotePolicy.Quote quote = TeleportInterfaceQuotePolicy.specialize(
                 TeleportInterfaceType.RECOVERY_COMPASS, SpaceUnitType.DEATH, true, false, 4, 50, 15, 20);
         assertTrue(quote.bonusActive());
-        assertEquals(3, quote.maxHorizontalDeviation());
+        assertEquals(6, quote.maxHorizontalDeviation());
     }
     @Test
     void bookAndMapPreserveMinimumAndBounds() {

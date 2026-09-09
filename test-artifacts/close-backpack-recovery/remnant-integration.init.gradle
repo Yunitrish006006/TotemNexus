@@ -1,0 +1,7 @@
+allprojects {
+    afterEvaluate { p ->
+        if (p.findProperty('archives_base_name') == 'totem-nexus') {
+            p.dependencies.add('gametestRuntimeOnly', p.files('/home/thomas/workspace/TotemRemnant/build/libs/totem-remnant-0.2.24.jar'))
+        }
+    }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "totem-nexus-gametest",
+  "version": "1.0.0",
+  "name": "TotemNexus GameTests",
+  "environment": "*",
+  "mixins": [
+    "totem-nexus-gametest.client.mixins.json"
+  ],
+  "entrypoints": {
+    "fabric-client-gametest": [
+      "dev.totem.nexus.client.NexusPhasingVisualGameTest",
+      "dev.totem.nexus.client.NexusObserverProviderClientGameTest"
+    ]
+  },
+  "depends": {
+    "fabricloader": "*",
+    "fabric-api": "*",
+    "minecraft": "*",
+    "totem-nexus": "*"
+  }
+}

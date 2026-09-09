@@ -1,6 +1,6 @@
 package dev.totem.nexus.mixin;
 
-import dev.totem.nexus.space.NexusRecoveryGrace;
+import dev.totem.nexus.effect.NexusEffects;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import org.spongepowered.asm.mixin.Mixin;
@@ -13,6 +13,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class NexusRecoveryGraceVisibilityMixin {
     @Inject(method = "updateInvisibilityStatus", at = @At("RETURN"))
     private void nexus$recoveryVisibility(CallbackInfo ci) {
-        if ((Object) this instanceof ServerPlayer player && NexusRecoveryGrace.active(player)) player.setInvisible(true);
+        if ((Object) this instanceof ServerPlayer player && player.hasEffect(NexusEffects.PHASING)) player.setInvisible(true);
     }
 }

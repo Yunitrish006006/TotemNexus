@@ -228,6 +228,18 @@ public class NexusSpaceUnitSavedData extends SavedData {
         return true;
     }
 
+    public boolean moveDeathBackpack(UUID nodeId, UUID entityId, UUID ownerId,
+                                     ResourceKey<Level> dimension, BlockPos position, long tick) {
+        var node = get(nodeId).orElse(null);
+        if (node == null || node.type() != SpaceUnitType.DEATH || node.status() != SpaceUnitStatus.ACTIVE
+                || !node.owner().equals(ownerId) || !node.backpackId().filter(entityId::equals).isPresent()) return false;
+        if (!node.dimension().equals(dimension) || !node.pos().equals(position)) {
+            unitsById.put(nodeId, node.withLocation(dimension, position, tick));
+            setDirty();
+        }
+        return true;
+    }
+
     public boolean disableDeathUnit(UUID ownerId, UUID unitId, long gameTime) {
         Optional<NexusSpaceUnitRecord> unit = get(unitId);
         if (unit.isEmpty()
