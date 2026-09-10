@@ -1,0 +1,45 @@
+{
+  "authorization": "User requested publishing updated modules to Modrinth and syncing remotes.",
+  "audit_run": 34433131779,
+  "results": [
+    {
+      "module": "TotemCore",
+      "version": "0.7.19",
+      "modrinth_version_id": "KI52LjxX",
+      "url": "https://modrinth.com/mod/totemlibrary/version/KI52LjxX",
+      "project_status": "processing",
+      "requested_status": "approved",
+      "sha512": "3e1ad0fd325f263dc754ef2d480461254176b3eeaf2ab90e9224e66be039fc5ab9691f7d536fbcf47ee5aad0f47d20dd37256c07f85a81a97a5fb1d75e642367",
+      "build_run": 34433002664,
+      "publication_run": 34433002615,
+      "downloaded_candidate_artifact": 10135039307,
+      "candidate_equals_tested_local_jar": true
+    },
+    {
+      "module": "TotemNexus",
+      "version": "0.3.19",
+      "modrinth_version_id": "YQSiKRtd",
+      "url": "https://modrinth.com/mod/totem-nexus/version/YQSiKRtd",
+      "project_status": "processing",
+      "requested_status": "approved",
+      "sha512": "dac781e856084717b128b070031cad1a2666ff2a629d5935559e1cdc4a3d1c2073e8860a19573b9f59f1e2ac00ba59131660084c937151fc276fdc8495c34c6a",
+      "build_run": 34432531865,
+      "publication_run": 34432531968,
+      "downloaded_candidate_artifact": 10135092215,
+      "candidate_equals_tested_local_jar": true
+    },
+    {
+      "module": "TotemRemnant",
+      "version": "0.2.24",
+      "modrinth_version_id": "ippDDw1P",
+      "url": "https://modrinth.com/mod/totem-remnant/version/ippDDw1P",
+      "project_status": "processing",
+      "requested_status": "approved",
+      "sha512": "a9613eeb75efbd60055997d8aa0aae692f1f033770f15f60ac403dc89dc58daf7fd6aba9bac6cdbe54ad38a219b199480d49c354a3128ea6aa6e06f4c263b86f",
+      "build_run": 34432533859,
+      "publication_run": 34432533663,
+      "downloaded_candidate_artifact": 10135013190,
+      "candidate_equals_tested_local_jar": true
+    }
+  ]
+}

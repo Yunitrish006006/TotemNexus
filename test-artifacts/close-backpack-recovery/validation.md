@@ -1,6 +1,6 @@
 # Close backpack recovery and portable teleport validation
 
-Implementation: Core 0.7.19, Nexus 0.3.19, Remnant 0.2.24. Minecraft 26.2, Java 25, Fabric Loader 0.19.3 and Fabric API 0.154.2+26.2. Local implementation and artifacts; no release publication is part of this change.
+Implementation: Core 0.7.19, Nexus 0.3.19, Remnant 0.2.24. Minecraft 26.2, Java 25, Fabric Loader 0.19.3 and Fabric API 0.154.2+26.2. The user subsequently authorized publication and remote synchronization. All three versions were uploaded and verified; Modrinth project review remains pending. See `.github/staging/release-publication-0.3.19.json`.
 
 ## Behavior and coverage
 
