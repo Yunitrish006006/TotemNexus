@@ -13,6 +13,7 @@ import dev.totem.nexus.space.NexusDeathNodeAuthority;
 import dev.totem.nexus.space.NexusDeathNodeAdminService;
 import dev.totem.nexus.space.NexusDistributedSpawnAuthority;
 import dev.totem.nexus.space.NexusGameplayAuthority;
+import dev.totem.nexus.space.NexusMapDetailNetworking;
 import dev.totem.nexus.space.NexusSpaceUnitAuthority;
 import dev.totem.nexus.space.NexusSpaceUnitRefreshNetworking;
 import dev.totem.nexus.space.NexusSoulboundTeleportItem;
@@ -56,6 +57,7 @@ public final class NexusAuthorityBootstrap {
         NexusMaterialCatalogNetworking.register();
         NexusPayloadRegistration.registerReceivers(new NexusAuthorityPayloadHandler(authority));
         NexusPayloadRegistration.registerDeathNodeAdminReceivers(new NexusDeathNodeAdminAuthority());
+        NexusMapDetailNetworking.registerReceiver();
         NexusSpaceUnitRefreshNetworking.register();
 
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, damageSource, baseDamageTaken, damageTaken, blocked) -> {
