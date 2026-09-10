@@ -1,6 +1,7 @@
 package dev.totem.nexus.mixin.client;
 
 import dev.totem.nexus.client.NexusMapDetailClientState;
+import dev.totem.nexus.client.NexusMapDetailVisualTestAccess;
 import dev.totem.nexus.client.NexusSpaceUnitMapScreen;
 import dev.totem.nexus.network.SpaceUnitMapPayload;
 import net.minecraft.client.Minecraft;
@@ -28,7 +29,7 @@ import java.util.Optional;
  * exactly once in the current-map world transform.
  */
 @Mixin(NexusSpaceUnitMapScreen.class)
-public abstract class NexusMapDetailScreenMixin {
+public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualTestAccess {
     @Shadow
     private SpaceUnitMapPayload payload;
 
@@ -86,6 +87,9 @@ public abstract class NexusMapDetailScreenMixin {
 
     @Unique
     private List<MapRenderState.MapDecorationRenderState> totem$currentDecorations = List.of();
+
+    @Unique
+    private boolean totem$localPlayerMarkerRendered;
 
     @Inject(method = "init", at = @At("TAIL"))
     private void totem$requestDetailOnOpen(CallbackInfo ci) {
@@ -169,6 +173,7 @@ public abstract class NexusMapDetailScreenMixin {
             int mouseY,
             CallbackInfo ci
     ) {
+        this.totem$localPlayerMarkerRendered = false;
         MapItemSavedData current = cachedMapData();
         Minecraft minecraft = Minecraft.getInstance();
         if (current == null || minecraft == null || minecraft.level == null) {
@@ -185,7 +190,6 @@ public abstract class NexusMapDetailScreenMixin {
 
         extractor.enableScissor(mapX() + 1, mapY() + 1, mapX() + mapWidth() - 1, mapY() + mapHeight() - 1);
         List<Integer> ancestors = NexusMapDetailClientState.ancestorMapIds(this.payload.mapId());
-        int detailStateIndex = 0;
         for (int index = ancestors.size() - 1; index >= 0; index--) {
             MapId ancestorId = new MapId(ancestors.get(index));
             MapItemSavedData ancestor = minecraft.level.getMapData(ancestorId);
@@ -208,7 +212,6 @@ public abstract class NexusMapDetailScreenMixin {
             extractor.pose().scale(ancestorPixelScale, ancestorPixelScale);
             extractor.map(detailState);
             extractor.pose().popMatrix();
-            detailStateIndex++;
         }
 
         extractor.nextStratum();
@@ -219,6 +222,11 @@ public abstract class NexusMapDetailScreenMixin {
         totem$drawLocalPlayer(extractor, current, currentLeft, currentTop, currentPixelScale, overlayScale);
         extractor.disableScissor();
         this.totem$currentDecorations = List.of();
+    }
+
+    @Override
+    public boolean totem$localPlayerMarkerRenderedForVisualTest() {
+        return this.totem$localPlayerMarkerRendered;
     }
 
     @Unique
@@ -319,5 +327,6 @@ public abstract class NexusMapDetailScreenMixin {
                 ((NexusMapRendererInvoker) (Object) minecraft.getMapRenderer())
                         .totem$extractDecorationRenderState(decoration);
         totem$drawDecoration(extractor, state, currentLeft, currentTop, currentPixelScale, iconScale);
+        this.totem$localPlayerMarkerRendered = true;
     }
 }
