@@ -1,5 +1,6 @@
 package dev.totem.nexus.client;
 
+import dev.totem.nexus.mixin.NexusMapItemSavedDataInvoker;
 import dev.totem.nexus.network.SpaceUnitMapPayload;
 import dev.totem.nexus.space.TeleportInterfaceType;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
@@ -112,12 +113,12 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
 
     private static void installMapDetailFixture(ClientGameTestContext context) {
         context.runOnClient(client -> {
-            MapItemSavedData coarse = MapItemSavedData.createFresh(
-                    0, 0, (byte) 2, false, false, Level.OVERWORLD);
-            MapItemSavedData middle = MapItemSavedData.createFresh(
-                    0, 0, (byte) 1, false, false, Level.OVERWORLD);
-            MapItemSavedData finest = MapItemSavedData.createFresh(
-                    0, 0, (byte) 0, false, false, Level.OVERWORLD);
+            MapItemSavedData coarse = NexusMapItemSavedDataInvoker.totem$createExact(
+                    0, 0, (byte) 2, false, false, false, Level.OVERWORLD);
+            MapItemSavedData middle = NexusMapItemSavedDataInvoker.totem$createExact(
+                    0, 0, (byte) 1, false, false, false, Level.OVERWORLD);
+            MapItemSavedData finest = NexusMapItemSavedDataInvoker.totem$createExact(
+                    0, 0, (byte) 0, false, false, false, Level.OVERWORLD);
             fillVanillaMapColors(coarse, 0);
             fillVanillaMapColors(middle, 1);
             fillVanillaMapColors(finest, 2);
