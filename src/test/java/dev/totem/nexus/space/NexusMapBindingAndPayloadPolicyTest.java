@@ -1,5 +1,7 @@
 package dev.totem.nexus.space;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
@@ -17,6 +19,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NexusMapBindingAndPayloadPolicyTest {
@@ -48,6 +51,70 @@ class NexusMapBindingAndPayloadPolicyTest {
         assertFalse(entry.matchesUnit(unit(unitId, Level.NETHER, anchor, SpaceUnitStatus.ACTIVE)));
         assertFalse(entry.matchesUnit(unit(unitId, Level.OVERWORLD, anchor.offset(1, 0, 0), SpaceUnitStatus.ACTIVE)));
         assertFalse(entry.matchesUnit(unit(unitId, Level.OVERWORLD, anchor, SpaceUnitStatus.DISABLED)));
+    }
+
+    @Test
+    void scaleAppendsDetailLineageWhileLockCopiesIt() {
+        UUID unitId = UUID.fromString("00000000-0000-0000-0000-000000000202");
+        BlockPos anchor = new BlockPos(0, 70, 0);
+        GlobalPos global = GlobalPos.of(Level.OVERWORLD, anchor);
+        MapId scaleZeroId = new MapId(20);
+        MapId scaleOneId = new MapId(21);
+        MapId lockedId = new MapId(22);
+        MapId scaleTwoId = new MapId(23);
+        MapItemSavedData scaleZero = MapItemSavedData.createFresh(0, 0, (byte) 0, false, false, Level.OVERWORLD);
+        MapItemSavedData scaleOne = MapItemSavedData.createFresh(0, 0, (byte) 1, false, false, Level.OVERWORLD);
+        MapItemSavedData locked = scaleOne.locked();
+        MapItemSavedData scaleTwo = MapItemSavedData.createFresh(0, 0, (byte) 2, false, false, Level.OVERWORLD);
+        NexusMapBindingSavedData bindings = new NexusMapBindingSavedData();
+
+        assertTrue(bindings.bind(scaleZeroId, unitId, global, scaleZero));
+        assertTrue(bindings.derive(scaleZeroId, scaleZero, scaleOneId, scaleOne));
+        assertEquals(List.of(scaleZeroId.id()), bindings.get(scaleOneId).orElseThrow().detailAncestors());
+
+        assertTrue(bindings.derive(scaleOneId, scaleOne, lockedId, locked));
+        assertEquals(List.of(scaleZeroId.id()), bindings.get(lockedId).orElseThrow().detailAncestors());
+
+        assertTrue(bindings.derive(scaleOneId, scaleOne, scaleTwoId, scaleTwo));
+        assertEquals(List.of(scaleZeroId.id(), scaleOneId.id()),
+                bindings.get(scaleTwoId).orElseThrow().detailAncestors());
+    }
+
+    @Test
+    void legacyBindingDecodesWithoutInventingDetailLineage() {
+        MapId mapId = new MapId(30);
+        UUID unitId = UUID.fromString("00000000-0000-0000-0000-000000000203");
+        BlockPos anchor = new BlockPos(0, 70, 0);
+        MapItemSavedData mapData = MapItemSavedData.createFresh(0, 0, (byte) 2, false, false, Level.OVERWORLD);
+        NexusMapBindingSavedData bindings = new NexusMapBindingSavedData();
+        assertTrue(bindings.bind(mapId, unitId, GlobalPos.of(Level.OVERWORLD, anchor), mapData));
+
+        JsonElement encoded = NexusMapBindingSavedData.CODEC.encodeStart(JsonOps.INSTANCE, bindings)
+                .getOrThrow(IllegalArgumentException::new);
+        JsonObject legacy = encoded.getAsJsonObject();
+        legacy.addProperty("data_version", 1);
+        legacy.getAsJsonArray("maps").get(0).getAsJsonObject().remove("detail_ancestors");
+
+        NexusMapBindingSavedData restored = NexusMapBindingSavedData.CODEC.parse(JsonOps.INSTANCE, legacy)
+                .getOrThrow(IllegalArgumentException::new);
+        assertTrue(restored.get(mapId).orElseThrow().detailAncestors().isEmpty());
+    }
+
+    @Test
+    void bindingRejectsFabricatedOrInvalidDetailAncestry() {
+        UUID unitId = UUID.fromString("00000000-0000-0000-0000-000000000204");
+        GlobalPos anchor = GlobalPos.of(Level.OVERWORLD, new BlockPos(0, 70, 0));
+        assertThrows(IllegalArgumentException.class, () -> new NexusMapBindingSavedData.Entry(
+                40, unitId, anchor, 0, 0, List.of(40)));
+        assertThrows(IllegalArgumentException.class, () -> new NexusMapBindingSavedData.Entry(
+                40, unitId, anchor, 0, 0, List.of(39, 39)));
+
+        NexusMapBindingSavedData bindings = new NexusMapBindingSavedData();
+        MapId sourceId = new MapId(41);
+        MapItemSavedData source = MapItemSavedData.createFresh(0, 0, (byte) 0, false, false, Level.OVERWORLD);
+        MapItemSavedData skippedScale = MapItemSavedData.createFresh(0, 0, (byte) 2, false, false, Level.OVERWORLD);
+        assertTrue(bindings.bind(sourceId, unitId, anchor, source));
+        assertFalse(bindings.derive(sourceId, source, new MapId(42), skippedScale));
     }
 
     @Test
