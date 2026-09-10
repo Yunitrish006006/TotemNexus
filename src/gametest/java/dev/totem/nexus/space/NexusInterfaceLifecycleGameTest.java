@@ -34,6 +34,76 @@ import java.util.stream.StreamSupport;
 
 /** Server integration coverage for durable interfaces and Nexus-owned vanilla maps. */
 public final class NexusInterfaceLifecycleGameTest {
+    @GameTest(maxTicks = 300, environment = "totem-nexus-gametest:compass_teleport")
+    public void friendTeleportCompletesFromPlayerSource(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        var player = helper.makeMockServerPlayerInLevel();
+        var friend = helper.makeMockServerPlayerInLevel();
+        BlockPos source = helper.absolutePos(new BlockPos(3, 2, 4));
+        BlockPos target = helper.absolutePos(new BlockPos(13, 2, 4));
+        buildFunctionalArray(level, source);
+        buildFunctionalArray(level, target);
+        UUID id = UUID.randomUUID();
+        putLodestone(level, id, player.getUUID(), source, SpaceUnitVisibility.PRIVATE, Set.of());
+        NexusSpaceDiscoverySavedData.loadCanonical(level.getServer().overworld().getDataStorage())
+                .markDiscovered(player.getUUID(), id);
+        var friends = level.getServer().overworld().getDataStorage().computeIfAbsent(NexusFriendSavedData.TYPE);
+        friends.inviteOrAccept(player.getUUID(), friend.getUUID());
+        friends.inviteOrAccept(friend.getUUID(), player.getUUID());
+        player.setPos(Vec3.atCenterOf(source.above())); player.setNoGravity(true);
+        friend.setPos(Vec3.atCenterOf(target.above())); friend.setNoGravity(true);
+        player.getAbilities().instabuild = true;
+        ItemStack stack = new ItemStack(Items.COMPASS);
+        NexusInterfaceBinding.write(stack, level, source, id);
+        player.setItemInHand(InteractionHand.MAIN_HAND, stack);
+        Vec3 original = player.position();
+        NexusSpaceUnitAuthority.establishInterfaceContext(player, InteractionHand.MAIN_HAND, "player", player.getUUID()).orElseThrow();
+        NexusSpaceUnitAuthority.startTeleport(player, "player", player.getUUID(), friend.getUUID());
+        if (!NexusSpaceUnitAuthority.hasActiveTeleportSession(player.getUUID())) throw helper.assertionException("Friend teleport did not start");
+        helper.succeedWhen(() -> {
+            if (NexusSpaceUnitAuthority.hasActiveTeleportSession(player.getUUID())) throw helper.assertionException("Waiting for friend teleport");
+            if (player.position().equals(original) || !NexusSafeLanding.isSafeLoaded(level, player.blockPosition()))
+                throw helper.assertionException("Friend teleport did not complete at safe loaded ground");
+            friends.removeRelationship(player.getUUID(), friend.getUUID());
+            NexusSpaceUnitAuthority.clearInterfaceContext(player.getUUID());
+            friend.discard(); player.discard();
+        });
+    }
+
+    @GameTest(maxTicks = 30)
+    public void clickingLodestoneUsesLodestoneAndAirUseUsesPlayer(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        var player = helper.makeMockServerPlayerInLevel();
+        BlockPos pos = helper.absolutePos(new BlockPos(3, 2, 3));
+        UUID id = UUID.randomUUID();
+        level.setBlockAndUpdate(pos, Blocks.LODESTONE.defaultBlockState());
+        putLodestone(level, id, player.getUUID(), pos, SpaceUnitVisibility.PRIVATE, Set.of());
+        NexusSpaceDiscoverySavedData.loadCanonical(level.getServer().overworld().getDataStorage())
+                .markDiscovered(player.getUUID(), id);
+        player.setPos(Vec3.atCenterOf(pos.above()));
+        player.getAbilities().instabuild = false;
+        try {
+            for (var item : new net.minecraft.world.item.Item[]{Items.COMPASS, Items.RECOVERY_COMPASS}) {
+                ItemStack stack = new ItemStack(item);
+                NexusInterfaceBinding.write(stack, level, pos, id);
+                player.setItemInHand(InteractionHand.MAIN_HAND, stack);
+                activateLodestone(player, level, InteractionHand.MAIN_HAND, pos);
+                var clicked = NexusSpaceUnitAuthority.currentInterfaceContext(player).orElseThrow();
+                if (!clicked.matchesSource("lodestone", id)) throw helper.assertionException("Lodestone click became player source");
+                var map = NexusSpaceUnitAuthority.currentMapPayload(player).orElseThrow();
+                if (!map.sourceType().equals("lodestone") || map.sourceX() != pos.getX()
+                        || map.sourceY() != pos.getY()) throw helper.assertionException("Click payload lost lodestone origin");
+                net.fabricmc.fabric.api.event.player.UseItemCallback.EVENT.invoker()
+                        .interact(player, level, InteractionHand.MAIN_HAND);
+                var portable = NexusSpaceUnitAuthority.currentInterfaceContext(player).orElseThrow();
+                if (!portable.matchesSource("player", player.getUUID())) throw helper.assertionException("Air use retained lodestone source");
+                map = NexusSpaceUnitAuthority.currentMapPayload(player).orElseThrow();
+                if (map.sourceY() != player.blockPosition().getY()) throw helper.assertionException("Air payload lost player position");
+            }
+            helper.succeed();
+        } finally { NexusSpaceUnitAuthority.clearInterfaceContext(player.getUUID()); player.discard(); }
+    }
+
     @GameTest(maxTicks = 260, environment = "totem-nexus-gametest:compass_teleport")
     public void boundCompassStartsAndCompletesServerAuthoritativeTeleport(GameTestHelper helper) {
         verifyBoundInterfaceTeleport(helper, new ItemStack(Items.COMPASS));

@@ -68,8 +68,11 @@ public final class NexusArrayVisualizationAuthority {
             return new Evaluation(Optional.empty(), Optional.of(rejected(payload.sourceUnitId())));
         }
 
-        establishSession(playerId, payload.sourceType(), payload.sourceUnitId(),
-                payload.showArray(), payload.showBuildSites());
+        var mapId = continuingSameSource ? session.mapId()
+                : NexusSpaceUnitAuthority.currentInterfaceContext(player)
+                    .map(TeleportInterfaceContext::mapId).orElse(null);
+        ACTIVE_SESSIONS.put(playerId, new VisualizationSession(payload.sourceType(), payload.sourceUnitId(),
+                payload.showArray(), payload.showBuildSites(), mapId));
 
         TeleportArrayMaterialScan.Result scan = TeleportArrayMaterialScan.scan(
                 sourceLevel,
@@ -101,14 +104,11 @@ public final class NexusArrayVisualizationAuthority {
         if (!SpaceUnitType.LODESTONE.id().equals(payload.sourceType())) {
             return Optional.empty();
         }
-        TeleportInterfaceContext context = NexusSpaceUnitAuthority.currentInterfaceContext(player)
-                .filter(candidate -> candidate.matchesSource(payload.sourceType(), payload.sourceUnitId()))
-                .orElse(null);
-        if (context == null || NexusSpaceUnitAuthority.establishInterfaceContext(
-                player, context.interactionHand(), payload.sourceType(), payload.sourceUnitId()).isEmpty()) {
-            return Optional.empty();
-        }
-        return new NexusMapSourceAuthority().validateLodestone(player, payload.sourceUnitId());
+        TeleportInterfaceContext context = NexusSpaceUnitAuthority.currentInterfaceContext(player).orElse(null);
+        if (context == null) return Optional.empty();
+        // The inspected array is independent of a portable teleport's player source.
+        // Validate visibility, discovery/map coverage, loaded block and proximity without replacing that source.
+        return new NexusMapSourceAuthority().validateLodestone(player, payload.sourceUnitId(), context);
     }
 
     /**
@@ -122,7 +122,9 @@ public final class NexusArrayVisualizationAuthority {
         if (!SpaceUnitType.LODESTONE.id().equals(payload.sourceType())) {
             return Optional.empty();
         }
-        return new NexusMapSourceAuthority().validateLodestone(player, payload.sourceUnitId());
+        VisualizationSession session = ACTIVE_SESSIONS.get(player.getUUID());
+        return new NexusMapSourceAuthority().validateVisualizationLodestone(
+                player, payload.sourceUnitId(), session == null ? null : session.mapId());
     }
 
     private static TeleportArrayVisualizationStatusPayload rejected(UUID sourceUnitId) {
@@ -212,7 +214,7 @@ public final class NexusArrayVisualizationAuthority {
             boolean showArray,
             boolean showBuildSites) {
         ACTIVE_SESSIONS.put(playerId,
-                new VisualizationSession(sourceType, sourceUnitId, showArray, showBuildSites));
+                new VisualizationSession(sourceType, sourceUnitId, showArray, showBuildSites, null));
     }
 
     private static void clearActiveSession(UUID playerId) {
@@ -229,7 +231,8 @@ public final class NexusArrayVisualizationAuthority {
             String sourceType,
             UUID sourceUnitId,
             boolean showArray,
-            boolean showBuildSites) {
+            boolean showBuildSites,
+            net.minecraft.world.level.saveddata.maps.MapId mapId) {
         private boolean matches(String candidateType, UUID candidateId) {
             return sourceType.equals(candidateType) && sourceUnitId.equals(candidateId);
         }

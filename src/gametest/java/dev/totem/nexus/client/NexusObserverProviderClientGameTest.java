@@ -47,6 +47,18 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                     "Local-only visualization controls must not change the Nexus Observer semantic protocol");
 
             exercise(context, nexus,
+                    clientScreen(context, () -> new NexusSpaceUnitMapScreen(NexusSpaceUnitMapVisualGameTest.friendPayload())),
+                    clientScreen(context, () -> {
+                        var screen = new NexusSpaceUnitMapScreen(NexusSpaceUnitMapVisualGameTest.friendPayload());
+                        screen.keyPressed(new KeyEvent(264, 0, 0));
+                        screen.showMaterialDiagnosticsForVisualTest();
+                        return screen;
+                    }), "nexus-observer-friend-and-portable-preview", screen -> {
+                        var map = (NexusSpaceUnitMapScreen) screen;
+                        return map.observerPayload().entries().stream().anyMatch(e -> e.type().equals("player"))
+                                && map.arrayPreviewButtonDisabledForVisualTest();
+                    });
+            exercise(context, nexus,
                     clientScreen(context, () -> compassScreen("Home", false)),
                     clientScreen(context, () -> compassScreen("Remote Home", true)),
                     "nexus-observer-owner-compass", screen -> {
@@ -136,6 +148,24 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
             handle.applySnapshot(foreign(update, update.familyId(), update.variant(),
                     update.protocolVersion() + 1, 91));
             handle.applySnapshot(foreign(update, "foreign", update.variant(), update.protocolVersion(), 92));
+            if (handle.screen() instanceof NexusSpaceUnitMapScreen map) {
+                var before = map.observerPayload();
+                var selectedBefore = map.observerSelectedUnitId();
+                boolean materialsBefore = map.observerShowsMaterials();
+                var malformed = new java.util.LinkedHashMap<>(update.metadata());
+                malformed.put("show_materials", "2");
+                try {
+                    handle.applySnapshot(new ObserverScreenSnapshot(update.familyId(), update.variant(),
+                            update.protocolVersion(), 99, update.title(), update.slots(), update.data(),
+                            malformed, update.ownerPayload()));
+                    throw new AssertionError("Invalid material-view metadata was accepted");
+                } catch (IllegalArgumentException expected) {
+                    require(before.equals(map.observerPayload())
+                                    && java.util.Objects.equals(selectedBefore, map.observerSelectedUnitId())
+                                    && materialsBefore == map.observerShowsMaterials(),
+                            "Rejected material-view snapshot partially mutated the screen");
+                }
+            }
             handle.applySnapshot(update);
             handle.applySnapshot(initial);
             require(updated.test(handle.screen()), "Exact monotonic Nexus snapshot policy failed for "

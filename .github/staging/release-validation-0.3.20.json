@@ -1,0 +1,21 @@
+{
+  "version": "0.3.20",
+  "java": 25,
+  "minecraft": "26.2",
+  "artifact": "totem-nexus-0.3.20.jar",
+  "sha512": "0bb50629381d12c0f3bfaf2bb3108cbdbe2e26c0674fe4906d5571d4a4ce562b59ec3f388063afa80f1d1619ab274203f52c5ec40379ee9b2c4581650ef70aa1",
+  "unit_tests": 88,
+  "server_gametests": 106,
+  "core_version": "0.7.19",
+  "core_commit": "8573f7239e7faf6664a5c3ece58d79957f89a1bb",
+  "version_only_archive_comparison": {
+    "compared_against": "tested local friends/source patch 0.3.19",
+    "changed_entries": [
+      "fabric.mod.json"
+    ],
+    "fabric_mod_json_only_version_changed": true
+  },
+  "client_validation": "Full client suite, production client suite and dedicated three-JVM E2E passed before metadata-only bump; 210 E2E result artifacts, no failures.",
+  "independent_review": "nexus_review: no outstanding code findings after map-preview authority and Observer parse-order corrections.",
+  "evidence": "test-artifacts/friends-and-source-fix/validation.md"
+}

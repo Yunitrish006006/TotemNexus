@@ -1,0 +1,1 @@
+Observer Stop removed protocol-native session state.

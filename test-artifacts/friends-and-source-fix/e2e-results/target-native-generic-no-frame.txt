@@ -1,0 +1,1 @@
+Unsupported Screen stayed open while production client had no framebuffer transport surface.

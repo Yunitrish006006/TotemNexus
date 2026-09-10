@@ -167,6 +167,14 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         return this.selectedUnitId;
     }
 
+    boolean observerShowsMaterials() { return this.showMaterials; }
+
+    void applyObserverMaterialView(boolean showMaterials) {
+        if (!observerReadOnly()) return;
+        this.showMaterials = showMaterials;
+        updateButtonLayout();
+    }
+
     int observerMapZoom() { return this.mapZoom; }
     int observerMapPanX() { return this.mapPanX; }
     int observerMapPanY() { return this.mapPanY; }
@@ -755,30 +763,34 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         updateButtonLayout();
     }
 
+    private boolean canPreviewSelectedArray() {
+        SpaceUnitMapPayload.Entry entry = selectedEntry();
+        if (entry == null || !"lodestone".equals(entry.type())
+                || !entry.dimension().equals(this.payload.sourceDimension())) return false;
+        if (!"player".equals(this.payload.sourceType())) return entry.id().equals(this.payload.sourceUnitId());
+        // Conservative UI hint from the server snapshot; the server checks the live position again.
+        long dx = (long) entry.x() - this.payload.sourceX();
+        long dy = (long) entry.y() - this.payload.sourceY();
+        long dz = (long) entry.z() - this.payload.sourceZ();
+        return dx * dx + dy * dy + dz * dz <= 64;
+    }
+
     private void toggleArrayPreview() {
-        if (observerReadOnly() || !"lodestone".equals(this.payload.sourceType())) {
-            return;
-        }
-        if (!this.payload.sourceUnitId().equals(this.selectedUnitId)) {
-            return;
-        }
+        if (observerReadOnly() || !canPreviewSelectedArray()) return;
         if (ClientPlayNetworking.canSend(RequestTeleportArrayVisualizationPayload.TYPE)) {
-            NexusArrayVisualizationClient.toggleArray(this.payload.sourceType(), this.payload.sourceUnitId());
+            NexusArrayVisualizationClient.toggleArray("lodestone", this.selectedUnitId);
         }
     }
 
     private void toggleBuildSitesPreview() {
-        if (observerReadOnly() || !"lodestone".equals(this.payload.sourceType())
-                || !this.payload.sourceUnitId().equals(this.selectedUnitId)) {
-            return;
-        }
+        if (observerReadOnly() || !canPreviewSelectedArray()) return;
         if (ClientPlayNetworking.canSend(RequestTeleportArrayVisualizationPayload.TYPE)) {
-            NexusArrayVisualizationClient.toggleBuildSites(this.payload.sourceType(), this.payload.sourceUnitId());
+            NexusArrayVisualizationClient.toggleBuildSites("lodestone", this.selectedUnitId);
         }
     }
 
     private Component arrayPreviewButtonText() {
-        boolean enabled = NexusArrayVisualizationClient.isArrayEnabledFor(this.payload.sourceUnitId());
+        boolean enabled = NexusArrayVisualizationClient.isArrayEnabledFor(this.selectedUnitId);
         return Component.translatable(compactOverlayButtons()
                 ? enabled
                 ? "message.totem.space_unit.array_preview_hide_compact"
@@ -789,7 +801,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private Component buildSitesPreviewButtonText() {
-        boolean enabled = NexusArrayVisualizationClient.isBuildSitesEnabledFor(this.payload.sourceUnitId());
+        boolean enabled = NexusArrayVisualizationClient.isBuildSitesEnabledFor(this.selectedUnitId);
         return Component.translatable(compactOverlayButtons()
                 ? enabled
                 ? "message.totem.space_unit.build_sites_hide_compact"
@@ -800,19 +812,8 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     private Component arrayPreviewTooltip() {
-        if (observerReadOnly()) {
-            return Component.translatable("message.totem.space_unit.array_preview_observer");
-        }
-        if (!"lodestone".equals(this.payload.sourceType())) {
-            return Component.translatable("message.totem.space_unit.array_preview_lodestone_only");
-        }
-        if (!this.payload.sourceUnitId().equals(this.selectedUnitId)) {
-            return Component.translatable("message.totem.space_unit.array_preview_source_only");
-        }
-        if (!ClientPlayNetworking.canSend(RequestTeleportArrayVisualizationPayload.TYPE)) {
-            return Component.translatable("message.totem.space_unit.array_preview_unavailable");
-        }
-        return Component.translatable("message.totem.space_unit.array_preview_hint");
+        Component unavailable = visualizationUnavailableTooltip();
+        return unavailable == null ? Component.translatable("message.totem.space_unit.array_preview_hint") : unavailable;
     }
 
     private Component buildSitesPreviewTooltip() {
@@ -826,10 +827,10 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         if (observerReadOnly()) {
             return Component.translatable("message.totem.space_unit.array_preview_observer");
         }
-        if (!"lodestone".equals(this.payload.sourceType())) {
+        if (selectedEntry() == null || !"lodestone".equals(selectedEntry().type())) {
             return Component.translatable("message.totem.space_unit.array_preview_lodestone_only");
         }
-        if (!this.payload.sourceUnitId().equals(this.selectedUnitId)) {
+        if (!canPreviewSelectedArray()) {
             return Component.translatable("message.totem.space_unit.array_preview_source_only");
         }
         if (!ClientPlayNetworking.canSend(RequestTeleportArrayVisualizationPayload.TYPE)) {
@@ -844,6 +845,11 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     }
 
     /** Package-visible proof that Observer relays cannot activate the visualization request. */
+    boolean arrayPreviewButtonsActiveForVisualTest() {
+        return arrayPreviewButton != null && arrayPreviewButton.visible && arrayPreviewButton.active
+                && buildSitesPreviewButton != null && buildSitesPreviewButton.visible && buildSitesPreviewButton.active;
+    }
+
     boolean arrayPreviewButtonDisabledForVisualTest() {
         return this.arrayPreviewButton != null
                 && this.arrayPreviewButton.visible
@@ -1949,8 +1955,10 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     private String sourceSummary() {
         return Component.translatable(
                 "message.totem.space_unit.interface_source_summary",
+                Component.translatable("message.totem.space_unit.interface_source_identity",
+                        Component.translatable("message.totem.space_unit.type." + this.payload.sourceType()),
+                        this.payload.sourceName()),
                 Component.translatable(interfaceNameKey()),
-                this.payload.sourceName(),
                 this.payload.entries().size()
         ).getString();
     }
@@ -2165,12 +2173,10 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             this.arrayPreviewButton.setX(arrayPreviewButtonX());
             this.arrayPreviewButton.setY(maintenanceButtonY());
             this.arrayPreviewButton.setWidth(arrayPreviewButtonWidth());
-            boolean sourceSelected = this.payload.sourceUnitId().equals(this.selectedUnitId);
             this.arrayPreviewButton.visible = this.showMaterials;
             this.arrayPreviewButton.active = this.arrayPreviewButton.visible
                     && !observerReadOnly()
-                    && "lodestone".equals(this.payload.sourceType())
-                    && sourceSelected
+                    && canPreviewSelectedArray()
                     && ClientPlayNetworking.canSend(RequestTeleportArrayVisualizationPayload.TYPE);
             this.arrayPreviewButton.setMessage(arrayPreviewButtonText());
             this.arrayPreviewButton.setTooltip(Tooltip.create(arrayPreviewTooltip()));
@@ -2179,12 +2185,10 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             this.buildSitesPreviewButton.setX(buildSitesPreviewButtonX());
             this.buildSitesPreviewButton.setY(maintenanceButtonY());
             this.buildSitesPreviewButton.setWidth(buildSitesPreviewButtonWidth());
-            boolean sourceSelected = this.payload.sourceUnitId().equals(this.selectedUnitId);
             this.buildSitesPreviewButton.visible = this.showMaterials;
             this.buildSitesPreviewButton.active = this.buildSitesPreviewButton.visible
                     && !observerReadOnly()
-                    && "lodestone".equals(this.payload.sourceType())
-                    && sourceSelected
+                    && canPreviewSelectedArray()
                     && ClientPlayNetworking.canSend(RequestTeleportArrayVisualizationPayload.TYPE);
             this.buildSitesPreviewButton.setMessage(buildSitesPreviewButtonText());
             this.buildSitesPreviewButton.setTooltip(Tooltip.create(buildSitesPreviewTooltip()));

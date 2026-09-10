@@ -57,6 +57,7 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
             context.waitForScreen(null);
 
             exerciseRecoveryList(context, "totem-nexus-recovery-teleport-list-en-us");
+            exerciseFriendsAndPortablePreview(context, "en_us");
 
             context.runOnClient(client -> {
                 MapItemSavedData data = MapItemSavedData.createFresh(
@@ -91,6 +92,7 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
             context.waitForScreen(null);
 
             exerciseRecoveryList(context, "totem-nexus-recovery-teleport-list-zh-tw");
+            exerciseFriendsAndPortablePreview(context, "zh_tw");
 
             context.setScreen(() -> new NexusSpaceUnitMapScreen(filledMapPayload()));
             context.waitForScreen(NexusSpaceUnitMapScreen.class);
@@ -182,6 +184,41 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
                 throw new AssertionError(language + " Nexus compass resources were not loaded: " + title);
             }
         });
+    }
+
+    private static void exerciseFriendsAndPortablePreview(ClientGameTestContext context, String language) {
+        for (int scale : new int[]{2, 3}) {
+            context.runOnClient(client -> client.options.guiScale().set(scale));
+            context.setScreen(() -> new NexusSpaceUnitMapScreen(friendPayload()));
+            context.waitForScreen(NexusSpaceUnitMapScreen.class);
+            selectCompassDestination(context);
+            context.waitFor(client -> ((NexusSpaceUnitMapScreen) client.gui.screen()).teleportButtonActiveForVisualTest());
+            context.waitTicks(2);
+            context.takeScreenshot("nexus-friend-target-" + language + "-scale-" + scale);
+            context.setScreen(() -> new NexusSpaceUnitMapScreen(friendPayload()));
+            context.runOnClient(client -> {
+                var screen = (NexusSpaceUnitMapScreen) client.gui.screen();
+                screen.setFocused(null);
+                for (int i = 0; i < 4 && !SOURCE_ID.equals(screen.selectedUnitIdForVisualTest()); i++)
+                    screen.keyPressed(new KeyEvent(264, 0, 0));
+                screen.showMaterialDiagnosticsForVisualTest();
+            });
+            context.waitFor(client -> ((NexusSpaceUnitMapScreen) client.gui.screen()).arrayPreviewButtonsActiveForVisualTest());
+            context.waitTicks(2);
+            context.takeScreenshot("nexus-player-source-array-preview-" + language + "-scale-" + scale);
+            context.setScreen(() -> null);
+        }
+    }
+
+    static SpaceUnitMapPayload friendPayload() {
+        var friend = new SpaceUnitMapPayload.Entry(
+                COMPASS_TARGET_ID, "player", "Online Friend", "friends", true, "minecraft:overworld", 32, 72, 32,
+                .6, 0, 64, 2, 2, 2, 0, 0, 20, 0, 0, 40, 40, 4, 4, 0, 0, 0,
+                false, "message.totem.space_unit.interface_bonus.compass", false, false, false, 0, 0, true, "");
+        return new SpaceUnitMapPayload(UUID.fromString("00000000-0000-0000-0000-000000000488"),
+                "player", "Player", "minecraft:overworld", 1, 65, 1,
+                TeleportInterfaceType.COMPASS, SpaceUnitMapPayload.NO_MAP_ID,
+                List.of(entry(SOURCE_ID, "Home Nexus", 0, 0, "message.totem.space_unit.interface_bonus.compass", true), friend));
     }
 
     private static SpaceUnitMapPayload managementPayload() {

@@ -1,0 +1,1 @@
+Sign semantic screen closed; removed() suppressed ServerboundSignUpdatePacket.

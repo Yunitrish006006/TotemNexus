@@ -124,6 +124,70 @@ public final class TeleportArrayMaterialScanGameTest {
         helper.succeed();
     }
 
+    @GameTest(maxTicks = 70)
+    public void mappedUndiscoveredPreviewRefreshesWhileBuildingAndRevokesLostCoverage(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer viewer = helper.makeMockServerPlayerInLevel();
+        BlockPos pos = helper.absolutePos(LODESTONE);
+        UUID id = UUID.randomUUID();
+        level.setBlockAndUpdate(pos, Blocks.LODESTONE.defaultBlockState());
+        units(level).put(lodestone(id, level, pos, viewer.getUUID(), SpaceUnitVisibility.PRIVATE));
+        viewer.setPos(pos.getX() + .5, pos.getY() + 1, pos.getZ() + .5);
+        viewer.setNoGravity(true);
+        var map = NexusMapLifecycleAuthority.createBoundMap(level, pos, id, new ItemStack(Items.MAP)).orElseThrow();
+        var data = net.minecraft.world.item.MapItem.getSavedData(map, level);
+        java.util.Arrays.fill(data.colors, (byte) 4);
+        viewer.setItemInHand(InteractionHand.MAIN_HAND, map);
+        NexusSpaceUnitAuthority.establishInterfaceContext(viewer, InteractionHand.MAIN_HAND, "player", viewer.getUUID()).orElseThrow();
+        if (discovery(level).hasDiscovered(viewer.getUUID(), id) || refresh(viewer, id, true, true).isEmpty())
+            throw helper.assertionException("Undiscovered painted array failed initial preview");
+        switchToBuildingMaterial(viewer);
+        helper.startSequence().thenExecuteAfter(21, () -> {
+            level.setBlockAndUpdate(pos.east(), Blocks.TUFF.defaultBlockState());
+            if (refresh(viewer, id, true, true).isEmpty() || !NexusArrayVisualizationAuthority.hasSession(viewer.getUUID()))
+                throw helper.assertionException("Putting map away to build lost its authorized preview");
+            java.util.Arrays.fill(data.colors, (byte) 0);
+        }).thenExecuteAfter(21, () -> {
+            if (refresh(viewer, id, true, true).isPresent() || NexusArrayVisualizationAuthority.hasSession(viewer.getUUID()))
+                throw helper.assertionException("Preview survived revoked painted coverage");
+            cleanup(viewer);
+        }).thenSucceed();
+    }
+
+    @GameTest(maxTicks = 30)
+    public void portablePreviewUsesSelectedLodestoneWithoutReplacingPlayerSource(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        ServerPlayer viewer = helper.makeMockServerPlayerInLevel();
+        BlockPos pos = helper.absolutePos(LODESTONE);
+        UUID boundId = UUID.randomUUID();
+        UUID inspectedId = UUID.randomUUID();
+        level.setBlockAndUpdate(pos, Blocks.LODESTONE.defaultBlockState());
+        level.setBlockAndUpdate(pos.east(2), Blocks.LODESTONE.defaultBlockState());
+        units(level).put(lodestone(boundId, level, pos, viewer.getUUID(), SpaceUnitVisibility.PRIVATE));
+        units(level).put(lodestone(inspectedId, level, pos.east(2), viewer.getUUID(), SpaceUnitVisibility.PRIVATE));
+        discovery(level).markDiscovered(viewer.getUUID(), boundId);
+        discovery(level).markDiscovered(viewer.getUUID(), inspectedId);
+        viewer.setPos(pos.getX() + .5, pos.getY() + 1, pos.getZ() + .5);
+        bindCompass(viewer, boundId);
+        try {
+            TeleportInterfaceContext context = NexusSpaceUnitAuthority.establishInterfaceContext(
+                    viewer, InteractionHand.MAIN_HAND, "player", viewer.getUUID()).orElseThrow();
+            var snapshot = refresh(viewer, inspectedId, true, true).orElseThrow();
+            if (!snapshot.sourceUnitId().equals(inspectedId)
+                    || !NexusSpaceUnitAuthority.currentInterfaceContext(viewer).orElseThrow().equals(context)) {
+                helper.fail("Selected preview changed portable source or previewed the bound array instead");
+                return;
+            }
+            NexusArrayVisualizationAuthority.disconnect(viewer.getUUID());
+            discovery(level).removeDiscovered(viewer.getUUID(), inspectedId);
+            if (refresh(viewer, inspectedId, true, true).isPresent()) {
+                helper.fail("Portable preview exposed an undiscovered lodestone");
+                return;
+            }
+            helper.succeed();
+        } finally { cleanup(viewer); }
+    }
+
     @GameTest(maxTicks = 30)
     public void visualizationInitialEnableStillRequiresHeldBoundInterface(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();

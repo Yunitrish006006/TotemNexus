@@ -13,19 +13,42 @@ public final class NexusMapSourceAuthority {
     public static final double SOURCE_OPEN_RADIUS = 8.0D;
 
     public Optional<NexusSpaceUnitRecord> validateLodestone(ServerPlayer player, UUID sourceId) {
-        return validateLodestone(player, sourceId, null);
+        return validateLodestone(player, sourceId, (TeleportInterfaceContext) null);
     }
 
     public Optional<NexusSpaceUnitRecord> validateLodestone(ServerPlayer player, UUID sourceId, TeleportInterfaceContext context) {
+        return validateLodestone(player, sourceId, source -> context == null
+                ? NexusSpaceDiscoverySavedData.loadCanonical(player.level().getServer().overworld().getDataStorage())
+                    .hasDiscovered(player.getUUID(), source.id())
+                : NexusInterfaceAccess.allows(player, context, source));
+    }
+
+    /** Revalidates a server-issued preview session while the player holds building materials. */
+    Optional<NexusSpaceUnitRecord> validateVisualizationLodestone(
+            ServerPlayer player, UUID sourceId, net.minecraft.world.level.saveddata.maps.MapId mapId) {
+        if (mapId == null) return validateLodestone(player, sourceId);
+        var storage = player.level().getServer().overworld().getDataStorage();
+        var data = net.minecraft.world.item.MapItem.getSavedData(mapId, player.level());
+        var binding = NexusMapBindingSavedData.loadCanonical(storage).resolve(mapId, data).orElse(null);
+        if (binding == null) return Optional.empty();
+        var anchor = NexusSpaceUnitSavedData.loadCanonical(storage).get(binding.unitId()).orElse(null);
+        var friends = storage.computeIfAbsent(NexusFriendSavedData.TYPE);
+        if (!binding.matchesUnit(anchor) || !anchor.canView(player.getUUID(),
+                friends.areFriends(player.getUUID(), anchor.owner()))) return Optional.empty();
+        return validateLodestone(player, sourceId,
+                source -> FilledMapCoverage.isDrawn(data, source.dimension(), source.pos()));
+    }
+
+    private Optional<NexusSpaceUnitRecord> validateLodestone(
+            ServerPlayer player, UUID sourceId, java.util.function.Predicate<NexusSpaceUnitRecord> access) {
         if (player == null || sourceId == null) return Optional.empty();
         var storage = player.level().getServer().overworld().getDataStorage();
         NexusSpaceUnitSavedData units = NexusSpaceUnitSavedData.loadCanonical(storage);
-        NexusSpaceDiscoverySavedData discovery = NexusSpaceDiscoverySavedData.loadCanonical(storage);
         NexusFriendSavedData friends = storage.computeIfAbsent(NexusFriendSavedData.TYPE);
         NexusSpaceUnitRecord source = units.get(sourceId).orElse(null);
         if (source == null || !source.isLodestoneAnchor() || source.status() != SpaceUnitStatus.ACTIVE
                 || !source.canView(player.getUUID(), friends.areFriends(player.getUUID(), source.owner()))
-                || (context == null ? !discovery.hasDiscovered(player.getUUID(), source.id()) : !NexusInterfaceAccess.allows(player, context, source))
+                || !access.test(source)
                 || !isWithinOpenRadius(player.level().dimension(), player.position(), source)
                 || !player.level().isLoaded(source.pos())) return Optional.empty();
         if (!player.level().getBlockState(source.pos()).is(Blocks.LODESTONE)) {

@@ -1,0 +1,1 @@
+Observer rendered the later Horse inventory state with the production Screen.

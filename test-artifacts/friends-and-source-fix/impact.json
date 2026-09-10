@@ -1,0 +1,170 @@
+{
+  "touchedModules": [
+    "totem-nexus"
+  ],
+  "impactedModules": [
+    "totem-nexus",
+    "totem-core",
+    "totem-remnant",
+    "totem-vanilla-tweaks",
+    "totem-discord-bridge"
+  ],
+  "contracts": [
+    {
+      "id": "hard:totem-nexus:totem-core",
+      "type": "hard-core",
+      "from": "totem-nexus",
+      "to": "totem-core",
+      "version": ">=0.7.16 <0.8.0",
+      "feature": "TotemNexus consumes the Core Friendship API for friend relationships and player targets.",
+      "fallback": null,
+      "featureIds": [
+        "totem-nexus.feature-5",
+        "totem-core.feature-3"
+      ],
+      "auditStatus": "verified",
+      "auditNote": "NexusFriendSavedData and NexusFriendshipApi delegate friendship state and mutual-friend checks to TotemFriendshipApi."
+    },
+    {
+      "id": "remnant-nexus",
+      "type": "runtime-optional",
+      "classification": "B｜Runtime optional",
+      "from": "totem-remnant",
+      "to": "totem-nexus",
+      "source": "TotemRemnant",
+      "target": "TotemNexus",
+      "feature": "建立、綁定與回收死亡 Space Unit，並在死亡前保留第一件 Nexus 授權的傳送介面。",
+      "fallback": "未安裝時不建立死亡節點也不保留 Nexus 傳送物；死亡背包仍可獨立建立與回收。",
+      "evidence": "TotemRemnant／TotemNexus README、Core DeathBackpackNodeLifecycle／DeathRetainedItemPolicy、NexusAuthorityBootstrap。",
+      "featureIds": [
+        "totem-remnant.feature-4",
+        "totem-nexus.feature-6"
+      ],
+      "auditStatus": "verified"
+    },
+    {
+      "id": "vanilla-nexus-observer",
+      "type": "runtime-optional",
+      "classification": "B｜Runtime compat／Observer",
+      "from": "totem-vanilla-tweaks",
+      "to": "totem-nexus",
+      "source": "TotemVanillaTweaks",
+      "target": "TotemNexus",
+      "feature": "Observer nexus@3",
+      "fallback": "provider 缺少或協定／variant 不相容時只顯示 unsupported metadata，不建立替代 UI，也不傳 framebuffer。",
+      "evidence": "TotemVanillaTweaks README；TotemNexus fabric.mod.json observer entrypoints、NexusObserverScreenProvider、NexusDeathAdminObserverScreenProvider。",
+      "featureIds": [
+        "totem-vanilla-tweaks.feature-1",
+        "totem-nexus.feature-1",
+        "totem-nexus.feature-2",
+        "totem-nexus.feature-4",
+        "totem-nexus.feature-5"
+      ],
+      "protocol": 3,
+      "auditStatus": "verified",
+      "auditNote": "Generic Nexus Observer covers compass/map/management, legacy map, friends, and registration. Death-node admin remains a separate provider."
+    },
+    {
+      "id": "event-nexus-audit",
+      "type": "eventbus",
+      "classification": "EventBus（非模組軟依賴）",
+      "from": "totem-core",
+      "to": "totem-discord-bridge",
+      "relatedNodes": [
+        "totem-core",
+        "totem-nexus",
+        "totem-discord-bridge"
+      ],
+      "feature": "TotemNexus 將公開 Space Unit、死亡回收與管理稽核事件發布到 TotemCore EventBus；TotemDiscordBridge 可選配訂閱。",
+      "fallback": "DiscordBridge 未安裝時事件安全成為無訂閱者通知，Nexus 功能照常運作。",
+      "featureIds": [
+        "totem-nexus.feature-1",
+        "totem-nexus.feature-6",
+        "totem-discord-bridge.feature-1"
+      ],
+      "auditStatus": "verified",
+      "auditNote": "Nexus publishes both public Space Unit updates and death/admin audit events."
+    },
+    {
+      "id": "observer:totem-nexus:nexus@3",
+      "type": "observer-provider",
+      "from": "totem-vanilla-tweaks",
+      "to": "totem-nexus",
+      "providerOwner": "totem-nexus",
+      "family": "nexus",
+      "protocol": 3,
+      "variants": [
+        "compass",
+        "map",
+        "management",
+        "map_legacy",
+        "friends",
+        "friends_legacy",
+        "registration",
+        "registration_legacy"
+      ],
+      "feature": "Observer provider nexus protocol 3",
+      "fallback": "Missing or incompatible provider must report unsupported metadata; no mirror Screen.",
+      "featureIds": []
+    },
+    {
+      "id": "observer:totem-nexus:nexus_death_node_admin@1",
+      "type": "observer-provider",
+      "from": "totem-vanilla-tweaks",
+      "to": "totem-nexus",
+      "providerOwner": "totem-nexus",
+      "family": "nexus_death_node_admin",
+      "protocol": 1,
+      "variants": [
+        ""
+      ],
+      "feature": "Observer provider nexus_death_node_admin protocol 1",
+      "fallback": "Missing or incompatible provider must report unsupported metadata; no mirror Screen.",
+      "featureIds": []
+    }
+  ],
+  "risks": [
+    "observer",
+    "client-server",
+    "privacy",
+    "networking",
+    "shared-contract"
+  ],
+  "requiresIndependentReview": true,
+  "indexRefresh": {
+    "mode": "incremental",
+    "reason": "source-change-detected",
+    "checkedModules": [
+      "totem-nexus"
+    ],
+    "refreshedModules": [
+      "totem-nexus"
+    ],
+    "changedFiles": [
+      "totem-nexus:README.md",
+      "totem-nexus:src/client/java/dev/totem/nexus/client/NexusSpaceUnitMapScreen.java",
+      "totem-nexus:src/gametest/java/dev/totem/nexus/space/NexusInterfaceLifecycleGameTest.java",
+      "totem-nexus:src/gametest/java/dev/totem/nexus/space/NexusRecoveryRoutingGameTest.java",
+      "totem-nexus:src/gametest/java/dev/totem/nexus/space/TeleportArrayMaterialScanGameTest.java",
+      "totem-nexus:src/main/java/dev/totem/nexus/space/NexusArrayVisualizationAuthority.java",
+      "totem-nexus:src/main/java/dev/totem/nexus/space/NexusMapSourceAuthority.java",
+      "totem-nexus:src/main/resources/assets/totem/lang/en_us.json",
+      "totem-nexus:src/main/resources/assets/totem/lang/es_es.json",
+      "totem-nexus:src/main/resources/assets/totem/lang/ja_jp.json",
+      "totem-nexus:src/main/resources/assets/totem/lang/zh_tw.json",
+      "totem-nexus:src/test/java/dev/totem/nexus/space/NexusPlayerGuidanceResourceTest.java",
+      "totem-nexus:test-artifacts/friends-and-source-fix/production-fabric.mod.json",
+      "totem-nexus:test-artifacts/friends-and-source-fix/production.init.gradle"
+    ],
+    "removedFiles": []
+  },
+  "graphPreview": {
+    "status": "ok",
+    "regenerated": true,
+    "output": "graph-v2.html",
+    "generatedAt": "2026-09-10T05:48:00.810Z",
+    "codeIndexed": true,
+    "codeNodes": 2577,
+    "codeEdges": 2577
+  }
+}

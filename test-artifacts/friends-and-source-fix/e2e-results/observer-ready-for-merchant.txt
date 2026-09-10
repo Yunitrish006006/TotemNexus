@@ -1,0 +1,1 @@
+Target may send merchant semantic state through the dedicated server.

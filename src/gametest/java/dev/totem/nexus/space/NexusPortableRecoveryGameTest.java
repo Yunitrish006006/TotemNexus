@@ -22,6 +22,50 @@ import java.util.Set;
 import java.util.UUID;
 
 public final class NexusPortableRecoveryGameTest {
+    @GameTest(maxTicks = 40)
+    public void portableFriendTargetsAreVisibleCoarseAndRevalidated(GameTestHelper h) {
+        var p = h.makeMockServerPlayerInLevel();
+        var friend = h.makeMockServerPlayerInLevel();
+        var level = h.getLevel();
+        var pos = h.absolutePos(new BlockPos(2, 2, 2));
+        level.setBlockAndUpdate(pos, Blocks.LODESTONE.defaultBlockState());
+        var units = NexusSpaceUnitSavedData.loadCanonical(level.getServer().overworld().getDataStorage());
+        var id = UUID.randomUUID();
+        units.put(new NexusSpaceUnitRecord(id, SpaceUnitType.LODESTONE, level.dimension(), pos, p.getUUID(), "Array",
+                SpaceUnitVisibility.PRIVATE, SpaceUnitStatus.ACTIVE, Set.of(), Set.of(), SpaceStructureSnapshot.EMPTY, 0, 0));
+        NexusSpaceDiscoverySavedData.loadCanonical(level.getServer().overworld().getDataStorage()).markDiscovered(p.getUUID(), id);
+        var friends = level.getServer().overworld().getDataStorage().computeIfAbsent(NexusFriendSavedData.TYPE);
+        p.setPos(Vec3.atCenterOf(pos.above())); p.setNoGravity(true); p.getAbilities().instabuild = true;
+        friend.setPos(Vec3.atCenterOf(pos.offset(12, 1, 0))); friend.setNoGravity(true);
+        try {
+            friends.inviteOrAccept(p.getUUID(), friend.getUUID());
+            friends.inviteOrAccept(friend.getUUID(), p.getUUID());
+            for (var item : new net.minecraft.world.item.Item[]{Items.COMPASS, Items.RECOVERY_COMPASS}) {
+                var stack = new ItemStack(item); NexusInterfaceBinding.write(stack, level, pos, id);
+                p.setItemInHand(InteractionHand.MAIN_HAND, stack);
+                NexusSpaceUnitAuthority.establishInterfaceContext(p, InteractionHand.MAIN_HAND, "player", p.getUUID()).orElseThrow();
+                var payload = NexusSpaceUnitAuthority.currentMapPayload(p).orElseThrow();
+                var entry = payload.entries().stream().filter(e -> e.id().equals(friend.getUUID())).findFirst().orElseThrow();
+                check(h, entry.type().equals("player") && entry.friendShared() && entry.canTeleport(), "Friend target is not selectable");
+                check(h, Math.floorMod(entry.x(), 64) == 32 && Math.floorMod(entry.z(), 64) == 32
+                        && Math.floorMod(entry.y(), 16) == 8 && entry.distanceBlocks() % 64 == 0,
+                        "Friend payload exposed precise position or distance");
+                NexusSpaceUnitAuthority.startTeleport(p, "player", p.getUUID(), friend.getUUID());
+                check(h, NexusSpaceUnitAuthority.hasActiveTeleportSession(p.getUUID()), "Selectable compass cannot start friend teleport");
+            }
+            friends.removeRelationship(p.getUUID(), friend.getUUID());
+            check(h, NexusSpaceUnitAuthority.currentMapPayload(p).orElseThrow().entries().stream()
+                    .noneMatch(e -> e.id().equals(friend.getUUID())), "Removed friendship remains exposed");
+            NexusSpaceUnitAuthority.startTeleport(p, "player", p.getUUID(), friend.getUUID());
+            check(h, !NexusSpaceUnitAuthority.hasActiveTeleportSession(p.getUUID()), "Stale friend selection started teleport");
+            h.succeed();
+        } finally {
+            friends.removeRelationship(p.getUUID(), friend.getUUID());
+            NexusSpaceUnitAuthority.clearInterfaceContext(p.getUUID());
+            friend.discard(); p.discard();
+        }
+    }
+
     @GameTest(maxTicks = 20)
     public void portableSourcesWorkBeyondEightBlocksAndOnlyConstructionAddsStability(GameTestHelper h) {
         var p = h.makeMockServerPlayerInLevel(); var level = h.getLevel();

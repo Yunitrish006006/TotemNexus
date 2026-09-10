@@ -303,9 +303,9 @@ public final class NexusSpaceUnitAuthority {
             return;
         }
 
-        resolveMapSource(player, sourceType, sourceUnitId, true).ifPresent(source -> {
+        currentMapPayload(player).ifPresent(payload -> {
             synchronizeHeldVanillaMap(player, currentInterfaceContext(player).orElseThrow());
-            ServerPlayNetworking.send(player, buildMapPayload(player, source, visibleDiscoveredUnits(player)));
+            ServerPlayNetworking.send(player, payload);
         });
     }
 
@@ -1436,11 +1436,6 @@ public final class NexusSpaceUnitAuthority {
             ServerPlayer player,
             InteractionHand hand,
             UUID sourceUnitId) {
-        var held = TeleportInterfaceItemResolver.resolve(player, hand);
-        if (held.filter(value -> value.type().canSelectTeleportDestination()).isPresent()) {
-            openBoundInterface(player, hand, held.orElseThrow());
-            return;
-        }
         if (establishInterfaceContext(
                 player,
                 hand,
@@ -1505,6 +1500,13 @@ public final class NexusSpaceUnitAuthority {
 
         synchronizeHeldVanillaMap(player, interfaceContext.orElseThrow());
         ServerPlayNetworking.send(player, buildMapPayload(player, mapSource(source), visibleDiscoveredUnits(player)));
+    }
+
+    /** The same authoritative projection used by the portable map sender. */
+    static Optional<SpaceUnitMapPayload> currentMapPayload(ServerPlayer player) {
+        return currentInterfaceContext(player).flatMap(context ->
+                resolveMapSource(player, context.sourceType(), context.sourceId(), false)
+                        .map(source -> buildMapPayload(player, source, visibleDiscoveredUnits(player))));
     }
 
     /** Sends the held Nexus map through Mojang's normal map-data packet before opening its Screen. */
@@ -1863,7 +1865,7 @@ public final class NexusSpaceUnitAuthority {
                     || requireInterfaceContext(player, sourceType, sourceUnitId, notifyFailure).isEmpty()) return Optional.empty();
             var array = NexusPortableSource.array(player, currentInterfaceContext(player).orElseThrow(), rescanStructure);
             return Optional.of(new MapSource(player.getUUID(), SOURCE_TYPE_PLAYER,
-                    array.map(NexusSpaceUnitRecord::name).orElse(player.getName().getString()),
+                    player.getName().getString(),
                     player.level().dimension(), player.blockPosition().immutable(),
                     NexusPortableSource.stability(array), array.map(u -> u.structure().tier()).orElse(0),
                     SpaceUnitType.PLAYER, array.map(NexusSpaceUnitRecord::id).orElse(null)));
@@ -1933,7 +1935,7 @@ public final class NexusSpaceUnitAuthority {
         MinecraftServer server = player.level().getServer();
         Optional<NexusSpaceUnitRecord> targetUnit = units(server).get(targetUnitId);
         if (targetUnit.isEmpty()) {
-            if (currentInterfaceContext(player).map(c -> c.interfaceType().canSelectTeleportDestination()).orElse(false)) return Optional.empty();
+            if (!currentInterfaceContext(player).map(c -> c.interfaceType().canSelectTeleportDestination()).orElse(false)) return Optional.empty();
             ServerPlayer targetPlayer = server.getPlayerList().getPlayer(targetUnitId);
             if (targetPlayer == null) {
                 notifyIfRequested(player, notifyFailure, Component.translatable(
@@ -1956,6 +1958,10 @@ public final class NexusSpaceUnitAuthority {
                         PlayerTeleportTargetPolicy.cancellationMessageKey(targetState)));
                 return Optional.empty();
             }
+            TeleportInterfaceContext context = currentInterfaceContext(player).orElseThrow();
+            if (context.interfaceType().hasMapVisualization()
+                    && !FilledMapCoverage.isDrawn(MapItem.getSavedData(context.mapId(), player.level()),
+                    targetPlayer.level().dimension(), targetPlayer.blockPosition())) return Optional.empty();
             return Optional.of(TeleportTarget.player(targetPlayer));
         }
 
@@ -2326,6 +2332,28 @@ public final class NexusSpaceUnitAuthority {
                     quote.canTeleport(),
                     quote.blockedReason()
             ).withMaterial(materialSummaryFor(player, unit.id())));
+        }
+        if (interfaceType.canSelectTeleportDestination()) {
+            for (UUID friendId : friendData.friendsOf(playerId).stream().sorted().toList()) {
+                if (entries.size() >= SpaceUnitMapPayload.MAX_ENTRIES) break;
+                TeleportTarget target = resolveTeleportTarget(player, friendId, false).orElse(null);
+                if (target == null || target.type() != SpaceUnitType.PLAYER) continue;
+                BlockPos displayPos = approximatePlayerDisplayPos(target.pos());
+                if (interfaceType.hasMapVisualization()
+                        && !FilledMapCoverage.isDrawn(mapData, target.dimension(), displayPos)) continue;
+                TeleportQuote quote = calculateTeleportQuote(player, source, target, interfaceType, mapId);
+                entries.add(new SpaceUnitMapPayload.Entry(
+                        target.id(), target.type().id(), target.name(), "friends", true,
+                        dimensionId(target), displayPos.getX(), displayPos.getY(), displayPos.getZ(),
+                        quote.routeStability(), target.tier(), roundedPlayerDistance(quote.distanceBlocks()),
+                        quote.baseFoodCost(), quote.finalFoodCost(), quote.saturationCost(), quote.hungerCost(),
+                        quote.foodPointsNeeded(), quote.safeFoodPointsAvailable(), quote.amethystCost(),
+                        quote.amethystAvailable(), quote.basePrepareTicks(), quote.prepareTicks(),
+                        quote.baseMaxHorizontalDeviation(), quote.maxHorizontalDeviation(), quote.damageChancePercent(),
+                        quote.baseStructureWearChancePercent(), quote.structureWearChancePercent(),
+                        quote.interfaceBonusActive(), quote.interfaceBonusMessageKey(),
+                        false, false, false, 0, 0, quote.canTeleport(), quote.blockedReason()));
+            }
         }
         return new SpaceUnitMapPayload(
                 source.id(),

@@ -1,0 +1,1 @@
+Target may send TotemVillagers Woodcutter semantic state through the dedicated server.

@@ -1,0 +1,1 @@
+Target may send TotemLocksmith management semantic state.

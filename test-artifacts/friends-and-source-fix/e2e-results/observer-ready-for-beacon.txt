@@ -1,0 +1,1 @@
+Target may send Beacon semantic state through the dedicated server.

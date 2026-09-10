@@ -1,0 +1,1 @@
+Observer rendered player_2x2 Inventory crafting semantics in the production InventoryScreen with 118 matching production Menu slots and no competing generic container mirror.

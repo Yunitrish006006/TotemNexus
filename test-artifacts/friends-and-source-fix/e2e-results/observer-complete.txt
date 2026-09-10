@@ -1,0 +1,1 @@
+Observer received Session(false) and cleaned up protocol-native screens.

@@ -1,0 +1,1 @@
+Observer camera entity is Target using vanilla world rendering.

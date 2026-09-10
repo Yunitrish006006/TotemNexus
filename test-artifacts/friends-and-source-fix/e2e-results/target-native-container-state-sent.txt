@@ -1,0 +1,1 @@
+Target sent player_2x2 crafting semantic state for real InventoryScreen; generic container sender stayed closed.

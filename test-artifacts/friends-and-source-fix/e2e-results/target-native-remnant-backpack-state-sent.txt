@@ -1,0 +1,1 @@
+Target sent Remnant backpack semantic state through the dedicated server.

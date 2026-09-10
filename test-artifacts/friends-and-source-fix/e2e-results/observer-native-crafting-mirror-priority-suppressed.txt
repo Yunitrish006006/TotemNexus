@@ -1,0 +1,1 @@
+Crafting mirror won priority and suppressed the generic container mirror.

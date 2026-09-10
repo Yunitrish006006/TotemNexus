@@ -1,0 +1,3 @@
+tick=1200
+targetPresent=true
+observerPresent=true

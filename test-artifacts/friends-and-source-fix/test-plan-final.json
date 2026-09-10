@@ -1,0 +1,28 @@
+{
+  "modules": [
+    "totem-nexus"
+  ],
+  "risks": [
+    "observer",
+    "client-server",
+    "privacy"
+  ],
+  "validationCategories": [
+    "gradle-build",
+    "existing-unit-or-gametest",
+    "gametest",
+    "server-authority",
+    "client-gametest",
+    "observer-provider-compat",
+    "input-packet-suppression",
+    "privacy-redaction",
+    "close-cleanup",
+    "three-jvm-e2e",
+    "production-runtime-probe",
+    "dedicated-server-load-check",
+    "client-runtime-check"
+  ],
+  "notes": [
+    "totem-nexus: Teleport, cost, permissions, and death-node lifecycle are server-authoritative."
+  ]
+}

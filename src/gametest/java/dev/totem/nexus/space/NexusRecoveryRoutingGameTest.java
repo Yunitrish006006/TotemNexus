@@ -50,8 +50,8 @@ public final class NexusRecoveryRoutingGameTest {
         require(h, !discovery(p).hasDiscovered(p.getUUID(), c.id()), "Map silently changed discovery");
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.invoker().interact(p, level, InteractionHand.MAIN_HAND,
                 new BlockHitResult(Vec3.atCenterOf(b.pos()), Direction.UP, b.pos(), false));
-        require(h, NexusSpaceUnitAuthority.currentInterfaceContext(p).orElseThrow().sourceId().equals(p.getUUID()), "Portable block activation did not use player source");
-        NexusSpaceUnitAuthority.setFavorite(p, "player", p.getUUID(), c.id(), true);
+        require(h, NexusSpaceUnitAuthority.currentInterfaceContext(p).orElseThrow().matchesSource("lodestone", b.id()), "Block activation did not retain the clicked lodestone source");
+        NexusSpaceUnitAuthority.setFavorite(p, "lodestone", b.id(), c.id(), true);
         require(h, discovery(p).isFavorite(p.getUUID(), c.id()) && !discovery(p).hasDiscovered(p.getUUID(), c.id()),
                 "Map favorite failed or granted compass discovery");
         require(h, map.get(DataComponents.MAP_ID).equals(mapId) && NexusInterfaceBinding.read(map).equals(a.id())

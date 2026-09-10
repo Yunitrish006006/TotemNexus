@@ -25,6 +25,7 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
             "compass", "recovery_compass", "map", "management", "map_legacy", "friends", "friends_legacy",
             "registration", "registration_legacy");
     private static final String SELECTED_UNIT_ID = "selected_unit_id";
+    private static final String SHOW_MATERIALS = "show_materials";
     private static final String MAP_ZOOM = "map_zoom";
     private static final String MAP_PAN_X = "map_pan_x";
     private static final String MAP_PAN_Y = "map_pan_y";
@@ -41,6 +42,7 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
         if (screen instanceof NexusSpaceUnitMapScreen owned && !owned.totem$isObserverReadOnly()) {
             variant = owned.observerVariant(); payload = owned.observerPayload(); codec = SpaceUnitMapPayload.CODEC;
             LinkedHashMap<String, String> values = new LinkedHashMap<>();
+            values.put(SHOW_MATERIALS, owned.observerShowsMaterials() ? "1" : "0");
             UUID selectedUnitId = owned.observerSelectedUnitId();
             if (selectedUnitId != null) {
                 values.put(SELECTED_UNIT_ID, selectedUnitId.toString());
@@ -95,9 +97,11 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
         }
         Optional<UUID> selectedUnitId = selectedUnitId(snapshot);
         MapViewState mapView = mapViewState(snapshot);
+        boolean showMaterials = boundedInt(snapshot.metadata(), SHOW_MATERIALS, 0, 0, 1) == 1;
         NexusSpaceUnitMapScreen screen = new NexusSpaceUnitMapScreen(payload, true, context.stopObserving());
         selectedUnitId.ifPresent(screen::applyObserverSelection);
         screen.applyObserverMapView(mapView.zoom(), mapView.panX(), mapView.panY());
+        screen.applyObserverMaterialView(showMaterials);
         return screen;
     }
 
@@ -189,9 +193,11 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
                 if (!variant.equals(variantFor(payload.interfaceType()))) return;
                 Optional<UUID> selectedUnitId = selectedUnitId(snapshot);
                 MapViewState mapView = mapViewState(snapshot);
+                boolean showMaterials = boundedInt(snapshot.metadata(), SHOW_MATERIALS, 0, 0, 1) == 1;
                 modernMap.applyPayload(payload);
                 selectedUnitId.ifPresent(modernMap::applyObserverSelection);
                 modernMap.applyObserverMapView(mapView.zoom(), mapView.panX(), mapView.panY());
+                modernMap.applyObserverMaterialView(showMaterials);
             } else if (screen instanceof NexusMapScreen legacyMap)
                 legacyMap.apply(decode(snapshot, SpaceUnitMapPayload.CODEC));
             else if (screen instanceof NexusSpaceUnitFriendsScreen modernFriends)

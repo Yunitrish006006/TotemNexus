@@ -20,6 +20,7 @@ class NexusPlayerGuidanceResourceTest {
     private static final Pattern FORMAT_PLACEHOLDER = Pattern.compile("%(?:(\\d+)\\$)?[a-zA-Z]|%%");
     private static final List<String> PRESERVED_SPANISH_IDENTIFIERS = List.of("Nexus", "Space Unit", "MapId", "UUID");
     private static final List<String> REQUIRED_GUIDANCE_KEYS = List.of(
+            "message.totem.space_unit.interface_source_identity",
             "message.totem.space_unit.map_need_bound_interface",
             "message.totem.space_unit.registration_item_changed",
             "message.totem.space_unit.interface.map_source_mismatch",
@@ -51,7 +52,7 @@ class NexusPlayerGuidanceResourceTest {
         JsonObject traditionalChinese = language("zh_tw");
         JsonObject spanish = language("es_es");
 
-        assertEquals(429, english.size(), "The complete English Nexus language surface must remain stable");
+        assertEquals(430, english.size(), "The complete English Nexus language surface must remain stable");
         assertLocaleParity(english, "en_us", traditionalChinese, "zh_tw");
         assertLocaleParity(english, "en_us", spanish, "es_es");
         assertSpanishIdentifiersArePreserved(english, spanish);

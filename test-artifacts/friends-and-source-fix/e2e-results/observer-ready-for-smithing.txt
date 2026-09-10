@@ -1,0 +1,1 @@
+Target may send Smithing Table semantic state through the dedicated server.

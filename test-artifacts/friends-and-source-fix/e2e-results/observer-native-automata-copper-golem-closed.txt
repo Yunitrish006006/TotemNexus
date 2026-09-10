@@ -1,0 +1,1 @@
+Automata Copper Golem semantic view closed after Target close state.

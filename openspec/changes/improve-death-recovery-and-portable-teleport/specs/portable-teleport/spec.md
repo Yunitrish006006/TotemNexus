@@ -1,6 +1,6 @@
 ## ADDED Requirements
 ### Requirement: Portable teleport outside arrays
-A valid compass, recovery compass or Nexus map SHALL allow opening and teleport initiation outside a lodestone's eight-block radius and outside a teleport array. Source position SHALL be the player's server-authoritative position. Being outside an array or having reduced field stability SHALL NOT by itself prohibit teleport. Destination authorization, map coverage, item identity, costs and safe landing SHALL still be enforced.
+A valid compass, recovery compass or Nexus map SHALL allow opening and teleport initiation outside a lodestone's eight-block radius and outside a teleport array. When opened without clicking a lodestone, source position SHALL be the player's server-authoritative position. Clicking an eligible lodestone with the interface SHALL instead establish that lodestone as the source; previewing materials SHALL NOT replace the established teleport source. Being outside an array or having reduced field stability SHALL NOT by itself prohibit teleport. Destination authorization, map coverage, item identity, costs and safe landing SHALL still be enforced.
 #### Scenario: Field teleport
 - **WHEN** a player holds an eligible interface in the wilderness with an authorized target and sufficient resources
 - **THEN** the player can teleport with the displayed lower field stability
