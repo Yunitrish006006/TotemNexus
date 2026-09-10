@@ -31,7 +31,7 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
     private static final String MAP_PAN_Y = "map_pan_y";
 
     @Override public String familyId() { return "nexus"; }
-    @Override public int protocolVersion() { return 3; }
+    @Override public int protocolVersion() { return 4; }
     @Override public Set<String> variants() { return VARIANTS; }
 
     @Override public Optional<ObserverScreenSnapshot> capture(Screen screen, long sequence) {
@@ -131,9 +131,17 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
             return MapViewState.DEFAULT;
         }
         return new MapViewState(
-                boundedInt(snapshot.metadata(), MAP_ZOOM, 1, 1, 4),
+                boundedMapZoom(snapshot.metadata()),
                 boundedInt(snapshot.metadata(), MAP_PAN_X, 0, -4096, 4096),
                 boundedInt(snapshot.metadata(), MAP_PAN_Y, 0, -4096, 4096));
+    }
+
+    private static int boundedMapZoom(Map<String, String> metadata) {
+        int zoom = boundedInt(metadata, MAP_ZOOM, 1, 1, 16);
+        if ((zoom & (zoom - 1)) != 0) {
+            throw new IllegalArgumentException("Nexus Observer map zoom must be a power of two");
+        }
+        return zoom;
     }
 
     private static int boundedInt(
