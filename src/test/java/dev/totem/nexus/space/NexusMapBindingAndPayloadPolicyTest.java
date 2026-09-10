@@ -62,10 +62,10 @@ class NexusMapBindingAndPayloadPolicyTest {
         MapId scaleOneId = new MapId(21);
         MapId lockedId = new MapId(22);
         MapId scaleTwoId = new MapId(23);
-        MapItemSavedData scaleZero = MapItemSavedData.createFresh(0, 0, (byte) 0, false, false, Level.OVERWORLD);
-        MapItemSavedData scaleOne = MapItemSavedData.createFresh(0, 0, (byte) 1, false, false, Level.OVERWORLD);
+        MapItemSavedData scaleZero = exactMap((byte) 0);
+        MapItemSavedData scaleOne = exactMap((byte) 1);
         MapItemSavedData locked = scaleOne.locked();
-        MapItemSavedData scaleTwo = MapItemSavedData.createFresh(0, 0, (byte) 2, false, false, Level.OVERWORLD);
+        MapItemSavedData scaleTwo = exactMap((byte) 2);
         NexusMapBindingSavedData bindings = new NexusMapBindingSavedData();
 
         assertTrue(bindings.bind(scaleZeroId, unitId, global, scaleZero));
@@ -111,8 +111,8 @@ class NexusMapBindingAndPayloadPolicyTest {
 
         NexusMapBindingSavedData bindings = new NexusMapBindingSavedData();
         MapId sourceId = new MapId(41);
-        MapItemSavedData source = MapItemSavedData.createFresh(0, 0, (byte) 0, false, false, Level.OVERWORLD);
-        MapItemSavedData skippedScale = MapItemSavedData.createFresh(0, 0, (byte) 2, false, false, Level.OVERWORLD);
+        MapItemSavedData source = exactMap((byte) 0);
+        MapItemSavedData skippedScale = exactMap((byte) 2);
         assertTrue(bindings.bind(sourceId, unitId, anchor, source));
         assertFalse(bindings.derive(sourceId, source, new MapId(42), skippedScale));
     }
@@ -143,6 +143,25 @@ class NexusMapBindingAndPayloadPolicyTest {
                 TeleportInterfaceType.FILLED_MAP, sourceId, authorized, mapData));
         assertTrue(NexusInterfacePayloadPolicy.selectAuthorizedUnits(
                 TeleportInterfaceType.FILLED_MAP, sourceId, authorized, null).isEmpty());
+    }
+
+    /** Plain JUnit does not apply the constructor invoker mixin; reflect the same exact-center constructor. */
+    private static MapItemSavedData exactMap(byte scale) {
+        try {
+            var constructor = MapItemSavedData.class.getDeclaredConstructor(
+                    int.class,
+                    int.class,
+                    byte.class,
+                    boolean.class,
+                    boolean.class,
+                    boolean.class,
+                    net.minecraft.resources.ResourceKey.class
+            );
+            constructor.setAccessible(true);
+            return constructor.newInstance(0, 0, scale, false, false, false, Level.OVERWORLD);
+        } catch (ReflectiveOperationException failure) {
+            throw new AssertionError("Unable to create exact-centered Nexus map fixture", failure);
+        }
     }
 
     private static NexusSpaceUnitRecord unit(
