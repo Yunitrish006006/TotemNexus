@@ -29,7 +29,9 @@ Every resolved ancestor remains untrusted until its own binding and `MapItemSave
 
 ### Synchronize only proven ancestor vanilla maps
 
-When opening a valid filled-map interface, the server continues to send the current map's vanilla update packet and additionally sends update packets for validated lineage MapIds that exist in server map storage. Pixel data remains in vanilla map packets and never enters `SpaceUnitMapPayload` or Observer snapshots. The Nexus payload carries only bounded ancestor MapIds needed to identify locally cached layers.
+The existing interface-open path continues to synchronize the current filled map through Mojang's normal map-data packet before opening the Screen. Once the owning production Screen exists, it requests historical detail for that exact MapId. The server re-resolves the player's actual held interface, validates the requested current binding, validates every recorded ancestor independently, sends vanilla map-data packets for the accepted maps, and then returns a bounded `NexusMapDetailPayload` containing only their MapIds.
+
+Pixel data remains exclusively in vanilla map packets and never enters `SpaceUnitMapPayload`, `NexusMapDetailPayload`, or Observer snapshots. An Observer reconstruction does not issue the owner-only detail request.
 
 ### Use world-coordinate composition instead of scaling one texture
 
@@ -39,24 +41,27 @@ Zoom is expressed as a power-of-two factor. At factor `2^n`, the viewport can re
 
 ### Separate terrain composition from Nexus/player overlays
 
-Multi-layer terrain rendering must not duplicate decorations. Terrain layers are rendered from transient copies with decorations removed. Nexus destination markers, selected-target state, labels, and the local-player marker are rendered once using the current viewport world transform.
+Multi-layer terrain rendering must not duplicate decorations. Terrain layers are rendered with decorations removed from their submitted render states. Nexus destination markers, selected-target state, labels, and the local-player marker are rendered once using the current viewport world transform.
 
 The local player marker is added only on the owning production Screen, only when the client player is in the map dimension, and only when the player lies within the current map's bounded coverage. It uses the vanilla player decoration visual and current yaw but is never written back to cached/persisted `MapItemSavedData`.
 
 ### Observer keeps semantic viewport state but no owner position
 
-The map Observer variant continues to reconstruct the production Screen and receives only semantic selection/viewport state plus the existing payload. Since zoom semantics change, the provider protocol is incremented. Observer read-only rendering must not create a player marker from the observer client's own `Minecraft.player`; owner-player position is omitted unless a later approved protocol explicitly adds a privacy-reviewed semantic field.
+The map Observer variant continues to reconstruct the production Screen and receives only semantic selection/viewport state plus the existing payload. Since zoom semantics change, the Nexus provider protocol is incremented to 4. Observer read-only rendering must not create a player marker from the observer client's own `Minecraft.player`; owner-player position is omitted unless a later approved protocol explicitly adds a privacy-reviewed semantic field.
+
+The companion VanillaTweaks relay may negotiate both released Nexus protocol 3 and detail-aware protocol 4, but each relayed snapshot is still accepted only by a provider advertising that exact protocol. This preserves released clients without interpreting protocol-4 zoom state as protocol 3.
 
 ## Risks / Trade-offs
 
-- Extra vanilla map update packets on Screen open increase one-time bandwidth by at most the bounded lineage depth (vanilla scales 0–4). Mitigation: maximum four ancestors and only validated existing maps are sent.
+- Extra vanilla map update packets are requested only while an owning map Screen is open and are bounded by the vanilla lineage depth (scales 0–4). Mitigation: maximum four ancestors and only validated existing maps are sent.
 - Legacy expanded maps have no recoverable lineage proof. Mitigation: preserve their current behavior; the next valid SCALE begins a provable chain from that source forward.
-- Rendering several MapRenderStates can duplicate or obscure decorations. Mitigation: terrain copies contain colors only; overlays render exactly once after all terrain layers.
-- A missing client ancestor cache can temporarily reduce restored detail. Mitigation: coarse current map is always complete fallback and normal vanilla packets are sent before the Nexus Screen payload.
+- Rendering several MapRenderStates can duplicate or obscure decorations. Mitigation: terrain render states contain no decorations; overlays render exactly once after all terrain layers.
+- A missing client ancestor cache can temporarily reduce restored detail. Mitigation: the current map is always the complete coarse fallback; the owner can zoom only to compatible detail already approved and present in the client cache.
 
 ## Migration Plan
 
 1. Decode existing binding entries with empty ancestry.
 2. Start recording ancestry on new SCALE/LOCK derivations without rewriting old worlds.
 3. Keep current MapId validation unchanged; invalid ancestry is ignored independently.
-4. If the feature must be rolled back, older code can ignore the new optional SavedData field while current MapIds and item bindings remain valid.
+4. Release the companion relay change with protocol-3 and protocol-4 compatibility before treating protocol 4 as generally observable across clients.
+5. If the detail feature is rolled back, current MapIds and item bindings remain valid; the optional lineage field is not an authorization source.
