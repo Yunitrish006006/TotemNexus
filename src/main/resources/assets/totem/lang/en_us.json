@@ -90,7 +90,7 @@
   "message.totem.space_unit.access_owner_only": "Only the owner can update administrators",
   "message.totem.space_unit.access_owner_target": "Cannot update the owner in access lists",
   "message.totem.space_unit.access_player": "Online player name",
-  "message.totem.space_unit.access_player_missing": "Access update failed: %s is not online",
+  "message.totem.space_unit.access_player_missing": "No previously joined player matches %s.",
   "message.totem.space_unit.access_remove": "Remove",
   "message.totem.space_unit.access_revoked": "revoked",
   "message.totem.space_unit.access_role.administrator": "administrator",
@@ -428,5 +428,10 @@
   "book.totem.nexus_diagram.owner_admin": "Repair: owner/admin",
   "container.totem.space_unit.recovery_compass": "Nexus Recovery Compass",
   "book.totem.nexus_teleport_manual.page.25": "§lPortable teleport§r\nCompasses and Nexus maps start at your position, even outside arrays. Stand inside a constructed array for extra stability and material bonuses. Map destinations still require painted coverage.",
-  "book.totem.nexus_teleport_manual.page.26": "§lBackpack recovery§r\nArrival follows the backpack: preferably 2–4 blocks away, at most 6, with a short walk. Your own recovery grants Phasing: Weakness, Night Vision, Invisibility and Resistance. Pickup ends it after 3s. Combat, another teleport, invalidation, death or logout cancel it."
+  "book.totem.nexus_teleport_manual.page.26": "§lBackpack recovery§r\nArrival follows the backpack: preferably 2–4 blocks away, at most 6, with a short walk. Your own recovery grants Phasing: Weakness, Night Vision, Invisibility and Resistance. Pickup ends it after 3s. Combat, another teleport, invalidation, death or logout cancel it.",
+  "message.totem.space_unit.access_search": "Search players",
+  "message.totem.space_unit.access_search_button": "Search",
+  "message.totem.space_unit.access_online": "Online",
+  "message.totem.space_unit.access_offline": "Offline",
+  "message.totem.space_unit.access_no_players": "No matching players"
 }

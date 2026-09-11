@@ -651,6 +651,30 @@ public final class NexusSpaceUnitAuthority {
                 ));
     }
 
+    public static Optional<dev.totem.nexus.network.AccessPlayersPayload> accessPlayers(
+            ServerPlayer player, dev.totem.nexus.network.RequestAccessPlayersPayload request) {
+        if (request.page() < 0 || request.requestId() < 0 || request.query().length() > 64
+                || !Set.of(ACCESS_ROLE_ADMINISTRATOR, ACCESS_ROLE_ALLOWED).contains(request.role())
+                || !requireManagementCapability(player, request.sourceType(), request.sourceId())
+                || resolveMapSource(player, request.sourceType(), request.sourceId(), true).isEmpty()) return Optional.empty();
+        var target = resolveManageableLodestone(player, request.targetId(),
+                Component.translatable("message.totem.space_unit.manage_missing"),
+                Component.translatable("message.totem.space_unit.manage_too_far"),
+                Component.translatable("message.totem.space_unit.manage_unloaded"));
+        if (target.isEmpty()) return Optional.empty();
+        var unit = target.get().unit();
+        if (ACCESS_ROLE_ADMINISTRATOR.equals(request.role()) && !unit.owner().equals(player.getUUID())) return Optional.empty();
+        var server = player.level().getServer();
+        var page = dev.totem.core.api.v1.player.TotemPlayerDirectoryApi.search(server, request.query(), request.page(),
+                dev.totem.nexus.network.AccessPlayersPayload.PAGE_SIZE, Set.of(unit.owner()));
+        var members = ACCESS_ROLE_ADMINISTRATOR.equals(request.role()) ? unit.administrators() : unit.allowedPlayers();
+        var entries = page.players().stream()
+                .map(p -> new dev.totem.nexus.network.AccessPlayersPayload.Entry(p.id(), p.name(),
+                        p.online(), members.contains(p.id()))).toList();
+        return Optional.of(new dev.totem.nexus.network.AccessPlayersPayload(request.sourceType(), request.sourceId(),
+                request.targetId(), request.role(), page.page(), page.totalPages(), request.requestId(), entries));
+    }
+
     public static void setLodestoneAccess(
             ServerPlayer player,
             String sourceType,
@@ -680,7 +704,7 @@ public final class NexusSpaceUnitAuthority {
             return;
         }
 
-        ServerPlayer targetPlayer = findOnlinePlayer(server, normalizedPlayerName);
+        var targetPlayer = dev.totem.core.api.v1.player.TotemPlayerDirectoryApi.find(server, normalizedPlayerName).orElse(null);
         if (targetPlayer == null) {
             notify(player, Component.translatable("message.totem.space_unit.access_player_missing", normalizedPlayerName));
             return;
@@ -699,7 +723,7 @@ public final class NexusSpaceUnitAuthority {
         }
 
         NexusSpaceUnitRecord previous = target.get().unit();
-        if (previous.owner().equals(targetPlayer.getUUID())) {
+        if (previous.owner().equals(targetPlayer.id())) {
             notify(player, Component.translatable("message.totem.space_unit.access_owner_target"));
             return;
         }
@@ -713,7 +737,7 @@ public final class NexusSpaceUnitAuthority {
             updated = units.setLodestoneAdministrator(
                     previous.id(),
                     player.getUUID(),
-                    targetPlayer.getUUID(),
+                    targetPlayer.id(),
                     enabled,
                     target.get().level().getGameTime()
             );
@@ -721,7 +745,7 @@ public final class NexusSpaceUnitAuthority {
             updated = units.setLodestoneAllowedPlayer(
                     previous.id(),
                     player.getUUID(),
-                    targetPlayer.getUUID(),
+                    targetPlayer.id(),
                     enabled,
                     target.get().level().getGameTime()
             );
@@ -734,7 +758,7 @@ public final class NexusSpaceUnitAuthority {
 
         notify(player, Component.translatable(
                 "message.totem.space_unit.access_updated",
-                targetPlayer.getName(),
+                Component.literal(targetPlayer.name()),
                 Component.translatable("message.totem.space_unit.access_role." + normalizedRole),
                 Component.translatable(enabled
                         ? "message.totem.space_unit.access_granted"
@@ -3048,15 +3072,6 @@ public final class NexusSpaceUnitAuthority {
             notify(player, Component.translatable("message.totem.space_unit.no_permission"));
         }
         return valid;
-    }
-
-    private static ServerPlayer findOnlinePlayer(MinecraftServer server, String playerName) {
-        for (ServerPlayer candidate : server.getPlayerList().getPlayers()) {
-            if (candidate.getName().getString().equalsIgnoreCase(playerName)) {
-                return candidate;
-            }
-        }
-        return null;
     }
 
     private static void notify(Player player, Component message) {

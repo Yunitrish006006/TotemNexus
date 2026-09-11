@@ -31,7 +31,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Yunitrish006006/TotemCore
-          ref: 8573f7239e7faf6664a5c3ece58d79957f89a1bb
+          # Reviewed Core 0.7.20 player-directory API.
+          ref: 4505daae86caa2bd8b06d22361e65ef103e7aba1
           path: .lockstep/TotemCore
           persist-credentials: false
 
@@ -42,7 +43,7 @@ jobs:
           chmod +x .lockstep/TotemCore/gradlew
           ./.lockstep/TotemCore/gradlew -p .lockstep/TotemCore jar --no-daemon --stacktrace
           core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
-          test "$core_version" = '0.7.19'
+          test "$core_version" = '0.7.20'
           test -f ".lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
 
       - name: Compile Nexus and tests

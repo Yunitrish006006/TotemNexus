@@ -4,28 +4,38 @@ TotemNexus 是 Totem 系列的 Space Unit、好友、地圖、安全傳送、死
 與分散出生點模組。所有座標、權限、成本與安全落點都由 Server 重新
 驗證，Client 只顯示經過篩選的資訊。
 
-目前開發版本為 **0.3.19**，需要 TotemCore **0.7.19 以上、0.8.0 以下**。
+目前開發版本為 **0.3.21**，需要 TotemCore **0.7.20 以上、0.8.0 以下**。
 
 ## 安裝
 
 Client 與 Server 都放入：
 
 1. Fabric API `0.154.2+26.2`
-2. TotemCore `>=0.7.19 <0.8.0`
-3. TotemNexus `0.3.19`
+2. TotemCore `>=0.7.20 <0.8.0`
+3. TotemNexus `0.3.21`
 
 | 項目 | 需求 |
 | --- | --- |
 | Minecraft | 26.2 |
 | Fabric Loader | 0.19.3+ |
 | Java | 25+ |
-| 必要 Totem 模組 | `totem-core >=0.7.19 <0.8.0` |
+| 必要 Totem 模組 | `totem-core >=0.7.20 <0.8.0` |
 | 選配 | TotemRemnant（死亡背包 ↔ Death Node 整合） |
 
 Nexus standalone 不要求舊整合包、Remnant 或 Discord Bridge。舊整合 JAR
 不應再與獨立 TotemNexus 並用。
 
-## 開發中：近距離救援與隨身傳送
+## 0.3.21 更新（待發布）
+
+- 管理員／允許玩家可從曾進入世界的玩家中搜尋與選擇，支援離線授權與移除。名單、搜尋及持久化由 Core 0.7.20 共用玩家目錄提供。
+- 選擇畫面顯示在線狀態及 UUID 識別；Observer 使用同一正式畫面的唯讀投影，不傳送搜尋輸入。
+
+- 地圖以 1×、2×、4× 等倍率縮放，疊加伺服器驗證過的歷史地圖細節；最細以原版 scale 0 為限。
+- 舊地圖沒有保存的祖先資料時沿用現有地形，不推測或生成未探索細節。
+- 顯示使用者自己的即時玩家標記；平移、目的地標記與點選保持對齊。
+- Nexus Observer 使用 protocol 4，由獨立 TotemObserver 協調；不傳地圖像素，也不把觀看者的位置代入目標畫面。
+
+## 近距離救援與隨身傳送
 
 需要 TotemCore 0.7.19 以上；Nexus 0.3.19 與 Remnant 0.2.24 共同提供移動背包追蹤。
 

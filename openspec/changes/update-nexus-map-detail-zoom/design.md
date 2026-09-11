@@ -49,7 +49,7 @@ The local player marker is added only on the owning production Screen, only when
 
 The map Observer variant continues to reconstruct the production Screen and receives only semantic selection/viewport state plus the existing payload. Since zoom semantics change, the Nexus provider protocol is incremented to 4. Observer read-only rendering must not create a player marker from the observer client's own `Minecraft.player`; owner-player position is omitted unless a later approved protocol explicitly adds a privacy-reviewed semantic field.
 
-The companion VanillaTweaks relay may negotiate both released Nexus protocol 3 and detail-aware protocol 4, but each relayed snapshot is still accepted only by a provider advertising that exact protocol. This preserves released clients without interpreting protocol-4 zoom state as protocol 3.
+The extracted TotemObserver relay negotiates both released Nexus protocol 3 and detail-aware protocol 4 through generic provider advertisements, but each relayed snapshot is still accepted only by a provider advertising that exact protocol. This preserves matching released clients without interpreting protocol-4 zoom state as protocol 3. TotemVanillaTweaks no longer owns this runtime; the post-extraction pairing evidence is recorded in `evidence.md`.
 
 ## Risks / Trade-offs
 
@@ -63,5 +63,5 @@ The companion VanillaTweaks relay may negotiate both released Nexus protocol 3 a
 1. Decode existing binding entries with empty ancestry.
 2. Start recording ancestry on new SCALE/LOCK derivations without rewriting old worlds.
 3. Keep current MapId validation unchanged; invalid ancestry is ignored independently.
-4. Release the companion relay change with protocol-3 and protocol-4 compatibility before treating protocol 4 as generally observable across clients.
+4. Verify protocol 4 against the extracted TotemObserver relay before release; no Nexus-specific relay change is required. Target and Observer must advertise the same Nexus protocol.
 5. If the detail feature is rolled back, current MapIds and item bindings remain valid; the optional lineage field is not an authorization source.

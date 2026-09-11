@@ -41,5 +41,11 @@
   "book.totem.nexus_specialist.metrics.precision": "Prec %s  Bloq %s",
   "book.totem.nexus_specialist.metrics.speed": "Velocidad %s  Rec %s",
   "book.totem.nexus_specialist.metrics.efficiency": "Comida %s  Mant %s",
-  "book.totem.nexus_specialist.metrics.cross_dimension": "Cat %s  Afin %s"
+  "book.totem.nexus_specialist.metrics.cross_dimension": "Cat %s  Afin %s",
+  "message.totem.space_unit.access_search": "Buscar jugadores",
+  "message.totem.space_unit.access_search_button": "Buscar",
+  "message.totem.space_unit.access_online": "En línea",
+  "message.totem.space_unit.access_offline": "Desconectado",
+  "message.totem.space_unit.access_no_players": "No hay jugadores coincidentes",
+  "message.totem.space_unit.access_player_missing": "No se encontró un jugador que haya entrado antes: %s."
 }

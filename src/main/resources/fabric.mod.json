@@ -6,19 +6,26 @@
   "icon": "assets/totem-nexus/icon.png",
   "environment": "*",
   "entrypoints": {
-    "main": ["dev.totem.nexus.TotemNexus"],
-    "client": ["dev.totem.nexus.client.TotemNexusClient"],
+    "main": [
+      "dev.totem.nexus.TotemNexus"
+    ],
+    "client": [
+      "dev.totem.nexus.client.TotemNexusClient"
+    ],
     "totem:observer_screen_provider": [
       "dev.totem.nexus.client.NexusObserverScreenProvider",
-      "dev.totem.nexus.client.NexusDeathAdminObserverScreenProvider"
+      "dev.totem.nexus.client.NexusDeathAdminObserverScreenProvider",
+      "dev.totem.nexus.client.NexusAccessObserverScreenProvider"
     ]
   },
-  "mixins": ["totem-nexus.mixins.json"],
+  "mixins": [
+    "totem-nexus.mixins.json"
+  ],
   "depends": {
     "fabricloader": ">=0.19.3",
     "fabric-api": "*",
     "minecraft": "~26.2",
     "java": ">=25",
-    "totem-core": ">=0.7.19 <0.8.0"
+    "totem-core": ">=0.7.20 <0.8.0"
   }
 }

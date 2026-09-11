@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"totem-nexus-access-e2e","version":"1.0.0","environment":"*","entrypoints":{"main":["dev.totem.nexus.space.NexusAccessE2eServer"],"client":["dev.totem.nexus.client.NexusAccessE2eClient"]},"depends":{"totem-nexus":"*","totem-observer":"*"}}

@@ -90,7 +90,7 @@
   "message.totem.space_unit.access_owner_only": "Solo el propietario puede actualizar administradores",
   "message.totem.space_unit.access_owner_target": "No se puede actualizar al propietario en las listas de acceso",
   "message.totem.space_unit.access_player": "Nombre de jugador conectado",
-  "message.totem.space_unit.access_player_missing": "La actualización de acceso falló: %s no está conectado",
+  "message.totem.space_unit.access_player_missing": "No se encontró un jugador que haya entrado antes: %s.",
   "message.totem.space_unit.access_remove": "Quitar",
   "message.totem.space_unit.access_revoked": "revocado",
   "message.totem.space_unit.access_role.administrator": "administrador",
@@ -428,5 +428,10 @@
   "book.totem.nexus_diagram.owner_admin": "Reparar: propietario/admin.",
   "container.totem.space_unit.recovery_compass": "Brújula de recuperación Nexus",
   "book.totem.nexus_teleport_manual.page.25": "§lTeletransporte portátil§r\nLas brújulas y mapas Nexus parten de tu posición, incluso fuera de estructuras. Dentro de una estructura construida obtienes estabilidad y bonificaciones de materiales. Los destinos del mapa requieren cobertura dibujada.",
-  "book.totem.nexus_teleport_manual.page.26": "§lRecuperar la mochila§r\nLa llegada sigue la mochila, normalmente a 2–4 bloques y nunca a más de 6, con un camino corto. Recuperar la tuya otorga Desvanecimiento: debilidad, visión nocturna, invisibilidad y resistencia. Termina 3s tras recogerla; combate, otro viaje, muerte o desconexión lo cancelan."
+  "book.totem.nexus_teleport_manual.page.26": "§lRecuperar la mochila§r\nLa llegada sigue la mochila, normalmente a 2–4 bloques y nunca a más de 6, con un camino corto. Recuperar la tuya otorga Desvanecimiento: debilidad, visión nocturna, invisibilidad y resistencia. Termina 3s tras recogerla; combate, otro viaje, muerte o desconexión lo cancelan.",
+  "message.totem.space_unit.access_search": "Buscar jugadores",
+  "message.totem.space_unit.access_search_button": "Buscar",
+  "message.totem.space_unit.access_online": "En línea",
+  "message.totem.space_unit.access_offline": "Desconectado",
+  "message.totem.space_unit.access_no_players": "No hay jugadores coincidentes"
 }

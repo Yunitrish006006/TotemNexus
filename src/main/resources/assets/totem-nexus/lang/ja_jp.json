@@ -27,7 +27,6 @@
   "message.totem.space_unit.material_reference.load": "経路負荷 %s",
   "message.totem.space_unit.material_reference.catalyst": "次元間触媒 %s",
   "message.totem.space_unit.material_reference.affinity": "次元親和性: %s",
-
   "book.totem.nexus_teleport_manual.page.19": "§l専門素材: 基幹§r\n長期運用向けに、容量・安定性・耐摩耗性を評価します。",
   "book.totem.nexus_teleport_manual.page.20": "§l専門素材: 拡張§r\n到達範囲を重視し、容量と安定性も補助として評価します。",
   "book.totem.nexus_teleport_manual.page.21": "§l専門素材: 精密§r\n到着精度と目標固定を両立する素材を評価します。",
@@ -42,5 +41,11 @@
   "book.totem.nexus_specialist.metrics.precision": "精%s  固%s",
   "book.totem.nexus_specialist.metrics.speed": "速%s  CD%s",
   "book.totem.nexus_specialist.metrics.efficiency": "食%s  保%s",
-  "book.totem.nexus_specialist.metrics.cross_dimension": "触%s  親%s"
+  "book.totem.nexus_specialist.metrics.cross_dimension": "触%s  親%s",
+  "message.totem.space_unit.access_search": "参加したプレイヤーを検索",
+  "message.totem.space_unit.access_search_button": "検索",
+  "message.totem.space_unit.access_online": "オンライン",
+  "message.totem.space_unit.access_offline": "オフライン",
+  "message.totem.space_unit.access_no_players": "該当するプレイヤーはいません",
+  "message.totem.space_unit.access_player_missing": "参加したことのあるプレイヤーが見つかりません：%s。"
 }

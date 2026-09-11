@@ -18,7 +18,8 @@
       "dev.totem.nexus.space.NexusTeleportManualGameTest",
       "dev.totem.nexus.space.TeleportArrayMaterialScanGameTest",
       "dev.totem.nexus.space.TeleportArrayMaterialCombinationGameTest",
-      "dev.totem.nexus.space.TeleportRouteReservationGameTest"
+      "dev.totem.nexus.space.TeleportRouteReservationGameTest",
+      "dev.totem.nexus.space.NexusOfflineAccessGameTest"
     ],
     "fabric-client-gametest": [
       "dev.totem.nexus.client.NexusPhasingVisualGameTest",

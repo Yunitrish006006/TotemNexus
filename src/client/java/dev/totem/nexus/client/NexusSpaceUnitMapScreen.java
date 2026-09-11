@@ -669,7 +669,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             return;
         }
 
-        this.minecraft.setScreenAndShow(new AccessSpaceUnitScreen(selected, role));
+        this.minecraft.setScreenAndShow(new NexusAccessScreen(this, this.payload.sourceType(), this.payload.sourceUnitId(), selected.id(), role));
     }
 
     private void openFriendManagement() {
@@ -2766,74 +2766,4 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         }
     }
 
-    private class AccessSpaceUnitScreen extends Screen {
-        private final UUID targetUnitId;
-        private final String role;
-        private EditBox playerNameField;
-
-        private AccessSpaceUnitScreen(SpaceUnitMapPayload.Entry target, String role) {
-            super(Component.translatable("message.totem.space_unit.access_title." + role));
-            this.targetUnitId = target.id();
-            this.role = role;
-        }
-
-        @Override
-        protected void init() {
-            int dialogWidth = 280;
-            int dialogHeight = 116;
-            int x = (this.width - dialogWidth) / 2;
-            int y = (this.height - dialogHeight) / 2;
-
-            this.playerNameField = new EditBox(this.font, x + 12, y + 42, dialogWidth - 24, 18,
-                    Component.translatable("message.totem.space_unit.access_player"));
-            this.playerNameField.setMaxLength(MAX_ACCESS_PLAYER_NAME_LENGTH);
-            this.addRenderableWidget(this.playerNameField);
-
-            this.addRenderableWidget(Button.builder(
-                            Component.translatable("message.totem.space_unit.access_add"),
-                            button -> submit(true))
-                    .bounds(x + dialogWidth - 184, y + dialogHeight - 28, 52, 18)
-                    .build());
-            this.addRenderableWidget(Button.builder(
-                            Component.translatable("message.totem.space_unit.access_remove"),
-                            button -> submit(false))
-                    .bounds(x + dialogWidth - 126, y + dialogHeight - 28, 58, 18)
-                    .build());
-            this.addRenderableWidget(Button.builder(
-                            Component.translatable("gui.cancel"),
-                            button -> this.onClose())
-                    .bounds(x + dialogWidth - 62, y + dialogHeight - 28, 50, 18)
-                    .build());
-        }
-
-        @Override
-        public void extractBackground(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
-            extractor.fill(0, 0, this.width, this.height, 0xB0000000);
-        }
-
-        @Override
-        public void extractRenderState(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
-            int dialogWidth = 280;
-            int dialogHeight = 116;
-            int x = (this.width - dialogWidth) / 2;
-            int y = (this.height - dialogHeight) / 2;
-            extractor.fill(x, y, x + dialogWidth, y + dialogHeight, 0xF016191D);
-            extractor.outline(x, y, dialogWidth, dialogHeight, 0xFF657383);
-            extractor.text(this.font, this.title, x + 12, y + 10, 0xFFFFFFFF);
-            extractor.text(this.font, Component.translatable("message.totem.space_unit.access_player"), x + 12, y + 30, 0xFFB8C0C8);
-            super.extractRenderState(extractor, mouseX, mouseY, partialTick);
-        }
-
-        @Override
-        public void onClose() {
-            if (this.minecraft != null) {
-                this.minecraft.setScreenAndShow(NexusSpaceUnitMapScreen.this);
-            }
-        }
-
-        private void submit(boolean enabled) {
-            sendAccessUpdate(this.targetUnitId, this.role, this.playerNameField.getValue(), enabled);
-            onClose();
-        }
-    }
 }

@@ -46,3 +46,12 @@
 ## Release-gate status
 
 All feature-specific release gates requested by this change have executable PASS evidence: strict OpenSpec validation, Nexus compile/JUnit, server and client GameTests, restored-detail zoom and pan/selection behavior, transient player-marker and Observer-suppression assertions, legacy Observer compatibility evidence, and a dedicated **post-extraction TotemObserver** feature Nexus protocol-4 three-JVM pairing. Temporary one-off workflows used only to obtain release evidence were removed or reset after success.
+
+## 2026-09-11 release preparation
+
+- Merged feature source `02e8a4f83fce10a0b6d05303685dd26c9172a93e` passed [Build 34564253240](https://github.com/Yunitrish006006/TotemNexus/actions/runs/34564253240).
+- Prepared version 0.3.21 because 0.3.20 was already published before the map-detail change. Updated current-version README guidance and added `.github/staging/modrinth-changelog-0.3.21.md`.
+- Local Java 25 / TotemCore 0.7.19 `test assemble`: PASS, 94 tests, no failures/errors/skips. Verified the built `totem-nexus-0.3.21.jar` declares `totem-nexus` version `0.3.21`.
+- `openspec validate update-nexus-map-detail-zoom --strict --no-interactive`: PASS after correcting the companion-owner documentation.
+- Independent read-only review of the release preparation and Observer ownership wording: no remaining findings.
+- This preparation changes version metadata and documentation only. Existing feature runtime evidence above remains applicable; no publication was performed as part of this preparation.

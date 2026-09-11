@@ -52,7 +52,7 @@ class NexusPlayerGuidanceResourceTest {
         JsonObject traditionalChinese = language("zh_tw");
         JsonObject spanish = language("es_es");
 
-        assertEquals(430, english.size(), "The complete English Nexus language surface must remain stable");
+        assertEquals(435, english.size(), "The complete English Nexus language surface must remain stable");
         assertLocaleParity(english, "en_us", traditionalChinese, "zh_tw");
         assertLocaleParity(english, "en_us", spanish, "es_es");
         assertSpanishIdentifiersArePreserved(english, spanish);

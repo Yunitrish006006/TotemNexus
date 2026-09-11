@@ -90,7 +90,7 @@
   "message.totem.space_unit.access_owner_only": "管理者を更新できるのは所有者のみです",
   "message.totem.space_unit.access_owner_target": "アクセスリスト内の所有者は更新できません",
   "message.totem.space_unit.access_player": "オンラインのプレイヤー名",
-  "message.totem.space_unit.access_player_missing": "アクセス更新に失敗しました: %s はオンラインではありません",
+  "message.totem.space_unit.access_player_missing": "参加したことのあるプレイヤーが見つかりません：%s。",
   "message.totem.space_unit.access_remove": "削除",
   "message.totem.space_unit.access_revoked": "取り消し済み",
   "message.totem.space_unit.access_role.administrator": "管理者",
@@ -425,5 +425,10 @@
   "book.totem.nexus_diagram.recovery": "回復 1～30 秒",
   "book.totem.nexus_diagram.load_slots_short": "負荷 1～8",
   "book.totem.nexus_diagram.recovery_short": "1～30 秒",
-  "book.totem.nexus_diagram.owner_admin": "修理: 所有者/管理者"
+  "book.totem.nexus_diagram.owner_admin": "修理: 所有者/管理者",
+  "message.totem.space_unit.access_search": "参加したプレイヤーを検索",
+  "message.totem.space_unit.access_search_button": "検索",
+  "message.totem.space_unit.access_online": "オンライン",
+  "message.totem.space_unit.access_offline": "オフライン",
+  "message.totem.space_unit.access_no_players": "該当するプレイヤーはいません"
 }

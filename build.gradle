@@ -9,7 +9,7 @@ group = project.maven_group
 base { archivesName = project.archives_base_name }
 
 def totemCoreJar = file(providers.gradleProperty('totemCoreJar')
-        .getOrElse('../TotemCore/build/libs/totem-core-0.7.19.jar'))
+        .getOrElse('../TotemCore/build/libs/totem-core-0.7.20.jar'))
 
 loom {
     splitEnvironmentSourceSets()
@@ -273,5 +273,40 @@ tasks.named('jar', Jar) {
                 archive.toPath(),
                 java.nio.file.StandardCopyOption.REPLACE_EXISTING
         )
+    }
+}
+
+// Dedicated server + two real clients for the access picker and generic Observer provider.
+sourceSets {
+    accessE2e {
+        compileClasspath += sourceSets.main.output + sourceSets.client.output + sourceSets.client.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.client.output + sourceSets.client.runtimeClasspath
+    }
+}
+def accessObserverJar = file(providers.gradleProperty('accessObserverJar')
+        .getOrElse('../TotemObserver/build/libs/totem-observer-0.1.0.jar'))
+sourceSets.accessE2e.runtimeClasspath += files(accessObserverJar)
+loom {
+    mods { 'totem-nexus-access-e2e' { sourceSet sourceSets.accessE2e } }
+    runs {
+        accessE2eServer {
+            server(); source sourceSets.accessE2e; runDir 'build/access-e2e/server'
+            vmArg "-Dnexus.access.e2e.results=${file('build/access-e2e/results').absolutePath}"
+        }
+        accessE2eClient {
+            client(); source sourceSets.accessE2e; runDir 'build/access-e2e/target'
+            vmArg "-Dnexus.access.e2e.results=${file('build/access-e2e/results').absolutePath}"
+        }
+    }
+}
+tasks.register('prepareAccessE2e') {
+    dependsOn('accessE2eClasses', 'configureClientLaunch', 'configureLaunch', 'normalizeFabricApiTweakersForNamedDevRuntime')
+    doLast {
+        if (!accessObserverJar.isFile()) throw new GradleException("Missing Observer jar: ${accessObserverJar}")
+        def dir = file('build/access-e2e'); dir.mkdirs()
+        def cp = tasks.named('runAccessE2eClient').get().classpath.asPath.replace('\\','\\\\').replace('"','\\"')
+        new File(dir,'client.args').text = "-classpath\n\"${cp}\"\n"
+        def serverCp = tasks.named('runAccessE2eServer').get().classpath.asPath.replace('\\','\\\\').replace('"','\\"')
+        new File(dir,'server.args').text = "-classpath\n\"${serverCp}\"\n"
     }
 }

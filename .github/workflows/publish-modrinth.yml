@@ -1,11 +1,6 @@
 name: Publish Modrinth
 
 on:
-  push:
-    branches: [master]
-    paths:
-      - gradle.properties
-      - .github/workflows/publish-modrinth.yml
   workflow_dispatch:
     inputs:
       dry_run:
@@ -24,7 +19,8 @@ concurrency:
 
 env:
   MODULE_ID: totem-nexus
-  CORE_REF: 8573f7239e7faf6664a5c3ece58d79957f89a1bb
+  # Reviewed Core 0.7.20 player-directory API.
+  CORE_REF: 4505daae86caa2bd8b06d22361e65ef103e7aba1
 
 jobs:
   publish:
@@ -90,7 +86,7 @@ jobs:
           chmod +x .lockstep/TotemCore/gradlew
           ./.lockstep/TotemCore/gradlew -p .lockstep/TotemCore jar --no-daemon --stacktrace
           core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
-          test "$core_version" = '0.7.19'
+          test "$core_version" = '0.7.20'
           core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
           test -f "$core_jar"
           ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" -PtotemCoreJar="$core_jar" jar --no-daemon --stacktrace
@@ -140,7 +136,7 @@ jobs:
           test -n "$MODRINTH_PROJECT_ID"
           test -f "$artifact"
           unzip -p "$artifact" fabric.mod.json >/tmp/fabric.mod.json
-          jq -e --arg id "$MODULE_ID" --arg version "$version" --arg minecraft "~${minecraft}" --arg core '>=0.7.19 <0.8.0' '.id == $id and .version == $version and .depends.minecraft == $minecraft and .depends["totem-core"] == $core' /tmp/fabric.mod.json >/dev/null
+          jq -e --arg id "$MODULE_ID" --arg version "$version" --arg minecraft "~${minecraft}" --arg core '>=0.7.20 <0.8.0' '.id == $id and .version == $version and .depends.minecraft == $minecraft and .depends["totem-core"] == $core' /tmp/fabric.mod.json >/dev/null
 
           api='https://api.modrinth.com/v2'
           ua="Yunitrish006006/${MODULE_ID}-publisher/2.0"
@@ -178,7 +174,7 @@ jobs:
           test "$sha" = "$(jq -er .sha512 ".github/staging/release-validation-${version}.json")"
           if [[ "$DRY_RUN" == true ]]; then
             test "$count" = '0' || { echo "Version ${version} already exists; choose an unused release version." >&2; exit 1; }
-            echo "Validated unused version ${version}; dependencies: Fabric API and external totem-core-0.7.19.jar."
+            echo "Validated unused version ${version}; dependencies: Fabric API and external totem-core-0.7.20.jar."
             echo "version=$version" >> "$GITHUB_OUTPUT"
             echo "project_id=$project" >> "$GITHUB_OUTPUT"
             echo "sha512=$sha" >> "$GITHUB_OUTPUT"
@@ -196,14 +192,14 @@ jobs:
           else
             changelog_file=".github/staging/modrinth-changelog-${version}.md"
             if [[ -f "$changelog_file" ]]; then changelog="$(cat "$changelog_file")"; else changelog="$(git log -1 --format=%B)"; fi
-            data="$(jq -nc --arg name "${MODULE_ID} ${version}" --arg version "$version" --arg changelog "$changelog" --arg project "$project" --arg minecraft "$minecraft" '{name:$name,version_number:$version,changelog:$changelog,dependencies:[{project_id:"P7dR8mSH",dependency_type:"required"},{file_name:"totem-core-0.7.19.jar",dependency_type:"required"}],game_versions:[$minecraft],version_type:"release",loaders:["fabric"],featured:false,status:"listed",project_id:$project,file_parts:["primary"],primary_file:"primary",environment:"client_and_server"}')"
+            data="$(jq -nc --arg name "${MODULE_ID} ${version}" --arg version "$version" --arg changelog "$changelog" --arg project "$project" --arg minecraft "$minecraft" '{name:$name,version_number:$version,changelog:$changelog,dependencies:[{project_id:"P7dR8mSH",dependency_type:"required"},{file_name:"totem-core-0.7.20.jar",dependency_type:"required"}],game_versions:[$minecraft],version_type:"release",loaders:["fabric"],featured:false,status:"listed",project_id:$project,file_parts:["primary"],primary_file:"primary",environment:"client_and_server"}')"
             printf '%s\n' "$data" >/tmp/version-create.json
             curl --fail-with-body "${args[@]}" -X POST "$api/version" -F 'data=</tmp/version-create.json;type=application/json' -F "primary=@${artifact};filename=$(basename "$artifact");type=application/java-archive" >/tmp/version.json
             version_id="$(jq -er '.id' /tmp/version.json)"
           fi
           curl --fail-with-body "${args[@]}" "$api/version/${version_id}" >/tmp/remote.json
           jq -e --arg project "$project" --arg version "$version" --arg minecraft "$minecraft" --arg filename "$(basename "$artifact")" --arg sha "$sha" '.project_id == $project and .version_number == $version and .game_versions == [$minecraft] and .loaders == ["fabric"] and (([.files[] | select(.primary == true)][0] // .files[0]).filename == $filename) and (([.files[] | select(.primary == true)][0] // .files[0]).hashes.sha512 == $sha)' /tmp/remote.json >/dev/null
-          jq -e --arg fabric 'P7dR8mSH' --arg core_file 'totem-core-0.7.19.jar' -f .github/scripts/verify-modrinth-remote-dependencies.jq /tmp/remote.json >/dev/null
+          jq -e --arg fabric 'P7dR8mSH' --arg core_file 'totem-core-0.7.20.jar' -f .github/scripts/verify-modrinth-remote-dependencies.jq /tmp/remote.json >/dev/null
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "project_id=$project" >> "$GITHUB_OUTPUT"
           echo "version_id=$version_id" >> "$GITHUB_OUTPUT"

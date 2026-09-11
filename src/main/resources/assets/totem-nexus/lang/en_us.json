@@ -27,7 +27,6 @@
   "message.totem.space_unit.material_reference.load": "Route load %s",
   "message.totem.space_unit.material_reference.catalyst": "Cross-dimension catalyst %s",
   "message.totem.space_unit.material_reference.affinity": "Dimension affinity: %s",
-
   "book.totem.nexus_teleport_manual.page.19": "§lSpecialist: Backbone§r\nRanks capacity, stability, and wear for long-lived arrays.",
   "book.totem.nexus_teleport_manual.page.20": "§lSpecialist: Expansion§r\nRanks reach specialists, with capacity and stability as support.",
   "book.totem.nexus_teleport_manual.page.21": "§lSpecialist: Precision§r\nRanks materials that combine arrival accuracy and target lock.",
@@ -42,5 +41,11 @@
   "book.totem.nexus_specialist.metrics.precision": "Acc %s  Lock %s",
   "book.totem.nexus_specialist.metrics.speed": "Speed %s  CD %s",
   "book.totem.nexus_specialist.metrics.efficiency": "Food %s  Maint %s",
-  "book.totem.nexus_specialist.metrics.cross_dimension": "Cat %s  Aff %s"
+  "book.totem.nexus_specialist.metrics.cross_dimension": "Cat %s  Aff %s",
+  "message.totem.space_unit.access_search": "Search players",
+  "message.totem.space_unit.access_search_button": "Search",
+  "message.totem.space_unit.access_online": "Online",
+  "message.totem.space_unit.access_offline": "Offline",
+  "message.totem.space_unit.access_no_players": "No matching players",
+  "message.totem.space_unit.access_player_missing": "No previously joined player matches %s."
 }

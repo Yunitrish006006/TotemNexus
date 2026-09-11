@@ -118,6 +118,18 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                     clientScreen(context, () -> new NexusRegistrationPreviewScreen(registration(4))),
                     "nexus-observer-owner-registration-legacy", screen ->
                             ((NexusRegistrationPreviewScreen) screen).observerPayload().tier() == 4);
+            var access = providers.stream().filter(p -> p.familyId().equals("nexus_access")).findFirst().orElseThrow();
+            for (String role : List.of("administrator", "allowed")) {
+                exercise(context, access,
+                        clientScreen(context, () -> accessScreen(role, false)),
+                        clientScreen(context, () -> accessScreen(role, true)),
+                        "nexus-observer-access-" + role, screen -> {
+                            var picker = (NexusAccessScreen) screen;
+                            picker.select(SOURCE); picker.submit(true); picker.submit(false);
+                            return picker.observerPayload().players().getFirst().member()
+                                    && TARGET.equals(picker.observerSelection());
+                        });
+            }
             context.getInput().resizeWindow(854, 480);
             exercise(context, death,
                     clientScreen(context, () -> new NexusDeathNodeAdminScreen(death(1))),
@@ -125,6 +137,15 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                     "nexus-observer-owner-death-admin", screen ->
                             ((NexusDeathNodeAdminScreen) screen).observerPayload().entries().size() == 2);
         }
+    }
+
+    private static NexusAccessScreen accessScreen(String role, boolean update) {
+        var payload = new dev.totem.nexus.network.AccessPlayersPayload("player",SOURCE,SOURCE,role,0,1,1,
+                List.of(new dev.totem.nexus.network.AccessPlayersPayload.Entry(TARGET,"OfflineAlice",false,update),
+                        new dev.totem.nexus.network.AccessPlayersPayload.Entry(UUID.fromString("00000000-0000-0000-0000-000000008803"),"OnlineBob",true,false)));
+        var screen = new NexusAccessScreen(null,payload,false,() -> { });
+        if (update) screen.applyObserverSelection(TARGET);
+        return screen;
     }
 
     private static void exercise(ClientGameTestContext context, ObserverScreenProvider provider,

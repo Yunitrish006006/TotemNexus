@@ -15,5 +15,5 @@ Nexus map zoom currently scales one 128×128 vanilla map texture, so magnificati
 
 - Affected specs: `lodestone-interface-activation`
 - Affected code: `NexusMapBindingSavedData`, `NexusMapLifecycleAuthority` derivation behavior, dedicated Nexus map-detail networking/client state, `NexusSpaceUnitMapScreen` rendering hooks, `NexusObserverScreenProvider`, map visual/GameTests
-- Companion compatibility: TotemVanillaTweaks must negotiate Nexus Observer protocol 4 while retaining released protocol 3 support
+- Companion compatibility: the extracted TotemObserver runtime negotiates the exact Nexus provider identity advertised by both clients; protocol 4 requires matching providers, while matching released protocol 3 clients remain supported by the generic relay
 - Persisted data: backward-compatible SavedData schema extension; legacy entries remain valid with no inferred ancestry
