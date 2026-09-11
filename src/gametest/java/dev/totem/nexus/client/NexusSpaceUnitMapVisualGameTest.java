@@ -1,5 +1,6 @@
 package dev.totem.nexus.client;
 
+import dev.totem.nexus.mixin.NexusMapItemSavedDataInvoker;
 import dev.totem.nexus.network.SpaceUnitMapPayload;
 import dev.totem.nexus.space.TeleportInterfaceType;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
@@ -27,6 +28,8 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
     private static final UUID COMPASS_TARGET_ID = UUID.fromString("00000000-0000-0000-0000-000000000411");
     private static final UUID MAP_TARGET_ID = UUID.fromString("00000000-0000-0000-0000-000000000402");
     private static final int MAP_ID = 7401;
+    private static final int MAP_SCALE_ONE_ID = 7402;
+    private static final int MAP_SCALE_ZERO_ID = 7403;
 
     @Override
     public void runTest(ClientGameTestContext context) {
@@ -59,17 +62,14 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
             exerciseRecoveryList(context, "totem-nexus-recovery-teleport-list-en-us");
             exerciseFriendsAndPortablePreview(context, "en_us");
 
-            context.runOnClient(client -> {
-                MapItemSavedData data = MapItemSavedData.createFresh(
-                        0, 0, (byte) 0, false, false, Level.OVERWORLD);
-                fillVanillaMapColors(data);
-                client.level.overrideMapData(new MapId(MAP_ID), data);
-            });
+            installMapDetailFixture(context);
             context.setScreen(() -> new NexusSpaceUnitMapScreen(filledMapPayload()));
             context.waitForScreen(NexusSpaceUnitMapScreen.class);
             context.waitFor(client -> ((NexusSpaceUnitMapScreen) client.gui.screen())
                     .renderedMapLabelsForVisualTest(
                             List.of("Home Nexus", "East Archive", "Unnamed Nexus")));
+            context.waitTicks(2);
+            context.takeScreenshot("totem-nexus-map-detail-base");
             selectMapDestination(context);
             context.waitFor(client -> ((NexusSpaceUnitMapScreen) client.gui.screen())
                     .teleportButtonActiveForVisualTest());
@@ -111,6 +111,25 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
         }
     }
 
+    private static void installMapDetailFixture(ClientGameTestContext context) {
+        context.runOnClient(client -> {
+            MapItemSavedData coarse = NexusMapItemSavedDataInvoker.totem$createExact(
+                    0, 0, (byte) 2, false, false, false, Level.OVERWORLD);
+            MapItemSavedData middle = NexusMapItemSavedDataInvoker.totem$createExact(
+                    0, 0, (byte) 1, false, false, false, Level.OVERWORLD);
+            MapItemSavedData finest = NexusMapItemSavedDataInvoker.totem$createExact(
+                    0, 0, (byte) 0, false, false, false, Level.OVERWORLD);
+            fillVanillaMapColors(coarse, 0);
+            fillVanillaMapColors(middle, 1);
+            fillVanillaMapColors(finest, 2);
+            client.level.overrideMapData(new MapId(MAP_ID), coarse);
+            client.level.overrideMapData(new MapId(MAP_SCALE_ONE_ID), middle);
+            client.level.overrideMapData(new MapId(MAP_SCALE_ZERO_ID), finest);
+            NexusMapDetailClientState.setForVisualTest(
+                    MAP_ID, List.of(MAP_SCALE_ZERO_ID, MAP_SCALE_ONE_ID));
+        });
+    }
+
     private static void selectCompassDestination(ClientGameTestContext context) {
         context.runOnClient(client -> {
             NexusSpaceUnitMapScreen screen = (NexusSpaceUnitMapScreen) client.gui.screen();
@@ -149,7 +168,15 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
             int[] center = screen.mapViewportCenterForVisualTest();
             if (!screen.mouseScrolled(center[0], center[1], 0.0D, 1.0D)
                     || screen.mapViewForVisualTest()[0] != 2) {
-                throw new AssertionError("Nexus map mouse wheel did not zoom to 200%");
+                throw new AssertionError("Nexus map mouse wheel did not reveal scale-1 detail at 2x");
+            }
+            if (!screen.mouseScrolled(center[0], center[1], 0.0D, 1.0D)
+                    || screen.mapViewForVisualTest()[0] != 4) {
+                throw new AssertionError("Nexus map mouse wheel did not reveal scale-0 detail at 4x");
+            }
+            if (!screen.mouseScrolled(center[0], center[1], 0.0D, 1.0D)
+                    || screen.mapViewForVisualTest()[0] != 4) {
+                throw new AssertionError("Nexus map zoom exceeded its finest proven scale-0 detail");
             }
             if (!screen.mouseClicked(new MouseButtonEvent(
                     center[0], center[1], new MouseButtonInfo(0, 0)), false)
@@ -160,8 +187,8 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
                 throw new AssertionError("Nexus map drag-to-pan gesture was not consumed");
             }
             int[] view = screen.mapViewForVisualTest();
-            if (view[0] != 2 || view[2] >= 0) {
-                throw new AssertionError("Nexus map drag did not update the visible pan state");
+            if (view[0] != 4 || view[2] >= 0) {
+                throw new AssertionError("Nexus map drag did not preserve detail zoom and update visible pan state");
             }
             if (!MAP_TARGET_ID.equals(screen.selectedUnitIdForVisualTest())) {
                 throw new AssertionError("Dragging the Nexus map changed the selected destination");
@@ -295,22 +322,24 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
                 canTeleport ? "" : "message.totem.space_unit.teleport_blocked.same_source");
     }
 
-    private static void fillVanillaMapColors(MapItemSavedData data) {
+    private static void fillVanillaMapColors(MapItemSavedData data, int detailLevel) {
         for (int z = 0; z < 128; z++) {
             for (int x = 0; x < 128; x++) {
+                int shiftedX = (x + detailLevel * 13) & 127;
+                int shiftedZ = (z + detailLevel * 9) & 127;
                 MapColor color;
-                if (x < 24 || (x < 46 && z > 76)) {
+                if (shiftedX < 24 || (shiftedX < 46 && shiftedZ > 76)) {
                     color = MapColor.WATER;
-                } else if (z > 92) {
+                } else if (shiftedZ > 92) {
                     color = MapColor.SAND;
-                } else if ((x - 82) * (x - 82) + (z - 42) * (z - 42) < 380) {
+                } else if ((shiftedX - 82) * (shiftedX - 82) + (shiftedZ - 42) * (shiftedZ - 42) < 380) {
                     color = MapColor.STONE;
                 } else {
                     color = MapColor.GRASS;
                 }
-                MapColor.Brightness brightness = ((x / 9) + (z / 13)) % 3 == 0
+                MapColor.Brightness brightness = ((x / 9) + (z / 13) + detailLevel) % 3 == 0
                         ? MapColor.Brightness.HIGH
-                        : ((x / 11) + (z / 7)) % 3 == 0
+                        : ((x / 11) + (z / 7) + detailLevel) % 3 == 0
                         ? MapColor.Brightness.LOW
                         : MapColor.Brightness.NORMAL;
                 data.colors[x + z * 128] = color.getPackedId(brightness);

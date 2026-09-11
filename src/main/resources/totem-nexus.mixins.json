@@ -23,6 +23,8 @@
   ],
   "client": [
     "client.NexusSpaceUnitMapScreenMixin",
+    "client.NexusMapRendererInvoker",
+    "client.NexusMapDetailScreenMixin",
     "client.NexusSpaceUnitMaterialReferenceMixin",
     "client.NexusPhasingNightVisionMixin",
     "client.NexusPhasingLightmapMixin",

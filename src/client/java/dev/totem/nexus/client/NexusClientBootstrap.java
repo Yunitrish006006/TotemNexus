@@ -1,5 +1,6 @@
 package dev.totem.nexus.client;
 
+import dev.totem.nexus.network.NexusMapDetailPayload;
 import dev.totem.nexus.network.SpaceUnitFriendsPayload;
 import dev.totem.nexus.network.SpaceUnitMapPayload;
 import dev.totem.nexus.network.SpaceUnitRegistrationPreviewPayload;
@@ -28,6 +29,9 @@ public final class NexusClientBootstrap {
                         }
                     });
                 });
+
+        ClientPlayNetworking.registerGlobalReceiver(NexusMapDetailPayload.TYPE,
+                (payload, context) -> context.client().execute(() -> NexusMapDetailClientState.accept(payload)));
 
         ClientPlayNetworking.registerGlobalReceiver(SpaceUnitFriendsPayload.TYPE,
                 (payload, context) -> {

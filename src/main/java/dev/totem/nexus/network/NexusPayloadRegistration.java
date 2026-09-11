@@ -23,6 +23,7 @@ public final class NexusPayloadRegistration {
             return;
         }
         PayloadTypeRegistry.serverboundPlay().register(RequestSpaceUnitMapPayload.TYPE, RequestSpaceUnitMapPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(RequestNexusMapDetailPayload.TYPE, RequestNexusMapDetailPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RequestSpaceUnitFriendsPayload.TYPE, RequestSpaceUnitFriendsPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RemoveSpaceUnitFriendPayload.TYPE, RemoveSpaceUnitFriendPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(StartSpaceUnitTeleportPayload.TYPE, StartSpaceUnitTeleportPayload.CODEC);
@@ -47,6 +48,7 @@ public final class NexusPayloadRegistration {
             return;
         }
         PayloadTypeRegistry.clientboundPlay().register(SpaceUnitMapPayload.TYPE, SpaceUnitMapPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(NexusMapDetailPayload.TYPE, NexusMapDetailPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(SpaceUnitFriendsPayload.TYPE, SpaceUnitFriendsPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(
                 SpaceUnitRegistrationPreviewPayload.TYPE,

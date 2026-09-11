@@ -13,6 +13,7 @@ import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -20,14 +21,16 @@ import java.util.UUID;
 
 /** Server-owned proof that a vanilla MapId was created for one Nexus anchor. */
 public final class NexusMapBindingSavedData extends SavedData {
-    public static final int DATA_VERSION = 1;
+    public static final int DATA_VERSION = 2;
+    public static final int MAX_DETAIL_ANCESTORS = MapItemSavedData.MAX_SCALE;
 
     private static final Codec<Entry> ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.INT.fieldOf("map_id").forGetter(Entry::mapId),
             UUIDUtil.CODEC.fieldOf("space_unit_id").forGetter(Entry::unitId),
             GlobalPos.CODEC.fieldOf("anchor").forGetter(Entry::anchor),
             Codec.INT.fieldOf("center_x").forGetter(Entry::centerX),
-            Codec.INT.fieldOf("center_z").forGetter(Entry::centerZ)
+            Codec.INT.fieldOf("center_z").forGetter(Entry::centerZ),
+            Codec.INT.listOf().optionalFieldOf("detail_ancestors", List.of()).forGetter(Entry::detailAncestors)
     ).apply(instance, Entry::new));
 
     public static final Codec<NexusMapBindingSavedData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -71,7 +74,7 @@ public final class NexusMapBindingSavedData extends SavedData {
 
     public boolean bind(MapId mapId, UUID unitId, GlobalPos anchor, MapItemSavedData mapData) {
         if (mapId == null || unitId == null || anchor == null || mapData == null) return false;
-        Entry next = new Entry(mapId.id(), unitId, anchor, mapData.centerX, mapData.centerZ);
+        Entry next = new Entry(mapId.id(), unitId, anchor, mapData.centerX, mapData.centerZ, List.of());
         Entry existing = byMapId.get(mapId.id());
         if (existing != null) return existing.equals(next);
         byMapId.put(mapId.id(), next);
@@ -97,26 +100,61 @@ public final class NexusMapBindingSavedData extends SavedData {
 
     /**
      * Carries the server-owned anchor proof to a vanilla SCALE or LOCK result.
-     * The new data must retain the exact persisted center and dimension.
+     * SCALE appends the source MapId to the bounded detail lineage; LOCK copies
+     * the lineage because it does not introduce a finer historical level.
      */
     public boolean derive(MapId sourceMapId, MapItemSavedData sourceData, MapId resultMapId, MapItemSavedData resultData) {
-        if (resultMapId == null || resultData == null || get(resultMapId).isPresent()) return false;
+        if (sourceMapId == null || sourceData == null || resultMapId == null || resultData == null
+                || get(resultMapId).isPresent()) return false;
         Entry source = resolve(sourceMapId, sourceData).orElse(null);
         if (source == null
                 || !source.anchor().dimension().equals(resultData.dimension)
                 || source.centerX() != resultData.centerX
                 || source.centerZ() != resultData.centerZ) return false;
+
+        List<Integer> detailAncestors;
+        if (resultData.scale == sourceData.scale) {
+            detailAncestors = source.detailAncestors();
+        } else if (resultData.scale == sourceData.scale + 1) {
+            if (source.detailAncestors().size() >= MAX_DETAIL_ANCESTORS) return false;
+            java.util.ArrayList<Integer> ancestry = new java.util.ArrayList<>(source.detailAncestors());
+            ancestry.add(sourceMapId.id());
+            detailAncestors = List.copyOf(ancestry);
+        } else {
+            return false;
+        }
+
         byMapId.put(resultMapId.id(), new Entry(
-                resultMapId.id(), source.unitId(), source.anchor(), source.centerX(), source.centerZ()));
+                resultMapId.id(), source.unitId(), source.anchor(), source.centerX(), source.centerZ(), detailAncestors));
         setDirty();
         return true;
     }
 
     private List<Entry> entries() { return List.copyOf(byMapId.values()); }
 
-    public record Entry(int mapId, UUID unitId, GlobalPos anchor, int centerX, int centerZ) {
+    public record Entry(
+            int mapId,
+            UUID unitId,
+            GlobalPos anchor,
+            int centerX,
+            int centerZ,
+            List<Integer> detailAncestors) {
         public Entry {
-            if (mapId < 0 || unitId == null || anchor == null) throw new IllegalArgumentException("Invalid Nexus map binding");
+            if (mapId < 0 || unitId == null || anchor == null || detailAncestors == null
+                    || detailAncestors.size() > MAX_DETAIL_ANCESTORS) {
+                throw new IllegalArgumentException("Invalid Nexus map binding");
+            }
+            LinkedHashSet<Integer> unique = new LinkedHashSet<>();
+            for (Integer ancestor : detailAncestors) {
+                if (ancestor == null || ancestor < 0 || ancestor == mapId || !unique.add(ancestor)) {
+                    throw new IllegalArgumentException("Invalid Nexus map detail ancestry");
+                }
+            }
+            detailAncestors = List.copyOf(unique);
+        }
+
+        public Entry(int mapId, UUID unitId, GlobalPos anchor, int centerX, int centerZ) {
+            this(mapId, unitId, anchor, centerX, centerZ, List.of());
         }
 
         public boolean matchesUnit(NexusSpaceUnitRecord unit) {

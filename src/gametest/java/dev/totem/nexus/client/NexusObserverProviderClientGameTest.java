@@ -43,8 +43,8 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                     "Nexus Death Admin Observer provider entrypoint is missing");
             NexusObserverScreenProvider nexus = new NexusObserverScreenProvider();
             NexusDeathAdminObserverScreenProvider death = new NexusDeathAdminObserverScreenProvider();
-            require(nexus.protocolVersion() == 3,
-                    "Local-only visualization controls must not change the Nexus Observer semantic protocol");
+            require(nexus.protocolVersion() == 4,
+                    "Detail-aware map zoom requires Nexus Observer semantic protocol 4");
 
             exercise(context, nexus,
                     clientScreen(context, () -> new NexusSpaceUnitMapScreen(NexusSpaceUnitMapVisualGameTest.friendPayload())),
@@ -85,7 +85,7 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                         int[] view = map.mapViewForVisualTest();
                         return "Remote Map Home".equals(map.observerPayload().sourceName())
                                 && TARGET.equals(map.selectedUnitIdForVisualTest())
-                                && view[0] == 2 && view[1] == 0 && view[2] == -16
+                                && view[0] == 1 && view[1] == 0 && view[2] == 0
                                 && map.mapDataUnavailableForVisualTest();
                     });
             exercise(context, nexus,
@@ -134,6 +134,20 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                 provider.capture(source, 1).orElseThrow());
         ObserverScreenSnapshot update = context.computeOnClient(client ->
                 provider.capture(updateSource, 2).orElseThrow());
+
+        if ("map".equals(initial.variant())) {
+            var semanticMetadata = new java.util.LinkedHashMap<>(initial.metadata());
+            semanticMetadata.put("map_zoom", "2");
+            ObserverScreenSnapshot semanticZoom = new ObserverScreenSnapshot(
+                    initial.familyId(), initial.variant(), initial.protocolVersion(), 3,
+                    initial.title(), initial.slots(), initial.data(), semanticMetadata, initial.ownerPayload());
+            ObserverScreenHandle semanticHandle = context.computeOnClient(client -> provider.create(
+                    new ObserverScreenContext(UUID.randomUUID(), "Target", () -> { }), semanticZoom));
+            context.runOnClient(client -> require(
+                    ((NexusSpaceUnitMapScreen) semanticHandle.screen()).observerMapZoom() == 2,
+                    "Protocol 4 map snapshot did not accept power-of-two detail zoom"));
+        }
+
         AtomicInteger stops = new AtomicInteger();
         ObserverScreenHandle handle = context.computeOnClient(client -> provider.create(
                 new ObserverScreenContext(UUID.randomUUID(), "Target", stops::incrementAndGet), initial));
@@ -164,6 +178,23 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                                     && java.util.Objects.equals(selectedBefore, map.observerSelectedUnitId())
                                     && materialsBefore == map.observerShowsMaterials(),
                             "Rejected material-view snapshot partially mutated the screen");
+                }
+
+                if ("map".equals(update.variant())) {
+                    var malformedZoom = new java.util.LinkedHashMap<>(update.metadata());
+                    malformedZoom.put("map_zoom", "3");
+                    int zoomBefore = map.observerMapZoom();
+                    try {
+                        handle.applySnapshot(new ObserverScreenSnapshot(update.familyId(), update.variant(),
+                                update.protocolVersion(), 98, update.title(), update.slots(), update.data(),
+                                malformedZoom, update.ownerPayload()));
+                        throw new AssertionError("Non-power-of-two Observer map zoom was accepted");
+                    } catch (IllegalArgumentException expected) {
+                        require(zoomBefore == map.observerMapZoom()
+                                        && before.equals(map.observerPayload())
+                                        && java.util.Objects.equals(selectedBefore, map.observerSelectedUnitId()),
+                                "Rejected map-zoom snapshot partially mutated the screen");
+                    }
                 }
             }
             handle.applySnapshot(update);
@@ -208,14 +239,8 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
 
     private static NexusSpaceUnitMapScreen mapScreen(String name, int mapId, boolean selectTarget) {
         NexusSpaceUnitMapScreen screen = new NexusSpaceUnitMapScreen(filledMap(name, mapId));
-        if (selectTarget) {
-            if (!screen.keyPressed(new KeyEvent(262, 0, 0))) {
-                throw new AssertionError("Map Observer fixture could not select a destination");
-            }
-            if (!screen.keyPressed(new KeyEvent(61, 0, 0))
-                    || !screen.keyPressed(new KeyEvent(264, 0, 1))) {
-                throw new AssertionError("Map Observer fixture could not set zoom and pan state");
-            }
+        if (selectTarget && !screen.keyPressed(new KeyEvent(262, 0, 0))) {
+            throw new AssertionError("Map Observer fixture could not select a destination");
         }
         return screen;
     }
