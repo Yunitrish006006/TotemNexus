@@ -24,4 +24,4 @@
 
 - [x] 5.1 Add unit/GameTest coverage for legacy lineage decoding, SCALE ancestry, LOCK ancestry, and invalid lineage rejection.
 - [x] 5.2 Add native-scale Client GameTest coverage for restored-detail zoom, pan/marker selection alignment, local-player marker, and Observer suppression.
-- [ ] 5.3 Run strict OpenSpec validation plus the relevant build, GameTests, three-JVM Observer E2E, and Production Runtime validation; record evidence without masking regressions.
+- [x] 5.3 Run strict OpenSpec validation plus the relevant build, GameTests, three-JVM Observer E2E, and Production Runtime validation; record evidence without masking regressions.
