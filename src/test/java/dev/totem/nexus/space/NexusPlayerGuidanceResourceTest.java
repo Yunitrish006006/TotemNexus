@@ -87,7 +87,7 @@ class NexusPlayerGuidanceResourceTest {
                 .contains("地圖：標記選點"));
         assertTrue(text(english, "book.totem.nexus_diagram.empty_map_create").contains("new MapId"));
         assertTrue(text(traditionalChinese, "book.totem.nexus_diagram.empty_map_create")
-                .contains("新 MapId"));
+                .contains("新地圖識別碼"));
         assertTrue(text(english, "book.totem.nexus_diagram.scale_anchor").contains("unloaded"));
         assertTrue(text(traditionalChinese, "book.totem.nexus_diagram.scale_anchor")
                 .contains("未載入"));

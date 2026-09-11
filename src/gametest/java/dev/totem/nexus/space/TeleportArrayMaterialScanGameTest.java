@@ -33,6 +33,45 @@ public final class TeleportArrayMaterialScanGameTest {
     private static final BlockPos LODESTONE = new BlockPos(4, 2, 4);
 
     @GameTest(maxTicks = 30)
+    public void legacyRulesMigrateWithoutRegistrationAndCanonicalValuesWin(GameTestHelper helper) {
+        String legacySpawn = "deadrecall:dead_recall_distributed_spawning";
+        String legacyMode = "deadrecall:teleport_array_expansion_mode";
+        String spawn = "totem:nexus/distributed_spawning";
+        String mode = "totem:nexus/teleport_array_expansion_mode";
+        for (String key : List.of(legacySpawn, legacyMode)) {
+            if (BuiltInRegistries.GAME_RULE.containsKey(Identifier.parse(key))) {
+                throw helper.assertionException("Legacy rule remains visible: " + key);
+            }
+        }
+        var input = new net.minecraft.nbt.CompoundTag();
+        input.putBoolean(legacySpawn, true);
+        input.putString(legacyMode, "CENTERED");
+        var codec = net.minecraft.world.level.gamerules.GameRuleMap.CODEC;
+        var migrated = codec.parse(NbtOps.INSTANCE, input).getOrThrow();
+        if (!migrated.get(NexusDistributedSpawnAuthority.DISTRIBUTED_SPAWNING)
+                || migrated.get(NexusTeleportArrayExpansionRules.EXPANSION_MODE)
+                != NexusTeleportArrayExpansionRules.ExpansionMode.CENTERED) {
+            throw helper.assertionException("Legacy-only values were not migrated");
+        }
+        var saved = (net.minecraft.nbt.CompoundTag) codec.encodeStart(NbtOps.INSTANCE, migrated).getOrThrow();
+        if (saved.contains(legacySpawn) || saved.contains(legacyMode)
+                || !saved.contains(spawn) || !saved.contains(mode)) {
+            throw helper.assertionException("Saving did not eliminate legacy keys");
+        }
+        input.putBoolean(spawn, false);
+        input.putString(mode, "LOCAL");
+        var canonical = codec.parse(NbtOps.INSTANCE, input).getOrThrow();
+        var restarted = codec.parse(NbtOps.INSTANCE,
+                codec.encodeStart(NbtOps.INSTANCE, canonical).getOrThrow()).getOrThrow();
+        if (restarted.get(NexusDistributedSpawnAuthority.DISTRIBUTED_SPAWNING)
+                || restarted.get(NexusTeleportArrayExpansionRules.EXPANSION_MODE)
+                != NexusTeleportArrayExpansionRules.ExpansionMode.LOCAL) {
+            throw helper.assertionException("Legacy values overrode canonical defaults after restart");
+        }
+        helper.succeed();
+    }
+
+    @GameTest(maxTicks = 30)
     public void expansionModeRuleIsRegisteredWithStableDefaultAndCommandValues(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         if (NexusTeleportArrayExpansionRules.EXPANSION_MODE.category()

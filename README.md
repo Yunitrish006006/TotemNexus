@@ -11,7 +11,7 @@ TotemNexus 是 Totem 系列的 Space Unit、好友、地圖、安全傳送、死
 Client 與 Server 都放入：
 
 1. Fabric API `0.154.2+26.2`
-2. TotemCore `>=0.7.20 <0.8.0`
+2. TotemCore `>=0.7.21 <0.8.0`
 3. TotemNexus `0.3.21`
 
 | 項目 | 需求 |
@@ -19,7 +19,7 @@ Client 與 Server 都放入：
 | Minecraft | 26.2 |
 | Fabric Loader | 0.19.3+ |
 | Java | 25+ |
-| 必要 Totem 模組 | `totem-core >=0.7.20 <0.8.0` |
+| 必要 Totem 模組 | `totem-core >=0.7.21 <0.8.0` |
 | 選配 | TotemRemnant（死亡背包 ↔ Death Node 整合） |
 
 Nexus standalone 不要求舊整合包、Remnant 或 Discord Bridge。舊整合 JAR

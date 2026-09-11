@@ -5,7 +5,6 @@ import dev.totem.core.api.v1.death.DeathRetainedItemPolicy;
 import dev.totem.nexus.network.NexusAuthorityPayloadHandler;
 import dev.totem.nexus.network.NexusMaterialCatalogNetworking;
 import dev.totem.nexus.network.NexusPayloadRegistration;
-import dev.totem.nexus.migration.LegacyNexusGameRuleMigration;
 import dev.totem.nexus.space.NexusArrayVisualizationAuthority;
 import dev.totem.nexus.space.NexusDeathBackpackNodeAdapter;
 import dev.totem.nexus.space.NexusDeathNodeAdminAuthority;
@@ -50,7 +49,6 @@ public final class NexusAuthorityBootstrap {
         DeathRetainedItemPolicy.register(NexusSoulboundTeleportItem::isEligibleForDeathRetention);
         NexusDistributedSpawnAuthority.register();
         NexusTeleportArrayExpansionRules.register();
-        LegacyNexusGameRuleMigration.registerLegacyRules();
         NexusSpaceUnitAuthority.register();
         NexusPayloadRegistration.registerServerboundTypes();
         NexusPayloadRegistration.registerClientboundTypes();
@@ -70,7 +68,6 @@ public final class NexusAuthorityBootstrap {
         });
         ServerTickEvents.END_SERVER_TICK.register(authority::tickTeleportSessions);
         ServerTickEvents.END_SERVER_TICK.register(authority::tickLodestoneIntegrity);
-        ServerLifecycleEvents.SERVER_STARTED.register(LegacyNexusGameRuleMigration::migrate);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> NexusArrayVisualizationAuthority.shutdown());
         ServerPlayConnectionEvents.DISCONNECT.register((listener, server) -> {
             NexusDeathNodeAdminService.clearSession(listener.getPlayer().getUUID());

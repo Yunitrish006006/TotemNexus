@@ -1,53 +1,39 @@
 package dev.totem.nexus.migration;
 
-import dev.totem.core.api.v1.gamerule.TotemGameRuleCategories;
-import dev.totem.nexus.space.NexusDistributedSpawnAuthority;
-import dev.totem.nexus.space.NexusTeleportArrayExpansionRules;
-import net.fabricmc.fabric.api.gamerule.v1.GameRuleBuilder;
-import net.minecraft.resources.Identifier;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.level.gamerules.GameRule;
+import com.mojang.datafixers.util.Pair;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.Dynamic;
+import com.mojang.serialization.DynamicOps;
 
-/**
- * Decodes the two persisted DeadRecall game rules once, then writes their
- * non-default values to the canonical Nexus rules. No gameplay reads these
- * legacy rules after startup.
- */
+/** Migrates saved keys before registry decoding, without exposing legacy world rules. */
 public final class LegacyNexusGameRuleMigration {
-    private static final GameRule<Boolean> LEGACY_DISTRIBUTED_SPAWNING =
-            GameRuleBuilder.forBoolean(false)
-                    .category(TotemGameRuleCategories.TOTEM)
-                    .buildAndRegister(Identifier.fromNamespaceAndPath(
-                            "deadrecall", "dead_recall_distributed_spawning"));
-    private static final GameRule<NexusTeleportArrayExpansionRules.ExpansionMode> LEGACY_EXPANSION_MODE =
-            GameRuleBuilder.forEnum(NexusTeleportArrayExpansionRules.ExpansionMode.DEFAULT)
-                    .category(TotemGameRuleCategories.TOTEM)
-                    .buildAndRegister(Identifier.fromNamespaceAndPath(
-                            "deadrecall", "teleport_array_expansion_mode"));
+    private LegacyNexusGameRuleMigration() { }
 
-    private LegacyNexusGameRuleMigration() {
+    public static <A> Codec<A> wrap(Codec<A> codec) {
+        return new Codec<>() {
+            @Override
+            public <T> DataResult<Pair<A, T>> decode(DynamicOps<T> ops, T input) {
+                Dynamic<T> data = new Dynamic<>(ops, input);
+                data = rename(data, "deadrecall:dead_recall_distributed_spawning",
+                        "totem:nexus/distributed_spawning");
+                data = rename(data, "deadrecall:teleport_array_expansion_mode",
+                        "totem:nexus/teleport_array_expansion_mode");
+                return codec.decode(ops, data.getValue());
+            }
+
+            @Override
+            public <T> DataResult<T> encode(A input, DynamicOps<T> ops, T prefix) {
+                return codec.encode(input, ops, prefix);
+            }
+        };
     }
 
-    /**
-     * Registers the persisted legacy keys while the game-rule registry is
-     * still mutable.  Value transfer remains deferred until the server has
-     * loaded its saved rules.
-     */
-    public static void registerLegacyRules() {
-        // Loading this class performs the one-time Fabric game-rule registration.
-    }
-
-    public static void migrate(MinecraftServer server) {
-        var rules = server.overworld().getGameRules();
-        if ((Boolean) rules.get(LEGACY_DISTRIBUTED_SPAWNING)) {
-            rules.set(NexusDistributedSpawnAuthority.DISTRIBUTED_SPAWNING, true, server);
-        }
-
-        NexusTeleportArrayExpansionRules.ExpansionMode legacyMode = rules.get(LEGACY_EXPANSION_MODE);
-        if (legacyMode != NexusTeleportArrayExpansionRules.ExpansionMode.DEFAULT
-                && rules.get(NexusTeleportArrayExpansionRules.EXPANSION_MODE)
-                == NexusTeleportArrayExpansionRules.ExpansionMode.DEFAULT) {
-            rules.set(NexusTeleportArrayExpansionRules.EXPANSION_MODE, legacyMode, server);
-        }
+    private static <T> Dynamic<T> rename(Dynamic<T> data, String legacy, String canonical) {
+        var value = data.get(legacy).result();
+        if (value.isEmpty()) return data;
+        // A saved canonical value, including its default, always wins.
+        if (data.get(canonical).result().isEmpty()) data = data.set(canonical, value.get());
+        return data.remove(legacy);
     }
 }

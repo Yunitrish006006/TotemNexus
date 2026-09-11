@@ -1,0 +1,11 @@
+{
+  "version": "0.3.22",
+  "java": 25,
+  "minecraft": "26.2",
+  "artifact": "totem-nexus-0.3.22.jar",
+  "sha512": "f5f11cb133029cbc31aaf0ac83332ea6f5c80d1136d80e4488f5207faf6533af1734f777b3e7d2f0364814e959ba2d97823cccceab5ce08f3140c6aad039d0bd",
+  "unit_tests": 95,
+  "core_dependency": ">=0.7.21 <0.8.0",
+  "validation": "Versioned test, assemble and compileGametestJava passed locally. Previous source validation includes Nexus 108 server GameTests and VanillaTweaks/Alchemy en_us and zh_tw client tests, plus Alchemy/Core localized manual screenshots. Exact release commit CI is required by the publisher.",
+  "independent_review": "Independent source, localization and release workflow reviews completed; reported filename and whitespace fixes applied."
+}
