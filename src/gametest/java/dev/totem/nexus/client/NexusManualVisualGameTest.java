@@ -22,7 +22,7 @@ public final class NexusManualVisualGameTest implements FabricClientGameTest {
 
     @Override
     public void runTest(ClientGameTestContext context) {
-        selectLanguage(context, "zh_tw", "Nexus 傳送陣", "專精材料");
+        selectLanguage(context, "zh_tw", "圖靈騰樞紐傳送陣", "專精材料");
         context.getInput().resizeWindow(1280, 720);
         captureManual(context, "nexus-manual-spread");
 
