@@ -15,7 +15,7 @@
 - `NexusMapDetailPayloadTest` covers bounded MapId-only detail payload round-trip and malformed identity rejection.
 - `NexusSpaceUnitMapVisualGameTest` installs exact-centered scale 2/1/0 vanilla map data, verifies 1x -> 2x -> 4x detail zoom, refuses zoom beyond proven scale-0 detail, and verifies pan/marker-selection alignment.
 - `NexusMapPlayerMarkerClientGameTest` directly waits for the owning production Screen to render the transient local PLAYER decoration, then reconstructs the same cached map in Observer mode and asserts that the observer client's own player marker is not rendered.
-- `NexusObserverProviderClientGameTest` requires Nexus Observer protocol 4, accepts a semantic 2x detail zoom, rejects non-power-of-two `map_zoom=3` without partial mutation, and retains read-only/no-packet behavior.
+- `NexusObserverProviderClientGameTest` originally validated the protocol-4 detail-aware semantic transition, including power-of-two zoom and read-only/no-packet behavior. Current protocol-5 evidence is recorded below.
 - README current-behavior guidance documents power-of-two historical-detail zoom, scale-0 detail bounds, transient local-player rendering, and Observer local-position suppression. Historical 0.3.13 release-note wording remains historical.
 
 ### Observer ownership migration
@@ -40,18 +40,64 @@
   - E2E evidence upload: PASS.
 - TotemObserver baseline Build run `34563494510`: PASS.
 - TotemObserver baseline three-JVM E2E run `34563494581`: PASS, proving the temporary protocol-4 verification did not replace the existing released-lockstep regression path.
-- The active TotemObserver relay is module-agnostic: it relays an owner snapshot only when Target and Observer advertise the same `family + protocol` provider identity. The Nexus-owned provider advertises `nexus + protocol 4`, so no Nexus-specific TotemObserver production table change is required.
+- The active TotemObserver relay is module-agnostic: it relays an owner snapshot only when Target and Observer advertise the same `family + protocol` provider identity. The historical Nexus-owned provider in this evidence advertised `nexus + protocol 4`, so no Nexus-specific TotemObserver production table change was required.
 - The temporary TotemObserver verification branch was reset to `main` after the successful run, so no stale feature SHA or one-off workflow remains in the Observer repository.
 
 ## Release-gate status
 
-All feature-specific release gates requested by this change have executable PASS evidence: strict OpenSpec validation, Nexus compile/JUnit, server and client GameTests, restored-detail zoom and pan/selection behavior, transient player-marker and Observer-suppression assertions, legacy Observer compatibility evidence, and a dedicated **post-extraction TotemObserver** feature Nexus protocol-4 three-JVM pairing. Temporary one-off workflows used only to obtain release evidence were removed or reset after success.
+All feature-specific release gates requested by the original detail-zoom change have executable PASS evidence: strict OpenSpec validation, Nexus compile/JUnit, server and client GameTests, restored-detail zoom and pan/selection behavior, transient player-marker and Observer-suppression assertions, legacy Observer compatibility evidence, and a dedicated **post-extraction TotemObserver** protocol-4 three-JVM pairing. Current protocol-5 hardening evidence is recorded separately below rather than rewriting the historical release gate.
 
 ## 2026-09-11 release preparation
 
-- Merged feature source `02e8a4f83fce10a0b6d05303685dd26c9172a93e` passed [Build 34564253240](https://github.com/Yunitrish006006/TotemNexus/actions/runs/34564253240).
+- Merged feature source `02e8a4f83fce10a0b6d05303685dd26c9172a93e` passed Build `34564253240`.
 - Prepared version 0.3.21 because 0.3.20 was already published before the map-detail change. Updated current-version README guidance and added `.github/staging/modrinth-changelog-0.3.21.md`.
 - Local Java 25 / TotemCore 0.7.19 `test assemble`: PASS, 94 tests, no failures/errors/skips. Verified the built `totem-nexus-0.3.21.jar` declares `totem-nexus` version `0.3.21`.
 - `openspec validate update-nexus-map-detail-zoom --strict --no-interactive`: PASS after correcting the companion-owner documentation.
 - Independent read-only review of the release preparation and Observer ownership wording: no remaining findings.
-- This preparation changes version metadata and documentation only. Existing feature runtime evidence above remains applicable; no publication was performed as part of this preparation.
+- This preparation changed version metadata and documentation only. Existing feature runtime evidence above remained applicable; no publication was performed as part of this preparation.
+
+## 2026-09-12 protocol-5 Observer map hardening
+
+This section records post-release source hardening. It does **not** claim that a new Nexus release was published.
+
+### Nexus source validation
+
+- Hardened Nexus source: `6542bc21b68ecb3438085c400eaa9e16ce34ba63` (`0.3.23`, Observer provider protocol 5).
+- Nexus Build run `34691710921`: PASS.
+  - Compile/tests: PASS.
+  - Server GameTests: PASS.
+  - Client GameTests: PASS.
+  - Production map runtime regressions: PASS.
+  - Runtime evidence preservation: PASS.
+- `NexusObserverMapDetailClientGameTest` proves the Observer production Screen actually submits compatible finer vanilla MapIds:
+  - at `2x`, scale-1 detail is rendered while scale-0 is not yet rendered;
+  - at `4x`, both scale-1 and scale-0 detail are rendered;
+  - therefore Observer zoom is not merely magnifying the coarse 128x128 render state.
+- The same test proves target-player marker semantics:
+  - owner capture includes only bounded map-local decoration metadata (`off_map`, signed X/Y bytes, rotation `0..15`);
+  - the Observer Screen renders that observed-target marker;
+  - the Observer client's own local player marker remains suppressed;
+  - removing target-marker metadata results in no player marker, proving there is no observer-local fallback.
+- Raw target-player world X/Z coordinates are not added for the marker. Map pixels remain outside semantic Observer snapshots and continue to use the separately authorized terrain/vanilla-map packet path.
+
+### Extracted TotemObserver integration
+
+TotemObserver Runtime Validation and 3-JVM E2E were updated to pin Nexus `6542bc21b68ecb3438085c400eaa9e16ce34ba63` exactly.
+
+- TotemObserver source/config HEAD `6d467cb00f58694f1b7494fdf8e6ac8709f3d553`:
+  - Build `34698212299`: PASS.
+  - Observer Runtime Validation `34698212323`: PASS.
+  - Observer 3-JVM E2E `34698212350`: PASS.
+- Runtime Validation passed owner-module builds, the generic owned-screen boundary, validation compile, client GameTests, the cross-module production sender Client GameTest, screenshot verification, production-namespace Client GameTests, and extraction boundaries.
+- The 3-JVM E2E passed the dedicated server + Target client + Observer client path using the pinned Nexus source and uploaded its evidence.
+
+### Transient integration failure
+
+The first TotemObserver pin update at `149d8c701b3fb8dd427a87823b910cb1295e7308` changed the workflow checkout but left `.github/scripts/build-observer-integration-jars.sh` asserting the previous Nexus SHA. Runtime `34691931865` and E2E `34691931875` therefore stopped at `Build pinned Observer owner modules` before product tests. This was CI lockstep-invariant drift, not a Nexus runtime regression. TotemObserver `6d467cb0` aligned that assertion, after which the full Runtime and 3-JVM gates passed.
+
+### Current protocol contract
+
+- Current Nexus map/detail Observer provider identity is exact `nexus + protocol 5`.
+- Target/Observer protocol mismatches are rejected; no protocol conversion is performed.
+- Semantic snapshots may carry bounded viewport state and the optional bounded map-local observed-target decoration, but no map color arrays, raw target-player world coordinates for that marker, framebuffer, screenshot, or video.
+- Terrain/detail pixels remain on the separately authorized vanilla map-packet relay.

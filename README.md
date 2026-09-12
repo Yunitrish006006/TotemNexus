@@ -4,7 +4,7 @@ TotemNexus 是 Totem 系列的 Space Unit、好友、地圖、安全傳送、死
 與分散出生點模組。所有座標、權限、成本與安全落點都由 Server 重新
 驗證，Client 只顯示經過篩選的資訊。
 
-目前開發版本為 **0.3.21**，需要 TotemCore **0.7.20 以上、0.8.0 以下**。
+目前開發版本為 **0.3.23**，需要 TotemCore **0.7.21 以上、0.8.0 以下**。
 
 ## 安裝
 
@@ -12,7 +12,7 @@ Client 與 Server 都放入：
 
 1. Fabric API `0.154.2+26.2`
 2. TotemCore `>=0.7.21 <0.8.0`
-3. TotemNexus `0.3.21`
+3. TotemNexus `0.3.23`
 
 | 項目 | 需求 |
 | --- | --- |
@@ -25,15 +25,14 @@ Client 與 Server 都放入：
 Nexus standalone 不要求舊整合包、Remnant 或 Discord Bridge。舊整合 JAR
 不應再與獨立 TotemNexus 並用。
 
-## 0.3.21 更新（待發布）
+## 0.3.23 目前行為
 
-- 管理員／允許玩家可從曾進入世界的玩家中搜尋與選擇，支援離線授權與移除。名單、搜尋及持久化由 Core 0.7.20 共用玩家目錄提供。
+- 管理員／允許玩家可從曾進入世界的玩家中搜尋與選擇，支援離線授權與移除。名單、搜尋及持久化由 Core 共用玩家目錄提供。
 - 選擇畫面顯示在線狀態及 UUID 識別；Observer 使用同一正式畫面的唯讀投影，不傳送搜尋輸入。
-
 - 地圖依 MapId 保存地形與稀疏細節頁；同編號複製品共用記錄，交給別人仍保留已知地形。縮放以 1×、2×、4× 等倍率顯示，最細為每方塊一像素。
 - 擴圖保留原有已知地形；新探索外圈可直接採集細節，不再依賴祖先地圖。只有粗圖的舊區域須重新到訪才能補細；採集不強制載入區塊。
 - 顯示使用者自己的即時玩家標記；平移、目的地標記與點選保持對齊。
-- Nexus Observer 使用 protocol 5，由獨立 TotemObserver 協調；語意快照不含色彩陣列，地形另由 Nexus 驗證持圖與觀察權限後透過原版地圖封包提供，觀看者的位置不會代入目標畫面。
+- Nexus Observer 使用 protocol 5，由獨立 TotemObserver 協調；語意快照不含色彩陣列，地形另由 Nexus 驗證持圖與觀察權限後透過原版地圖封包提供。被觀察目標的玩家圖示只傳 map-local 的 off-map/X/Y/rotation decoration，不傳 raw 世界座標；觀看者自己的位置不會代入目標畫面。
 
 ## 近距離救援與隨身傳送
 
@@ -130,7 +129,7 @@ UUID，重新對照 Server 端的 Owner、Administrator、Allowed 與可見性�
 - 只加入目前在線且存活的雙向好友玩家目標，僅顯示粗略座標與距離；地圖同時要求實際位置與粗略標記位於已繪製範圍。不會加入無關玩家或地圖外邊緣箭頭。
 - 地圖畫面不提供目的地清單；直接點擊地圖上的 Nexus 標記選點，查看 Server 報價，再按「傳送」建立倒數 session。
 - 地圖縮放改為 `1×`、`2×`、`4×`、`8×`、`16×` 的歷史細節層級：目前 MapId 永遠是完整粗略底圖，若這張 Nexus 地圖曾經由更高解析度的舊 MapId 合法 SCALE 而來，放大時會在對應區域恢復那些原版地圖像素，最多到 vanilla scale 0；沒有可證明的舊 MapId 就不會憑空生成細節。滑鼠滾輪與 `+`／`-` 控制縮放，按住左鍵拖曳或 `Shift`＋方向鍵平移，拖曳不會誤選標記。
-- 擁有者在同維度且位於目前地圖覆蓋內時，畫面會以原版玩家圖示即時顯示自己的位置與朝向；這個 marker 只存在於當下 Screen，不寫入 `MapItemSavedData`、物品或 Nexus SavedData。Observer 不會拿觀察者自己的座標冒充被觀察者位置。
+- 擁有者在同維度且位於目前地圖覆蓋內時，畫面會以原版玩家圖示即時顯示自己的位置與朝向；這個 marker 只存在於當下 Screen，不寫入 `MapItemSavedData`、物品或 Nexus SavedData。Observer protocol 5 可顯示被觀察目標的 map-local 玩家 decoration，但不傳 raw 世界 X/Z，也不會拿觀察者自己的座標冒充目標位置。
 
 ## 介面物品
 
@@ -325,6 +324,12 @@ Client 視覺測試：
 ../TotemCore/gradlew runClientGameTest
 ```
 
+OpenSpec 嚴格驗證：
+
+```bash
+openspec validate update-nexus-map-detail-zoom --strict --no-interactive
+```
+
 測試截圖在
 [`test-artifacts/screenshots/`](test-artifacts/screenshots/)；所有權契約見
 [EXTRACTION.md](EXTRACTION.md)，migration 設計見
@@ -333,7 +338,7 @@ Client 視覺測試：
 範圍預覽針對材料頁選取的附近磁石，由 Server 重驗權限、探索／已繪製範圍、8 格距離與載入狀態；不會切換目前的傳送來源。
 ### 地圖記錄與載入行為
 
-- 主手、雙手與副手的 Nexus 地圖會顯示持圖者位置與方向；此標記不寫入共享地圖或物品展示框。
+- 主手、雙手與副手的 Nexus 地圖會顯示持圖者位置與方向；此標記不寫入共享地圖或物品展示框。Observer protocol 5 顯示的是被觀察目標的 bounded map-local decoration，而不是觀看者本機位置。
 - 節點是否可見仍受權限限制，好友關係與收藏仍屬個人資料。轉交地圖不會轉交私人存取權。
 - 擴圖與鎖圖會保存當時的細節快照；之後修改來源地圖，不會回寫衍生圖。舊鎖圖僅保留可證明的凍結記錄。
 - 新細節保存於世界的 `totem:nexus_map_detail_v1` SavedData，索引與色彩頁同檔；不要單獨刪除它。主圖仍為原版 MapId 資料。
