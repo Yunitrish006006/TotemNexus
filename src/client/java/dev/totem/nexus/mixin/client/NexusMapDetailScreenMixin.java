@@ -189,6 +189,13 @@ public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualT
         float centerY = currentTop + currentRenderedSize / 2.0F;
 
         extractor.enableScissor(mapX() + 1, mapY() + 1, mapX() + mapWidth() - 1, mapY() + mapHeight() - 1);
+        if(!totem$isObserver()) {
+            int viewX = current.centerX + Math.round((mapX()+mapWidth()/2.0F-centerX)*(1<<current.scale)/currentPixelScale);
+            int viewZ = current.centerZ + Math.round((mapY()+mapHeight()/2.0F-centerY)*(1<<current.scale)/currentPixelScale);
+            int extent=64<<current.scale;
+            NexusMapDetailClientState.viewport(this.payload.mapId(),Math.clamp(viewX,current.centerX-extent,current.centerX+extent),
+                    Math.clamp(viewZ,current.centerZ-extent,current.centerZ+extent),Math.max(1,(int)Math.ceil(Math.max(mapWidth(),mapHeight())*(double)(1<<current.scale)/(2*currentPixelScale))));
+        }
         List<Integer> ancestors = NexusMapDetailClientState.ancestorMapIds(this.payload.mapId());
         for (int index = ancestors.size() - 1; index >= 0; index--) {
             MapId ancestorId = new MapId(ancestors.get(index));
@@ -200,8 +207,8 @@ public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualT
 
             int ancestorPixelScale = currentPixelScale / requiredZoom;
             int ancestorRenderedSize = 128 * ancestorPixelScale;
-            int ancestorLeft = Math.round(centerX - ancestorRenderedSize / 2.0F);
-            int ancestorTop = Math.round(centerY - ancestorRenderedSize / 2.0F);
+            int ancestorLeft = Math.round(centerX + (ancestor.centerX-current.centerX) * (float)currentPixelScale / (1<<current.scale) - ancestorRenderedSize / 2.0F);
+            int ancestorTop = Math.round(centerY + (ancestor.centerZ-current.centerZ) * (float)currentPixelScale / (1<<current.scale) - ancestorRenderedSize / 2.0F);
             MapRenderState detailState = new MapRenderState();
             minecraft.getMapRenderer().extractRenderState(ancestorId, ancestor, detailState);
             detailState.decorations.clear();
@@ -246,7 +253,7 @@ public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualT
         MapItemSavedData current = cachedMapData();
         Minecraft minecraft = Minecraft.getInstance();
         if (current == null || minecraft == null || minecraft.level == null || this.payload.mapId() < 0) return 1;
-        int maximum = 1;
+        int maximum = 1 << current.scale;
         for (int ancestorValue : NexusMapDetailClientState.ancestorMapIds(this.payload.mapId())) {
             MapItemSavedData ancestor = minecraft.level.getMapData(new MapId(ancestorValue));
             if (!totem$isCompatibleAncestor(current, ancestor)) continue;
@@ -269,8 +276,6 @@ public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualT
         return ancestor != null
                 && ancestor.scale >= 0
                 && ancestor.scale < current.scale
-                && ancestor.centerX == current.centerX
-                && ancestor.centerZ == current.centerZ
                 && ancestor.dimension.equals(current.dimension);
     }
 
@@ -308,24 +313,8 @@ public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualT
         if (minecraft.player == null || minecraft.level == null
                 || !minecraft.level.dimension().equals(current.dimension)) return;
 
-        double blocksPerPixel = 1 << current.scale;
-        double mapX = (minecraft.player.getX() - current.centerX) / blocksPerPixel;
-        double mapY = (minecraft.player.getZ() - current.centerZ) / blocksPerPixel;
-        if (mapX < -64.0D || mapX >= 64.0D || mapY < -64.0D || mapY >= 64.0D) return;
-
-        byte x = (byte) Math.max(Byte.MIN_VALUE, Math.min(Byte.MAX_VALUE, Math.round(mapX * 2.0D)));
-        byte y = (byte) Math.max(Byte.MIN_VALUE, Math.min(Byte.MAX_VALUE, Math.round(mapY * 2.0D)));
-        byte rotation = (byte) (((int) Math.floor(minecraft.player.getYRot() * 16.0D / 360.0D + 0.5D)) & 15);
-        MapDecoration decoration = new MapDecoration(
-                MapDecorationTypes.PLAYER,
-                x,
-                y,
-                rotation,
-                Optional.empty()
-        );
-        MapRenderState.MapDecorationRenderState state =
-                ((NexusMapRendererInvoker) (Object) minecraft.getMapRenderer())
-                        .totem$extractDecorationRenderState(decoration);
+        MapRenderState.MapDecorationRenderState state = dev.totem.nexus.client.NexusMapPlayerMarker.extract(current);
+        if(state==null) return;
         totem$drawDecoration(extractor, state, currentLeft, currentTop, currentPixelScale, iconScale);
         this.totem$localPlayerMarkerRendered = true;
     }

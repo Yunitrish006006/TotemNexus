@@ -1,0 +1,11 @@
+{
+  "version": "0.3.23",
+  "java": 25,
+  "minecraft": "26.2",
+  "artifact": "totem-nexus-0.3.23.jar",
+  "sha512": "e6c211b3ba4fb25da30dc9d115496f61d6cad69214035a02e3c1ac2caa14f81315a42b2bd781837da6f01e4d8b3f9827b748c5facb0925194ffd956d3500d628",
+  "unit_tests": 95,
+  "core_dependency": ">=0.7.21 <0.8.0",
+  "validation": "Release JAR built locally. Reused reviewed map-fix evidence: 95 unit tests, 24 server GameTests, 3 client test classes, production runtime and three-JVM Observer E2E. Exact release commit Build is required by publisher.",
+  "independent_review": "Map persistence, asynchronous teleport, refund, Observer relay and CI isolation independently reviewed; no remaining blockers. See openspec change evidence."
+}

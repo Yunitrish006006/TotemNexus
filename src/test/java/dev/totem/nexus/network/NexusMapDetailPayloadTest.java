@@ -13,7 +13,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class NexusMapDetailPayloadTest {
     @Test
     void roundTripsBoundedAncestorIdentitiesWithoutPixels() {
-        NexusMapDetailPayload payload = new NexusMapDetailPayload(90, List.of(87, 88, 89));
+        NexusMapDetailPayload payload = new NexusMapDetailPayload(90, List.of(87, 88, 89), List.of(
+                new NexusMapDetailPayload.Layer(90,-2048,1024,3,"minecraft:overworld",true),
+                new NexusMapDetailPayload.Layer(87,-2112,1088,0,"minecraft:overworld",true)));
         FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
         try {
             NexusMapDetailPayload.CODEC.encode(buffer, payload);
@@ -33,7 +35,7 @@ class NexusMapDetailPayloadTest {
                 () -> new NexusMapDetailPayload(90, List.of(-1)));
         assertThrows(IllegalArgumentException.class,
                 () -> new NexusMapDetailPayload(90, java.util.stream.IntStream
-                        .range(0, NexusMapBindingSavedData.MAX_DETAIL_ANCESTORS + 1)
+                        .range(0, NexusMapDetailPayload.MAX_DETAIL_MAPS + 1)
                         .boxed().toList()));
     }
 

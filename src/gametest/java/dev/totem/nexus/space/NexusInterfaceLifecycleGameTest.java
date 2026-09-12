@@ -663,6 +663,41 @@ public final class NexusInterfaceLifecycleGameTest {
     }
 
     @GameTest(maxTicks = 20)
+    public void transferredMapKeepsTerrainAndPublicNodesWithoutPersonalDiscovery(GameTestHelper helper) {
+        var level=helper.getLevel();
+        var owner=helper.makeMockServerPlayerInLevel();
+        var recipient=helper.makeMockServerPlayerInLevel();
+        recipient.setUUID(UUID.randomUUID());
+        BlockPos anchor=helper.absolutePos(new BlockPos(3,2,4));
+        buildFunctionalArray(level,anchor);
+        UUID sourceId=UUID.randomUUID(), publicId=UUID.randomUUID(), privateId=UUID.randomUUID();
+        putLodestone(level,sourceId,owner.getUUID(),anchor,SpaceUnitVisibility.PUBLIC,Set.of());
+        putLodestone(level,publicId,owner.getUUID(),anchor.offset(20,0,0),SpaceUnitVisibility.PUBLIC,Set.of());
+        putLodestone(level,privateId,owner.getUUID(),anchor.offset(22,0,0),SpaceUnitVisibility.PRIVATE,Set.of());
+        var map=NexusMapLifecycleAuthority.createBoundMap(level,anchor,sourceId,new ItemStack(Items.MAP)).orElseThrow();
+        MapId id=map.get(DataComponents.MAP_ID);
+        var terrain=level.getMapData(id);
+        java.util.Arrays.fill(terrain.colors,(byte)22);
+        NexusMapDetailSavedData.get(level).record(level,id.id(),anchor.getX()+20,anchor.getZ(),(byte)30);
+        owner.setItemInHand(InteractionHand.MAIN_HAND,map.copy());
+        recipient.setItemInHand(InteractionHand.MAIN_HAND,map);
+        var discovery=NexusSpaceDiscoverySavedData.loadCanonical(level.getServer().overworld().getDataStorage());
+        if(discovery.hasDiscovered(recipient.getUUID(),publicId)) helper.fail("Recipient must start without personal discovery");
+        var context=new TeleportInterfaceContext(recipient.getUUID(),TeleportInterfaceType.FILLED_MAP,
+                "lodestone",sourceId,InteractionHand.MAIN_HAND,id,sourceId,0,Long.MAX_VALUE);
+        var source=NexusSpaceUnitSavedData.loadCanonical(level.getServer().overworld().getDataStorage()).get(sourceId).orElseThrow();
+        final SpaceUnitMapPayload[] captured={null};
+        new NexusMapPayloadAuthority((player,payload)->captured[0]=payload,
+                (player,node)->NexusMapQuote.unavailable(TeleportInterfaceType.FILLED_MAP,"test")).send(recipient,context,source);
+        if(captured[0]==null || captured[0].entries().stream().noneMatch(e->e.id().equals(publicId))
+                || captured[0].entries().stream().anyMatch(e->e.id().equals(privateId))
+                || NexusMapDetailSavedData.get(level).pages(id.id()).isEmpty()
+                || level.getMapData(owner.getMainHandItem().get(DataComponents.MAP_ID))!=terrain)
+            helper.fail("Map handoff lost map-owned data or leaked private endpoint");
+        owner.discard();recipient.discard();helper.succeed();
+    }
+
+    @GameTest(maxTicks = 20)
     public void nexusMapPayloadFiltersNamedMarkersWithoutSharedMapDataLeakage(GameTestHelper helper) {
         UUID viewer = UUID.fromString("00000000-0000-0000-0000-000000000501");
         UUID otherOwner = UUID.fromString("00000000-0000-0000-0000-000000000502");
@@ -793,6 +828,48 @@ public final class NexusInterfaceLifecycleGameTest {
     @GameTest(maxTicks = 260, environment = "totem-nexus-gametest:recovery_death_teleport")
     public void completedOwnDeathRescueGrantsGraceOnlyAfterSafeLanding(GameTestHelper helper) {
         verifyBoundInterfaceTeleport(helper, new ItemStack(Items.RECOVERY_COMPASS), true);
+    }
+
+    @GameTest(maxTicks = 100_000, environment = "totem-nexus-gametest:unloaded_teleport")
+    public void persistedUnloadedLodestoneLoadsBeforeTeleportValidation(GameTestHelper helper) {
+        ServerLevel level=helper.getLevel();
+        BlockPos source=helper.absolutePos(new BlockPos(3,2,4));
+        BlockPos destination=new BlockPos(source.getX()+8192,source.getY(),source.getZ()+8192);
+        buildFunctionalArray(level,source);
+        var player=helper.makeMockServerPlayerInLevel();
+        player.setNoGravity(true);player.getAbilities().instabuild=false;
+        player.setPos(source.getX()+.5,source.getY()+1,source.getZ()+.5);
+        UUID sourceId=UUID.randomUUID(), targetId=UUID.randomUUID();
+        putLodestone(level,sourceId,player.getUUID(),source,SpaceUnitVisibility.PRIVATE,Set.of());
+        var discovery=level.getServer().overworld().getDataStorage().computeIfAbsent(NexusSpaceDiscoverySavedData.TYPE);
+        discovery.markDiscovered(player.getUUID(),sourceId);discovery.markDiscovered(player.getUUID(),targetId);
+        var bound=bindSingle(helper,player,level,source,sourceId,new ItemStack(Items.COMPASS));
+        player.setItemInHand(InteractionHand.MAIN_HAND,bound);
+        player.getAbilities().instabuild=true;
+        // Fixture generation is synchronous; the behavior under test starts only after actual unload.
+        for(int cx=(destination.getX()>>4)-1;cx<=(destination.getX()>>4)+1;cx++)
+            for(int cz=(destination.getZ()>>4)-1;cz<=(destination.getZ()>>4)+1;cz++) level.getChunk(cx,cz);
+        buildFunctionalArray(level,destination);
+        putLodestone(level,targetId,player.getUUID(),destination,SpaceUnitVisibility.PRIVATE,Set.of());
+        NexusSpaceUnitSavedData.loadCanonical(level.getServer().overworld().getDataStorage()).rescanLodestone(level,targetId);
+        helper.startSequence().thenWaitUntil(()->{
+            if(level.getChunkSource().getChunkNow(destination.getX()>>4,destination.getZ()>>4)!=null)
+                throw helper.assertionException("Waiting for actual destination unload");
+        }).thenExecute(()->{
+            NexusSpaceUnitAuthority.establishInterfaceContext(player,InteractionHand.MAIN_HAND,
+                    NexusSpaceUnitAuthority.SOURCE_TYPE_PLAYER,player.getUUID()).orElseThrow(()->helper.assertionException("Held fixture could not establish source context"));
+            NexusSpaceUnitAuthority.startTeleport(player,NexusSpaceUnitAuthority.SOURCE_TYPE_PLAYER,player.getUUID(),targetId);
+            if(!NexusSpaceUnitAuthority.hasActiveTeleportSession(player.getUUID())) helper.fail("Unloaded destination rejected before loading");
+        }).thenWaitUntil(()->{
+            if(NexusSpaceUnitAuthority.hasActiveTeleportSession(player.getUUID())) {
+                // GameTest sprint ticks otherwise exhaust a real async-I/O timeout in milliseconds.
+                java.util.concurrent.locks.LockSupport.parkNanos(50_000_000L);
+                throw helper.assertionException("Waiting for loaded destination teleport");
+            }
+        }).thenExecute(()->{
+            if(player.blockPosition().distManhattan(destination)>64) helper.fail("Did not arrive at the persisted unloaded destination");
+            if(NexusSpaceUnitAuthority.hasEndpointLoad(player.getUUID())) helper.fail("Successful teleport leaked endpoint ticket");
+        }).thenExecute(player::discard).thenSucceed();
     }
 
     private static void verifyBoundInterfaceTeleport(GameTestHelper helper, ItemStack input) {

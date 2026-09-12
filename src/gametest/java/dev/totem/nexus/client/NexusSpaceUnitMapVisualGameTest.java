@@ -107,6 +107,32 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
             context.setScreen(() -> null);
             context.waitForScreen(null);
 
+            // A newly surveyed page outside the original 128-block footprint, with no ancestor maps.
+            context.runOnClient(client -> {
+                var detail = NexusMapItemSavedDataInvoker.totem$createExact(
+                        192, 64, (byte)0, false, false, true, Level.OVERWORLD);
+                for(int z=0;z<128;z++) for(int x=0;x<128;x++)
+                    detail.colors[x+z*128] = ((x/8+z/8)%2==0 ? MapColor.WATER : MapColor.SAND)
+                            .getPackedId(MapColor.Brightness.NORMAL);
+                client.level.overrideMapData(new MapId(7404), detail);
+                NexusMapDetailClientState.setForVisualTest(MAP_ID, List.of(7404));
+            });
+            context.setScreen(() -> new NexusSpaceUnitMapScreen(filledMapPayload()));
+            context.waitForScreen(NexusSpaceUnitMapScreen.class);
+            context.runOnClient(client -> {
+                var screen = (NexusSpaceUnitMapScreen)client.gui.screen();
+                int[] center = screen.mapViewportCenterForVisualTest();
+                screen.mouseScrolled(center[0], center[1], 0, 1);
+                screen.mouseScrolled(center[0], center[1], 0, 1);
+                screen.mouseClicked(new MouseButtonEvent(center[0], center[1], new MouseButtonInfo(0,0)), false);
+                screen.mouseDragged(new MouseButtonEvent(center[0]-192, center[1]-64, new MouseButtonInfo(0,0)), -192, -64);
+                screen.mouseReleased(new MouseButtonEvent(center[0]-192, center[1]-64, new MouseButtonInfo(0,0)));
+                if(screen.mapViewForVisualTest()[0]!=4) throw new AssertionError("New region without ancestors cannot reach scale zero");
+            });
+            context.waitTicks(3);
+            context.takeScreenshot("totem-nexus-new-outer-region-detail");
+            context.setScreen(() -> null);
+            context.waitForScreen(null);
             selectLanguage(context, "en_us", "Nexus Compass");
         }
     }

@@ -45,6 +45,8 @@ dependencies {
 
     // Local development artifact; release builds will consume the versioned Core API.
     modImplementation files(totemCoreJar)
+    productionRuntimeMods files(totemCoreJar)
+    productionRuntimeMods "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -61,80 +63,102 @@ if (totemVisualModuleJars != null && !totemVisualModuleJars.isBlank()) {
 
 tasks.withType(Test).configureEach { useJUnitPlatform() }
 
-tasks.register("normalizeFabricApiTweakersForNamedDevRuntime") {
-    group = "fabric"
-    description = "Normalizes Fabric API tweaker namespaces for the named development runtime."
-
+// Named development copies are private to this build. Never rewrite Gradle's shared
+// official artifacts: the production runner and sibling modules consume those too.
+def namedRuntimeSources = new LinkedHashSet<File>()
+def namedRuntimeCopies = [:]
+def namedRuntimeCopyFor = { File source ->
+    namedRuntimeCopies.computeIfAbsent(source.absolutePath) {
+        def digest = java.security.MessageDigest.getInstance('SHA-256').digest(source.bytes).encodeHex().toString()
+        layout.buildDirectory.file("named-runtime-api/${digest}-${source.name}").get().asFile
+    }
+}
+tasks.register('normalizeFabricApiTweakersForNamedDevRuntime') {
+    group = 'fabric'
+    description = 'Creates isolated named-namespace Fabric API copies for development runs.'
     doLast {
-        def jarFiles = new LinkedHashSet<File>()
-        jarFiles.addAll(configurations.runtimeClasspath.resolve().findAll { file ->
-            file.name.endsWith(".jar") && file.absolutePath.contains("${File.separator}net.fabricmc.fabric-api${File.separator}")
-        })
-
-        [gradle.gradleUserHomeDir, new File(System.getProperty("user.home"), ".gradle")].each { File cacheRoot ->
-            File fabricApiCache = new File(cacheRoot, "caches/modules-2/files-2.1/net.fabricmc.fabric-api")
-            if (fabricApiCache.isDirectory()) {
-                jarFiles.addAll(fileTree(dir: fabricApiCache, include: "**/*.jar").files.findAll { file ->
-                    !file.name.endsWith("-sources.jar")
-                })
-            }
-        }
-
-        int patchedFiles = 0
-        int patchedEntries = 0
-        jarFiles.each { File jarFile ->
-            File tempFile = new File(buildDir, "tmp/tweaker-normalized/${jarFile.name}.tmp")
-            tempFile.parentFile.mkdirs()
-            boolean fileChanged = false
-            def zipFile = new java.util.zip.ZipFile(jarFile)
-            def zipOut = new java.util.zip.ZipOutputStream(new java.io.BufferedOutputStream(new java.io.FileOutputStream(tempFile)))
+        def outputDir = layout.buildDirectory.dir('named-runtime-api').get().asFile
+        outputDir.mkdirs()
+        namedRuntimeSources.each { jarFile ->
+            def zip = new java.util.zip.ZipFile(jarFile)
             try {
-                def entries = zipFile.entries()
-                while (entries.hasMoreElements()) {
-                    def entry = entries.nextElement()
-                    def outEntry = new java.util.zip.ZipEntry(entry.name)
-                    zipOut.putNextEntry(outEntry)
-                    byte[] bytes = entry.isDirectory() ? new byte[0] : zipFile.getInputStream(entry).bytes
-                    if (!entry.directory && (entry.name.endsWith(".classtweaker") || entry.name.endsWith(".accesswidener"))) {
-                        String text = new String(bytes, java.nio.charset.StandardCharsets.UTF_8)
-                        String normalized = text
-                                .replaceFirst(/(?m)^(classTweaker\s+v\d+\s+)official(\s*)$/, '$1named$2')
-                                .replaceFirst(/(?m)^(accessWidener\s+v\d+\s+)official(\s*)$/, '$1named$2')
-                        if (normalized != text) {
-                            bytes = normalized.getBytes(java.nio.charset.StandardCharsets.UTF_8)
-                            fileChanged = true
-                            patchedEntries++
-                        }
+                def changes = [:]
+                zip.entries().each { entry ->
+                    if (!entry.directory && (entry.name.endsWith('.classtweaker') || entry.name.endsWith('.accesswidener'))) {
+                        def original = zip.getInputStream(entry).getText('UTF-8')
+                        def normalized = original.replaceFirst(/(?m)^((?:classTweaker|accessWidener)\s+v\d+\s+)official(\s*)$/, '$1named$2')
+                        if (normalized != original) changes[entry.name] = normalized.getBytes('UTF-8')
                     }
-                    zipOut.write(bytes)
-                    zipOut.closeEntry()
                 }
-            } finally {
-                zipOut.close()
-                zipFile.close()
-            }
-            if (fileChanged) {
-                java.nio.file.Files.move(tempFile.toPath(), jarFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
-                patchedFiles++
-            } else {
-                tempFile.delete()
-            }
+                def copy = namedRuntimeCopyFor(jarFile)
+                if (!copy.isFile()) {
+                    def out = new java.util.zip.ZipOutputStream(new FileOutputStream(copy))
+                    try {
+                        zip.entries().each { entry ->
+                            out.putNextEntry(new java.util.zip.ZipEntry(entry.name))
+                            if (!entry.directory) out.write(changes[entry.name] ?: zip.getInputStream(entry).bytes)
+                            out.closeEntry()
+                        }
+                    } finally { out.close() }
+                }
+            } finally { zip.close() }
         }
-        logger.lifecycle("Normalized ${patchedEntries} Fabric API tweaker entries in ${patchedFiles} jars for named dev runtime.")
+        logger.lifecycle("Prepared ${namedRuntimeCopies.size()} isolated named-runtime API copies.")
     }
 }
 
-// Minecraft 26.x dev runtimes use named mappings while Fabric API may ship
-// official-namespace class tweakers/access wideners. Normalize every runtime
-// entrypoint, not just the visual client GameTest.
-tasks.matching { task -> task.name in [
-        "runClient",
-        "runServer",
-        "runDatagen",
-        "runGameTest",
-        "runClientGameTest"
-] }.configureEach {
-    dependsOn("normalizeFabricApiTweakersForNamedDevRuntime")
+gradle.projectsEvaluated {
+    tasks.matching { it.name in ['runClient','runServer','runDatagen','runGameTest','runClientGameTest'] }.configureEach {
+        dependsOn('normalizeFabricApiTweakersForNamedDevRuntime')
+        // Resolve and replace before Loom finalizes its internalClasspath task input.
+        def originals = classpath.files.toList()
+        def copies = originals.collect { file ->
+            if (file.name.startsWith('fabric-') && file.name.endsWith('.jar')) {
+                namedRuntimeSources.add(file)
+                return namedRuntimeCopyFor(file)
+            }
+            return file
+        }
+        setClasspath(files(copies))
+    }
+}
+
+// Reuse the real Fabric runners while allowing a bounded map regression pass.
+// CI omits this property and always receives every registered test.
+def nexusTestFocus = providers.gradleProperty('nexusTestFocus').orElse('all')
+tasks.named('processGametestResources').configure {
+    inputs.property('nexusTestFocus', nexusTestFocus)
+    doLast {
+        if (nexusTestFocus.get() == 'map') {
+            def manifest = file("${destinationDir}/fabric.mod.json")
+            def data = new groovy.json.JsonSlurper().parse(manifest)
+            data.entrypoints['fabric-gametest'] = data.entrypoints['fabric-gametest'].findAll {
+                it.endsWith('NexusMapRecordingGameTest') || it.endsWith('NexusInterfaceLifecycleGameTest')
+            }
+            data.entrypoints['fabric-client-gametest'] = data.entrypoints['fabric-client-gametest'].findAll {
+                it.endsWith('NexusMapPlayerMarkerClientGameTest') || it.endsWith('NexusSpaceUnitMapVisualGameTest') || it.endsWith('NexusObserverProviderClientGameTest')
+            }
+            manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+        } else if (nexusTestFocus.get() != 'all') {
+            throw new GradleException('nexusTestFocus must be all or map')
+        }
+    }
+}
+
+tasks.register('productionGametestModJar', Jar) {
+    dependsOn(sourceSets.gametest.classesTaskName, sourceSets.gametest.processResourcesTaskName)
+    archiveClassifier = 'production-gametest'
+    from sourceSets.gametest.output
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+
+tasks.register('runProductionClientGameTest', net.fabricmc.loom.task.prod.ClientProductionRunTask) {
+    dependsOn('productionGametestModJar')
+    mods.from(tasks.named('productionGametestModJar').flatMap { it.archiveFile })
+    jvmArgs.add('-Dfabric.client.gametest')
+    jvmArgs.add('-Dfabric.client.gametest.disableNetworkSynchronizer=true')
+    useXVFB = true
 }
 
 tasks.named("runClientGameTest").configure {

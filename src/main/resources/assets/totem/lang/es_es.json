@@ -316,6 +316,7 @@
   "message.totem.space_unit.teleport_cancelled.no_compass": "Teletransporte cancelado: sostén la brújula hasta la salida",
   "message.totem.space_unit.teleport_cancelled.no_landing": "Teletransporte cancelado: no se encontró un punto de aterrizaje seguro",
   "message.totem.space_unit.teleport_cancelled.source": "Teletransporte cancelado: el origen ya no es válido",
+  "message.totem.space_unit.teleport_cancelled.load_timeout": "Teletransporte cancelado: se agotó el tiempo de carga del destino",
   "message.totem.space_unit.teleport_cancelled.target": "Teletransporte cancelado: el destino ya no es válido",
   "message.totem.space_unit.teleport_cancelled.target_friendship": "Teletransporte cancelado: la amistad de Space Unit ya no existe",
   "message.totem.space_unit.teleport_cancelled.target_offline": "Teletransporte cancelado: el destino de jugador se desconectó",

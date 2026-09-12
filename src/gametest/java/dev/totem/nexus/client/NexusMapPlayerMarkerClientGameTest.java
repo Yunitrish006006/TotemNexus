@@ -36,6 +36,38 @@ public final class NexusMapPlayerMarkerClientGameTest implements FabricClientGam
                 payload.set(mapPayload(centerX, centerZ));
             });
 
+            // Real first-person ItemInHandRenderer, including both vanilla hand poses.
+            for (int mode=0;mode<3;mode++) {
+                final int pose=mode;
+                world.getServer().runOnServer(server -> {
+                    var player=server.getPlayerList().getPlayers().getFirst();
+                    var data=NexusMapItemSavedDataInvoker.totem$createExact(Mth.floor(player.getX()),Mth.floor(player.getZ()),
+                            (byte)0,false,false,false,Level.OVERWORLD);
+                    java.util.Arrays.fill(data.colors,MapColor.GRASS.getPackedId(MapColor.Brightness.NORMAL));
+                    player.level().setMapData(new MapId(MAP_ID),data);
+                    var map=new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.FILLED_MAP);
+                    map.set(net.minecraft.core.component.DataComponents.MAP_ID,new MapId(MAP_ID));
+                    player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,
+                            pose==2?new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.STONE):map);
+                    player.setItemInHand(net.minecraft.world.InteractionHand.OFF_HAND,
+                            pose==2?map:pose==1?new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.STONE):net.minecraft.world.item.ItemStack.EMPTY);
+                    player.setXRot(45);
+                });
+                context.waitTicks(8);
+                context.runOnClient(client -> {
+                    client.player.setXRot(65);
+                    client.player.xRotO = 65;
+                    NexusMapDetailClientState.setForVisualTest(MAP_ID,List.of());
+                    ((NexusHeldMapVisualTestAccess)client.gameRenderer.itemInHandRenderer).totem$resetHeldProbe();
+                });
+                context.waitFor(client -> ((NexusHeldMapVisualTestAccess)client.gameRenderer.itemInHandRenderer).totem$lastHeldMap()==MAP_ID);
+                context.runOnClient(client -> {
+                    if(((NexusHeldMapVisualTestAccess)client.gameRenderer.itemInHandRenderer).totem$heldMarkerCount()!=1)
+                        throw new AssertionError("Held map must contain exactly one transient player marker");
+                });
+                context.takeScreenshot("totem-nexus-held-player-marker-"+mode);
+            }
+
             context.setScreen(() -> new NexusSpaceUnitMapScreen(payload.get()));
             context.waitForScreen(NexusSpaceUnitMapScreen.class);
             context.waitFor(client -> ((NexusMapDetailVisualTestAccess) client.gui.screen())

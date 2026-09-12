@@ -43,8 +43,8 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                     "Nexus Death Admin Observer provider entrypoint is missing");
             NexusObserverScreenProvider nexus = new NexusObserverScreenProvider();
             NexusDeathAdminObserverScreenProvider death = new NexusDeathAdminObserverScreenProvider();
-            require(nexus.protocolVersion() == 4,
-                    "Detail-aware map zoom requires Nexus Observer semantic protocol 4");
+            require(nexus.protocolVersion() == 5,
+                    "Detail-aware map zoom requires Nexus Observer semantic protocol 5");
 
             exercise(context, nexus,
                     clientScreen(context, () -> new NexusSpaceUnitMapScreen(NexusSpaceUnitMapVisualGameTest.friendPayload())),

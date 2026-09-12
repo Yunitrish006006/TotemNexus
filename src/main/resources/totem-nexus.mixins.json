@@ -25,6 +25,9 @@
   "client": [
     "client.NexusSpaceUnitMapScreenMixin",
     "client.NexusMapRendererInvoker",
+    "client.NexusHeldMapMarkerMixin",
+    "client.NexusClientLevelMapAccess",
+    "client.NexusMapTextureCacheAccess",
     "client.NexusMapDetailScreenMixin",
     "client.NexusSpaceUnitMaterialReferenceMixin",
     "client.NexusPhasingNightVisionMixin",

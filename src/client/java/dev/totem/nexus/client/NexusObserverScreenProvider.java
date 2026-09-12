@@ -31,7 +31,7 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
     private static final String MAP_PAN_Y = "map_pan_y";
 
     @Override public String familyId() { return "nexus"; }
-    @Override public int protocolVersion() { return 4; }
+    @Override public int protocolVersion() { return 5; }
     @Override public Set<String> variants() { return VARIANTS; }
 
     @Override public Optional<ObserverScreenSnapshot> capture(Screen screen, long sequence) {
@@ -48,6 +48,12 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
                 values.put(SELECTED_UNIT_ID, selectedUnitId.toString());
             }
             if ("map".equals(variant)) {
+                var view=NexusMapDetailClientState.view(owned.observerPayload().mapId());
+                values.put("terrain_revision",Long.toString(NexusMapDetailClientState.revision()));
+                values.put("terrain_map",Integer.toString(view.mapId()));
+                values.put("terrain_x",Integer.toString(view.centerX()));
+                values.put("terrain_z",Integer.toString(view.centerZ()));
+                values.put("terrain_radius",Integer.toString(view.radius()));
                 values.put(MAP_ZOOM, Integer.toString(owned.observerMapZoom()));
                 values.put(MAP_PAN_X, Integer.toString(owned.observerMapPanX()));
                 values.put(MAP_PAN_Y, Integer.toString(owned.observerMapPanY()));

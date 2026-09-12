@@ -316,6 +316,7 @@
   "message.totem.space_unit.teleport_cancelled.no_compass": "Teleport cancelled: hold the compass until departure",
   "message.totem.space_unit.teleport_cancelled.no_landing": "Teleport cancelled: no safe landing point found",
   "message.totem.space_unit.teleport_cancelled.source": "Teleport cancelled: source is no longer valid",
+  "message.totem.space_unit.teleport_cancelled.load_timeout": "Teleport cancelled: destination loading timed out",
   "message.totem.space_unit.teleport_cancelled.target": "Teleport cancelled: destination is no longer valid",
   "message.totem.space_unit.teleport_cancelled.target_friendship": "Teleport cancelled: the Space Unit friendship no longer exists",
   "message.totem.space_unit.teleport_cancelled.target_offline": "Teleport cancelled: player destination went offline",

@@ -78,6 +78,7 @@ public final class NexusSpaceUnitAuthority {
 
     private static final Map<UUID, TeleportSession> teleportSessions = new HashMap<>();
     private static final Map<UUID, LandingSearchSession> landingSearchSessions = new HashMap<>();
+    private static final Map<UUID, NexusEndpointLoad> endpointLoads = new HashMap<>();
     private static final TeleportRouteReservationStore routeReservations = new TeleportRouteReservationStore();
     private static final Map<UUID, TeleportInterfaceContext> teleportInterfaceContexts = new HashMap<>();
     private static final Map<UUID, PendingLodestoneRegistration> pendingLodestoneRegistrations = new HashMap<>();
@@ -206,7 +207,7 @@ public final class NexusSpaceUnitAuthority {
         ServerPlayConnectionEvents.DISCONNECT.register((listener, server) -> {
             UUID playerId = listener.getPlayer().getUUID();
             teleportSessions.remove(playerId);
-            routeReservations.release(playerId);
+            releaseRoute(playerId);
             closeLandingSearch(playerId);
             teleportInterfaceContexts.remove(playerId);
             pendingLodestoneRegistrations.remove(playerId);
@@ -316,7 +317,7 @@ public final class NexusSpaceUnitAuthority {
             UUID targetUnitId) {
         NexusRecoveryGrace.cancel(player);
         teleportSessions.remove(player.getUUID());
-        routeReservations.release(player.getUUID());
+        releaseRoute(player.getUUID());
         closeLandingSearch(player.getUUID());
 
         Optional<TeleportInterfaceContext> interfaceContext =
@@ -384,8 +385,13 @@ public final class NexusSpaceUnitAuthority {
                 quote.filledMapDataValid(),
                 quote.interfaceBonusActive(),
                 prepareTicks,
-                prepareTicks
+                prepareTicks,
+                quote
         ));
+        if (target.get().lodestoneAnchor()) {
+            endpointLoads.put(player.getUUID(), new NexusEndpointLoad(targetLevel, target.get().pos(),
+                    player.level().getServer().overworld().getGameTime()));
+        }
         notify(player, Component.translatable(
                 "message.totem.space_unit.teleport_started",
                 target.get().name(),
@@ -848,14 +854,14 @@ public final class NexusSpaceUnitAuthority {
             ServerPlayer player = server.getPlayerList().getPlayer(session.playerId());
             if (player == null) {
                 iterator.remove();
-                routeReservations.release(session.playerId());
+                releaseRoute(session.playerId());
                 continue;
             }
 
             Component cancelReason = teleportCancelReason(player, session);
             if (cancelReason != null) {
                 iterator.remove();
-                routeReservations.release(session.playerId());
+                releaseRoute(session.playerId());
                 notify(player, cancelReason);
                 continue;
             }
@@ -863,7 +869,7 @@ public final class NexusSpaceUnitAuthority {
             Optional<MapSource> source = resolveMapSource(player, session.sourceType(), session.sourceUnitId(), false);
             if (source.isEmpty()) {
                 iterator.remove();
-                routeReservations.release(session.playerId());
+                releaseRoute(session.playerId());
                 notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.source"));
                 continue;
             }
@@ -871,11 +877,28 @@ public final class NexusSpaceUnitAuthority {
             Optional<TeleportTarget> target = resolveTeleportTarget(player, session.targetUnitId(), false);
             if (target.isEmpty()) {
                 iterator.remove();
-                routeReservations.release(session.playerId());
+                releaseRoute(session.playerId());
                 notify(player, targetCancelReason(player, session.targetType(), session.targetUnitId()));
                 continue;
             }
 
+            NexusEndpointLoad load = endpointLoads.get(session.playerId());
+            if (load != null) {
+                if (load.failed(server.overworld().getGameTime())) {
+                    iterator.remove();
+                    releaseRoute(session.playerId());
+                    notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.load_timeout"));
+                    continue;
+                }
+                if (!load.ready()) continue;
+                target = resolveTeleportTarget(player, session.targetUnitId(), false, true);
+                if (target.isEmpty()) {
+                    iterator.remove();
+                    releaseRoute(session.playerId());
+                    notify(player, targetCancelReason(player, session.targetType(), session.targetUnitId()));
+                    continue;
+                }
+            }
             TeleportQuote quote = calculateTeleportQuote(
                     player,
                     source.get(),
@@ -885,14 +908,14 @@ public final class NexusSpaceUnitAuthority {
             );
             if (filledMapSessionQuoteInvalid(session, quote)) {
                 iterator.remove();
-                routeReservations.release(session.playerId());
+                releaseRoute(session.playerId());
                 notify(player, Component.translatable(
                         "message.totem.space_unit.teleport_cancelled.interface_quote_changed"));
                 continue;
             }
             if (!quote.canTeleport()) {
                 iterator.remove();
-                routeReservations.release(session.playerId());
+                releaseRoute(session.playerId());
                 notify(player, Component.translatable(quote.blockedReason()));
                 continue;
             }
@@ -935,14 +958,27 @@ public final class NexusSpaceUnitAuthority {
     public static void cancelTeleport(ServerPlayer player, Component reason) {
         boolean cancelled = teleportSessions.remove(player.getUUID()) != null;
         cancelled = closeLandingSearch(player.getUUID()) || cancelled;
-        cancelled = routeReservations.release(player.getUUID()) || cancelled;
+        cancelled = releaseRoute(player.getUUID()) || cancelled;
         if (cancelled) {
             notify(player, reason);
         }
     }
 
+    static boolean hasEndpointLoad(UUID playerId) { return endpointLoads.containsKey(playerId); }
+
     static boolean hasActiveTeleportSession(UUID playerId) {
         return teleportSessions.containsKey(playerId) || landingSearchSessions.containsKey(playerId);
+    }
+
+    private static long landingDeadline(UUID playerId, long now) {
+        NexusEndpointLoad load = endpointLoads.get(playerId);
+        return load == null ? now + 200 : load.landingDeadline(now);
+    }
+
+    private static boolean releaseRoute(UUID playerId) {
+        NexusEndpointLoad load = endpointLoads.remove(playerId);
+        if (load != null) load.close();
+        return routeReservations.release(playerId) || load != null;
     }
 
     private static boolean closeLandingSearch(UUID playerId) {
@@ -955,6 +991,8 @@ public final class NexusSpaceUnitAuthority {
     }
 
     private static void clearTeleportSessions() {
+        endpointLoads.values().forEach(NexusEndpointLoad::close);
+        endpointLoads.clear();
         teleportSessions.clear();
         landingSearchSessions.values().forEach(pending -> pending.search().close());
         landingSearchSessions.clear();
@@ -1559,20 +1597,20 @@ public final class NexusSpaceUnitAuthority {
             TeleportSession session) {
         Component interfaceCancelReason = teleportInterfaceCancelReason(player, session);
         if (interfaceCancelReason != null) {
-            routeReservations.release(session.playerId());
+            releaseRoute(session.playerId());
             notify(player, interfaceCancelReason);
             return;
         }
         Optional<MapSource> finalSource = resolveMapSource(player, source.type(), source.id(), false, true);
         if (finalSource.isEmpty()) {
-            routeReservations.release(session.playerId());
+            releaseRoute(session.playerId());
             notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.source"));
             return;
         }
 
         Optional<TeleportTarget> finalTarget = resolveTeleportTarget(player, target.id(), false, true);
         if (finalTarget.isEmpty()) {
-            routeReservations.release(session.playerId());
+            releaseRoute(session.playerId());
             notify(player, targetCancelReason(player, target.type(), target.id()));
             return;
         }
@@ -1585,13 +1623,13 @@ public final class NexusSpaceUnitAuthority {
                 session.mapId()
         );
         if (filledMapSessionQuoteInvalid(session, finalQuote)) {
-            routeReservations.release(session.playerId());
+            releaseRoute(session.playerId());
             notify(player, Component.translatable(
                     "message.totem.space_unit.teleport_cancelled.interface_quote_changed"));
             return;
         }
         if (!finalQuote.canTeleport()) {
-            routeReservations.release(session.playerId());
+            releaseRoute(session.playerId());
             notify(player, Component.translatable(finalQuote.blockedReason()));
             return;
         }
@@ -1599,14 +1637,14 @@ public final class NexusSpaceUnitAuthority {
                 session.playerId(),
                 routeReservationEndpoints(player, finalSource.get(), finalTarget.get()),
                 player.level().getGameTime())) {
-            routeReservations.release(session.playerId());
+            releaseRoute(session.playerId());
             notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.route_busy"));
             return;
         }
 
         ServerLevel targetLevel = player.level().getServer().getLevel(finalTarget.get().dimension());
         if (targetLevel == null) {
-            routeReservations.release(session.playerId());
+            releaseRoute(session.playerId());
             notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.target"));
             return;
         }
@@ -1622,7 +1660,7 @@ public final class NexusSpaceUnitAuthority {
         );
         LandingSearchSession previous = landingSearchSessions.put(
                 player.getUUID(),
-                new LandingSearchSession(session, search, player.level().getServer().overworld().getGameTime() + 200)
+                new LandingSearchSession(session, search, landingDeadline(session.playerId(), player.level().getServer().overworld().getGameTime()))
         );
         if (previous != null) {
             previous.search().close();
@@ -1640,7 +1678,7 @@ public final class NexusSpaceUnitAuthority {
             if (player == null) {
                 iterator.remove();
                 pending.search().close();
-                routeReservations.release(session.playerId());
+                releaseRoute(session.playerId());
                 continue;
             }
 
@@ -1650,7 +1688,7 @@ public final class NexusSpaceUnitAuthority {
             if (cancelReason != null) {
                 iterator.remove();
                 pending.search().close();
-                routeReservations.release(session.playerId());
+                releaseRoute(session.playerId());
                 notify(player, cancelReason);
                 continue;
             }
@@ -1660,7 +1698,7 @@ public final class NexusSpaceUnitAuthority {
             if (source.isEmpty()) {
                 iterator.remove();
                 pending.search().close();
-                routeReservations.release(session.playerId());
+                releaseRoute(session.playerId());
                 notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.source"));
                 continue;
             }
@@ -1670,7 +1708,7 @@ public final class NexusSpaceUnitAuthority {
             if (target.isEmpty()) {
                 iterator.remove();
                 pending.search().close();
-                routeReservations.release(session.playerId());
+                releaseRoute(session.playerId());
                 notify(player, targetCancelReason(player, session.targetType(), session.targetUnitId()));
                 continue;
             }
@@ -1685,7 +1723,7 @@ public final class NexusSpaceUnitAuthority {
             if (filledMapSessionQuoteInvalid(session, quote)) {
                 iterator.remove();
                 pending.search().close();
-                routeReservations.release(session.playerId());
+                releaseRoute(session.playerId());
                 notify(player, Component.translatable(
                         "message.totem.space_unit.teleport_cancelled.interface_quote_changed"));
                 continue;
@@ -1693,7 +1731,7 @@ public final class NexusSpaceUnitAuthority {
             if (!quote.canTeleport()) {
                 iterator.remove();
                 pending.search().close();
-                routeReservations.release(session.playerId());
+                releaseRoute(session.playerId());
                 notify(player, Component.translatable(quote.blockedReason()));
                 continue;
             }
@@ -1702,7 +1740,7 @@ public final class NexusSpaceUnitAuthority {
             if (targetLevel == null) {
                 iterator.remove();
                 pending.search().close();
-                routeReservations.release(session.playerId());
+                releaseRoute(session.playerId());
                 notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.target"));
                 continue;
             }
@@ -1746,7 +1784,7 @@ public final class NexusSpaceUnitAuthority {
             iterator.remove();
             pending.search().close();
             if (progress.state() == NexusSafeLanding.State.EXHAUSTED) {
-                routeReservations.release(session.playerId());
+                releaseRoute(session.playerId());
                 notify(player, Component.translatable(
                         "message.totem.space_unit.teleport_cancelled.no_landing"));
                 continue;
@@ -1761,7 +1799,7 @@ public final class NexusSpaceUnitAuthority {
             BlockPos landingPos) {
         Component interfaceCancelReason = teleportInterfaceCancelReason(player, session);
         if (interfaceCancelReason != null) {
-            routeReservations.release(session.playerId());
+            releaseRoute(session.playerId());
             notify(player, interfaceCancelReason);
             return;
         }
@@ -1769,14 +1807,14 @@ public final class NexusSpaceUnitAuthority {
         Optional<MapSource> finalSource =
                 resolveMapSource(player, session.sourceType(), session.sourceUnitId(), false, true);
         if (finalSource.isEmpty()) {
-            routeReservations.release(session.playerId());
+            releaseRoute(session.playerId());
             notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.source"));
             return;
         }
         Optional<TeleportTarget> finalTarget =
                 resolveTeleportTarget(player, session.targetUnitId(), false, true);
         if (finalTarget.isEmpty()) {
-            routeReservations.release(session.playerId());
+            releaseRoute(session.playerId());
             notify(player, targetCancelReason(player, session.targetType(), session.targetUnitId()));
             return;
         }
@@ -1789,13 +1827,13 @@ public final class NexusSpaceUnitAuthority {
                 session.mapId()
         );
         if (filledMapSessionQuoteInvalid(session, finalQuote)) {
-            routeReservations.release(session.playerId());
+            releaseRoute(session.playerId());
             notify(player, Component.translatable(
                     "message.totem.space_unit.teleport_cancelled.interface_quote_changed"));
             return;
         }
         if (!finalQuote.canTeleport()) {
-            routeReservations.release(session.playerId());
+            releaseRoute(session.playerId());
             notify(player, Component.translatable(finalQuote.blockedReason()));
             return;
         }
@@ -1803,7 +1841,7 @@ public final class NexusSpaceUnitAuthority {
                 session.playerId(),
                 routeReservationEndpoints(player, finalSource.get(), finalTarget.get()),
                 player.level().getGameTime())) {
-            routeReservations.release(session.playerId());
+            releaseRoute(session.playerId());
             notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.route_busy"));
             return;
         }
@@ -1821,7 +1859,7 @@ public final class NexusSpaceUnitAuthority {
                         Math.abs(landingPos.getZ() - finalAnchor.getZ())
                 ) > radius
                 || !NexusSafeLanding.isSafeLoaded(targetLevel, landingPos)) {
-            routeReservations.release(session.playerId());
+            releaseRoute(session.playerId());
             notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.no_landing"));
             return;
         }
@@ -1831,14 +1869,16 @@ public final class NexusSpaceUnitAuthority {
             var backpack = NexusDeathTarget.live(player.level().getServer(), node);
             if (backpack == null || backpack.level() != targetLevel
                     || !NexusRecoveryLanding.reachable(targetLevel, landingPos, backpack.blockPosition())) {
-                routeReservations.release(session.playerId());
+                releaseRoute(session.playerId());
                 notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.no_landing"));
                 return;
             }
         }
 
+        var payment = new NexusTeleportPaymentSnapshot(player);
         if (!deductTeleportCost(player, finalQuote)) {
-            routeReservations.release(session.playerId());
+            payment.restore(player);
+            releaseRoute(session.playerId());
             notify(player, Component.translatable("message.totem.space_unit.teleport_cancelled.cost"));
             return;
         }
@@ -1854,11 +1894,14 @@ public final class NexusSpaceUnitAuthority {
                 false
         );
         if (!teleported) {
-            routeReservations.release(session.playerId());
+            payment.restore(player);
+            releaseRoute(session.playerId());
             notify(player, Component.translatable(
                     "message.totem.space_unit.teleport_cancelled.generic"));
             return;
         }
+        NexusEndpointLoad completedLoad = endpointLoads.remove(session.playerId());
+        if (completedLoad != null) completedLoad.close();
         ItemStack completedInterface = player.getItemInHand(session.interactionHand());
         if (NexusSoulboundTeleportItem.bindAfterSuccessfulTeleport(player, completedInterface)) {
             notify(player, Component.translatable(
@@ -2005,16 +2048,17 @@ public final class NexusSpaceUnitAuthority {
         }
         if (target.isLodestoneAnchor()) {
             ServerLevel targetLevel = server.getLevel(target.dimension());
-            if (targetLevel == null || !targetLevel.isLoaded(target.pos())) {
+            if (targetLevel == null) {
                 notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.teleport_cancelled.target"));
                 return Optional.empty();
             }
+            if (!targetLevel.isLoaded(target.pos())) return Optional.of(TeleportTarget.unit(target));
             if (!targetLevel.getBlockState(target.pos()).is(Blocks.LODESTONE)) {
                 units(server).disableLodestone(target.dimension(), target.pos(), targetLevel.getGameTime());
                 notifyIfRequested(player, notifyFailure, Component.translatable("message.totem.space_unit.teleport_cancelled.target"));
                 return Optional.empty();
             }
-            if (rescanStructure) {
+            if (rescanStructure && NexusEndpointLoad.structureLoaded(targetLevel, target.pos())) {
                 target = units(server).rescanLodestone(targetLevel, target.id()).orElse(target);
             }
         }
@@ -2081,6 +2125,13 @@ public final class NexusSpaceUnitAuthority {
     private static boolean filledMapSessionQuoteInvalid(
             TeleportSession session,
             TeleportQuote quote) {
+        TeleportQuote accepted = session.acceptedQuote();
+        if (accepted != null && (accepted.finalFoodCost() != quote.finalFoodCost()
+                || accepted.amethystCost() != quote.amethystCost()
+                || accepted.prepareTicks() != quote.prepareTicks()
+                || accepted.maxHorizontalDeviation() != quote.maxHorizontalDeviation()
+                || accepted.damageChancePercent() != quote.damageChancePercent()
+                || accepted.structureWearChancePercent() != quote.structureWearChancePercent())) return true;
         return session.interfaceType() == TeleportInterfaceType.FILLED_MAP
                 && ((session.filledMapDataValidAtStart() && !quote.filledMapDataValid())
                 || (session.filledMapBonusActiveAtStart() && !quote.interfaceBonusActive()));
@@ -3259,7 +3310,8 @@ public final class NexusSpaceUnitAuthority {
             boolean filledMapDataValidAtStart,
             boolean filledMapBonusActiveAtStart,
             int totalTicks,
-            int remainingTicks) {
+            int remainingTicks,
+            TeleportQuote acceptedQuote) {
 
         private TeleportSession tick() {
             return new TeleportSession(
@@ -3277,7 +3329,8 @@ public final class NexusSpaceUnitAuthority {
                     this.filledMapDataValidAtStart,
                     this.filledMapBonusActiveAtStart,
                     this.totalTicks,
-                    this.remainingTicks - 1
+                    this.remainingTicks - 1,
+                    this.acceptedQuote
             );
         }
     }

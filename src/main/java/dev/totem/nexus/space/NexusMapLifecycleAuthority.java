@@ -106,6 +106,15 @@ public final class NexusMapLifecycleAuthority {
                     (byte) (validated.data().scale + 1),
                     false,
                     validated.entry().anchor().dimension());
+            // Preserve the source's known footprint in the central quarter of the expanded map.
+            for (int z=0;z<64;z++) for(int x=0;x<64;x++) {
+                int[] counts=new int[256]; int selected=0;
+                for(int dz=0;dz<2;dz++) for(int dx=0;dx<2;dx++) {
+                    int color=validated.data().colors[x*2+dx+(z*2+dz)*128]&255;
+                    if(color/4!=0 && ++counts[color]>counts[selected]) selected=color;
+                }
+                if(selected!=0) resultData.setColor(32+x,32+z,(byte)selected);
+            }
         } else if (processing == MapPostProcessing.LOCK) {
             if (validated.data().locked) return PostProcessResult.DENIED;
             resultData = validated.data().locked();
@@ -118,6 +127,8 @@ public final class NexusMapLifecycleAuthority {
         if (!bindings.derive(validated.mapId(), validated.data(), resultMapId, resultData)) {
             return PostProcessResult.DENIED;
         }
+        NexusMapDetailSavedData.get(level).derive(level, validated.mapId(), validated.data(),
+                validated.entry(), resultMapId);
         level.setMapData(resultMapId, resultData);
         stack.set(DataComponents.MAP_ID, resultMapId);
         return PostProcessResult.PROCESSED;

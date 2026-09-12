@@ -316,6 +316,7 @@
   "message.totem.space_unit.teleport_cancelled.no_compass": "傳送取消：出發前必須持續手持羅盤",
   "message.totem.space_unit.teleport_cancelled.no_landing": "傳送取消：找不到安全落點",
   "message.totem.space_unit.teleport_cancelled.source": "傳送取消：來源已失效",
+  "message.totem.space_unit.teleport_cancelled.load_timeout": "傳送取消：目的地区塊載入逾時",
   "message.totem.space_unit.teleport_cancelled.target": "傳送取消：目的地已失效",
   "message.totem.space_unit.teleport_cancelled.target_friendship": "傳送取消：Space Unit 好友關係已解除",
   "message.totem.space_unit.teleport_cancelled.target_offline": "傳送取消：玩家目的地已離線",

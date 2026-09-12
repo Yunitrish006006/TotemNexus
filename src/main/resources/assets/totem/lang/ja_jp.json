@@ -316,6 +316,7 @@
   "message.totem.space_unit.teleport_cancelled.no_compass": "テレポートを中止しました: 出発までコンパスを持ち続けてください",
   "message.totem.space_unit.teleport_cancelled.no_landing": "テレポートを中止しました: 安全な着地点が見つかりませんでした",
   "message.totem.space_unit.teleport_cancelled.source": "テレポートを中止しました: 起点が無効になりました",
+  "message.totem.space_unit.teleport_cancelled.load_timeout": "テレポートを中止しました: 目的地の読み込みがタイムアウトしました",
   "message.totem.space_unit.teleport_cancelled.target": "テレポートを中止しました: 目的地が無効になりました",
   "message.totem.space_unit.teleport_cancelled.target_friendship": "テレポートを中止しました: 空間ユニットのフレンド関係がなくなりました",
   "message.totem.space_unit.teleport_cancelled.target_offline": "テレポートを中止しました: プレイヤー目的地がオフラインになりました",

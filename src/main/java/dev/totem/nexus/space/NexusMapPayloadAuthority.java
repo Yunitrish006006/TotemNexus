@@ -42,7 +42,7 @@ public final class NexusMapPayloadAuthority {
         NexusFriendSavedData friends = storage.computeIfAbsent(NexusFriendSavedData.TYPE);
         MapItemSavedData mapData = context.mapId() == null ? null : MapItem.getSavedData(context.mapId(), player.level());
         SpaceUnitMapPayload payload = NexusMapPayloadFactory.build(player.getUUID(), source, context.interfaceType(), context.mapId(), mapData,
-                units.visibleDiscoveredUnits(player.getUUID(), discovery, friends), List.of(), discovery, friends,
+                authorizedUnits(player, context, units, discovery, friends), List.of(), discovery, friends,
                 target -> quotes.quote(player, context, target.id()),
                 friend -> quotes.quote(player, context, friend.playerId()));
         sender.accept(player, payload);
@@ -58,9 +58,17 @@ public final class NexusMapPayloadAuthority {
         NexusFriendSavedData friends = storage.computeIfAbsent(NexusFriendSavedData.TYPE);
         MapItemSavedData mapData = context.mapId() == null ? null : MapItem.getSavedData(context.mapId(), player.level());
         SpaceUnitMapPayload payload = NexusMapPayloadFactory.build(player.getUUID(), source, context.interfaceType(), context.mapId(), mapData,
-                units.visibleDiscoveredUnits(player.getUUID(), discovery, friends), discovery, friends,
+                authorizedUnits(player, context, units, discovery, friends), discovery, friends,
                 target -> quotes.apply(player, target));
         sender.accept(player, payload);
+    }
+
+    private static List<NexusSpaceUnitRecord> authorizedUnits(ServerPlayer player, TeleportInterfaceContext context,
+            NexusSpaceUnitSavedData units, NexusSpaceDiscoverySavedData discovery, NexusFriendSavedData friends) {
+        if (!context.interfaceType().hasMapVisualization()) return units.visibleDiscoveredUnits(player.getUUID(), discovery, friends);
+        var candidates = new java.util.ArrayList<>(units.activeLodestones());
+        candidates.addAll(units.deathNodes());
+        return candidates.stream().filter(unit -> NexusInterfaceAccess.allows(player,context,unit)).toList();
     }
 
 }

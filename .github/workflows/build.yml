@@ -73,3 +73,23 @@ jobs:
           core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
           xvfb-run -a ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" \
             -PtotemCoreJar="$core_jar" runClientGameTest --no-daemon --stacktrace
+
+      - name: Run map production runtime regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-0.7.21.jar"
+          ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" \
+            -PtotemCoreJar="$core_jar" -PnexusTestFocus=map runProductionClientGameTest --no-daemon --stacktrace
+
+      - name: Preserve runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexus-runtime-evidence
+          path: |
+            build/reports/tests/
+            build/run/clientGameTest/screenshots/
+            run/screenshots/
+            run/logs/
+          if-no-files-found: warn
