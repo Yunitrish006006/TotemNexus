@@ -76,6 +76,10 @@ jobs:
 
       - name: Run map production runtime regressions
         shell: bash
+        env:
+          # Older development builds may have rewritten cached Fabric API tweakers
+          # to named. Production must resolve pristine official artifacts.
+          GRADLE_USER_HOME: ${{ runner.temp }}/nexus-production-gradle
         run: |
           set -euo pipefail
           core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-0.7.21.jar"
