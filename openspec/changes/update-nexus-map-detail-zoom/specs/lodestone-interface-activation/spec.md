@@ -7,7 +7,7 @@ coarse terrain fallback and MAY use only server-proven historical Nexus map
 ancestors as progressively finer vanilla terrain layers. Zoom SHALL use bounded
 power-of-two detail levels aligned to vanilla map scales, SHALL stop at scale 0,
 and MUST NOT synthesize unrecorded terrain detail, infer legacy ancestry from a
-matching anchor alone, or transport map pixels in the Nexus payload.
+matching anchor alone, or transport map pixels in the Nexus semantic payload.
 
 #### Scenario: Expanded map is inspected at higher detail
 
@@ -37,14 +37,19 @@ matching anchor alone, or transport map pixels in the Nexus payload.
 - **AND** the current map remains the complete visible fallback without forcing
   a chunk load or generating substitute terrain
 
-### Requirement: Nexus map shows the owning local player transiently
+### Requirement: Nexus map shows player position transiently and Observer-safely
 
 The owning production Nexus map Screen SHALL render the current local player's
 map position and facing as a transient vanilla-style player decoration when the
 player is in the map dimension and within current map coverage. This decoration
-MUST NOT be persisted into `MapItemSavedData`, item components, Nexus SavedData,
-or the Nexus payload. An Observer reconstruction MUST NOT substitute the
-observer client's local player position for the observed owner.
+MUST NOT be persisted into `MapItemSavedData`, item components, or Nexus SavedData.
+
+A protocol-5 Observer reconstruction MAY receive the observed target's derived
+map-local player decoration, but MUST NOT receive the target's raw world X/Z
+coordinates for that marker. The Observer decoration SHALL consist only of an
+off-map flag, signed map-local X/Y bytes, and a vanilla rotation value in
+`[0, 15]`. An Observer reconstruction MUST NOT substitute the observer client's
+own local player position for the observed target.
 
 #### Scenario: Owner opens map while inside its coverage
 
@@ -61,21 +66,37 @@ observer client's local player position for the observed owner.
   coverage
 - **THEN** the Nexus Screen does not fabricate an in-bounds player marker
 
-#### Scenario: Observer watches the map
+#### Scenario: Observer watches the target map
 
-- **WHEN** a read-only Observer Screen is reconstructed on another client
-- **THEN** the Observer client's own player coordinates are not rendered as the
-  observed owner's map position
-- **AND** no owner position, map pixels, framebuffer, screenshot, or video is
-  added to the semantic Observer snapshot solely for this feature
+- **WHEN** a protocol-5 read-only Observer Screen is reconstructed on another
+  client and the target snapshot contains a complete valid map-local player
+  decoration
+- **THEN** the Observer Screen renders that observed-target decoration using the
+  same map viewport transform as the owning Screen
+- **AND** the semantic snapshot contains no target raw world X/Z coordinates,
+  map pixels, framebuffer, screenshot, or video for that marker
+- **AND** the observer client's own `Minecraft.player` coordinates are never used
+  as the observed target marker
+
+#### Scenario: Observer target marker is absent
+
+- **WHEN** a valid protocol-5 map snapshot contains no target player decoration
+- **THEN** the Observer Screen renders no player marker
+- **AND** it does not fall back to the observer client's local position
+
+#### Scenario: Observer target marker is malformed
+
+- **WHEN** only part of the target marker metadata is present, or any marker byte
+  or rotation lies outside its protocol-5 bounds
+- **THEN** the snapshot is rejected instead of partially mutating the Screen
 
 ### Requirement: Map detail viewport remains selection and Observer safe
 
 Detail-aware terrain composition SHALL use the same bounded world-to-screen
 viewport transform as Nexus marker placement, hit testing, panning, and labels.
 Terrain layers MUST NOT duplicate Nexus decorations. The module-owned Observer
-provider SHALL version the changed zoom semantics, validate bounded semantic
-state, and preserve read-only framebuffer-free reconstruction.
+provider SHALL version the changed zoom/terrain semantics, validate bounded
+semantic state, and preserve read-only framebuffer-free reconstruction.
 
 #### Scenario: Player zooms, pans, and selects a Nexus marker
 
@@ -85,11 +106,13 @@ state, and preserve read-only framebuffer-free reconstruction.
   same world position
 - **AND** a drag beyond the existing threshold does not become a marker click
 
-#### Scenario: Observer receives new viewport semantics
+#### Scenario: Observer receives protocol-5 viewport semantics
 
-- **WHEN** an Observer snapshot uses the protocol version that defines
-  power-of-two detail zoom
+- **WHEN** an Observer snapshot uses protocol 5 and compatible finer map data has
+  already been authorized and cached through the Nexus/Observer terrain relay
 - **THEN** zoom and pan values are range-checked and applied to the same
   production Screen in read-only mode
-- **AND** an older or mismatched protocol is rejected rather than interpreting
-  the new zoom value with the previous 100%–400% semantics
+- **AND** 2x/4x zoom submits the compatible real finer MapIds at the corresponding
+  vanilla map scales rather than merely magnifying the coarse render state
+- **AND** an older or mismatched provider protocol is rejected rather than being
+  interpreted or converted as protocol 5

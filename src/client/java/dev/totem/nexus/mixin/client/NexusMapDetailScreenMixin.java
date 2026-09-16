@@ -2,6 +2,8 @@ package dev.totem.nexus.mixin.client;
 
 import dev.totem.nexus.client.NexusMapDetailClientState;
 import dev.totem.nexus.client.NexusMapDetailVisualTestAccess;
+import dev.totem.nexus.client.NexusMapObserverStateAccess;
+import dev.totem.nexus.client.NexusMapPlayerMarker;
 import dev.totem.nexus.client.NexusSpaceUnitMapScreen;
 import dev.totem.nexus.network.SpaceUnitMapPayload;
 import net.minecraft.client.Minecraft;
@@ -9,8 +11,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.state.MapRenderState;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.level.saveddata.maps.MapDecoration;
-import net.minecraft.world.level.saveddata.maps.MapDecorationTypes;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import org.spongepowered.asm.mixin.Mixin;
@@ -20,8 +20,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Keeps vanilla map terrain while turning Nexus zoom into historical-detail
@@ -29,72 +29,29 @@ import java.util.Optional;
  * exactly once in the current-map world transform.
  */
 @Mixin(NexusSpaceUnitMapScreen.class)
-public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualTestAccess {
-    @Shadow
-    private SpaceUnitMapPayload payload;
+public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualTestAccess, NexusMapObserverStateAccess {
+    @Shadow private SpaceUnitMapPayload payload;
+    @Shadow private int mapZoom;
+    @Shadow private int mapPanX;
+    @Shadow private int mapPanY;
+    @Shadow private MapRenderState mapRenderState;
+    @Shadow private boolean hasMapVisualization() { throw new AssertionError(); }
+    @Shadow private MapItemSavedData cachedMapData() { throw new AssertionError(); }
+    @Shadow private int mapX() { throw new AssertionError(); }
+    @Shadow private int mapY() { throw new AssertionError(); }
+    @Shadow private int mapWidth() { throw new AssertionError(); }
+    @Shadow private int mapHeight() { throw new AssertionError(); }
+    @Shadow private int baseMapScale() { throw new AssertionError(); }
+    @Shadow private void clampMapPan() { throw new AssertionError(); }
 
-    @Shadow
-    private int mapZoom;
-
-    @Shadow
-    private int mapPanX;
-
-    @Shadow
-    private int mapPanY;
-
-    @Shadow
-    private MapRenderState mapRenderState;
-
-    @Shadow
-    private boolean hasMapVisualization() {
-        throw new AssertionError();
-    }
-
-    @Shadow
-    private MapItemSavedData cachedMapData() {
-        throw new AssertionError();
-    }
-
-    @Shadow
-    private int mapX() {
-        throw new AssertionError();
-    }
-
-    @Shadow
-    private int mapY() {
-        throw new AssertionError();
-    }
-
-    @Shadow
-    private int mapWidth() {
-        throw new AssertionError();
-    }
-
-    @Shadow
-    private int mapHeight() {
-        throw new AssertionError();
-    }
-
-    @Shadow
-    private int baseMapScale() {
-        throw new AssertionError();
-    }
-
-    @Shadow
-    private void clampMapPan() {
-        throw new AssertionError();
-    }
-
-    @Unique
-    private List<MapRenderState.MapDecorationRenderState> totem$currentDecorations = List.of();
-
-    @Unique
-    private boolean totem$localPlayerMarkerRendered;
+    @Unique private List<MapRenderState.MapDecorationRenderState> totem$currentDecorations = List.of();
+    @Unique private List<Integer> totem$detailLayersRendered = List.of();
+    @Unique private boolean totem$localPlayerMarkerRendered;
+    @Unique private boolean totem$observedPlayerMarkerRendered;
+    @Unique private NexusMapPlayerMarker.Marker totem$observedPlayerMarker;
 
     @Inject(method = "init", at = @At("TAIL"))
-    private void totem$requestDetailOnOpen(CallbackInfo ci) {
-        totem$requestDetailIfOwner();
-    }
+    private void totem$requestDetailOnOpen(CallbackInfo ci) { totem$requestDetailIfOwner(); }
 
     @Inject(method = "applyPayload", at = @At("TAIL"))
     private void totem$requestDetailAfterPayload(SpaceUnitMapPayload nextPayload, CallbackInfo ci) {
@@ -105,30 +62,22 @@ public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualT
         totem$requestDetailIfOwner();
     }
 
-    /** Existing callers pass current+1/current-1; convert those steps to 1,2,4,8,16. */
     @Inject(method = "setMapZoom", at = @At("HEAD"), cancellable = true)
     private void totem$setDetailZoom(int requestedZoom, CallbackInfo ci) {
         int current = totem$normalizeZoom(this.mapZoom);
         int maximum = totem$maximumAvailableDetailZoom();
         int next = current;
-        if (requestedZoom > this.mapZoom) {
-            next = Math.min(maximum, current >= 16 ? 16 : current << 1);
-        } else if (requestedZoom < this.mapZoom) {
-            next = Math.max(1, current >> 1);
-        } else {
-            next = Math.min(current, maximum);
-        }
+        if (requestedZoom > this.mapZoom) next = Math.min(maximum, current >= 16 ? 16 : current << 1);
+        else if (requestedZoom < this.mapZoom) next = Math.max(1, current >> 1);
+        else next = Math.min(current, maximum);
         this.mapZoom = next;
         clampMapPan();
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft != null) {
-            minecraft.getNarrator().saySystemNow(Component.translatable(
-                    "message.totem.space_unit.map_zoom_narration", this.mapZoom * 100));
-        }
+        if (minecraft != null) minecraft.getNarrator().saySystemNow(Component.translatable(
+                "message.totem.space_unit.map_zoom_narration", this.mapZoom * 100));
         ci.cancel();
     }
 
-    /** Observer semantic zoom is already validated by the provider; do not use observer-local detail to clamp it. */
     @Inject(method = "applyObserverMapView", at = @At("HEAD"), cancellable = true)
     private void totem$applyObserverDetailView(int zoom, int panX, int panY, CallbackInfo ci) {
         if (!totem$isObserver() || !hasMapVisualization()) return;
@@ -139,45 +88,24 @@ public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualT
         ci.cancel();
     }
 
-    /** Capture the already-authoritative transient decorations, then submit the current map as terrain only. */
-    @Inject(
-            method = "drawMap",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;map(Lnet/minecraft/client/renderer/state/MapRenderState;)V",
-                    ordinal = 0
-            )
-    )
-    private void totem$separateCurrentTerrainAndOverlays(
-            GuiGraphicsExtractor extractor,
-            int mouseX,
-            int mouseY,
-            CallbackInfo ci
-    ) {
+    @Inject(method = "drawMap", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;map(Lnet/minecraft/client/renderer/state/MapRenderState;)V", ordinal = 0))
+    private void totem$separateCurrentTerrainAndOverlays(GuiGraphicsExtractor extractor, int mouseX, int mouseY, CallbackInfo ci) {
         this.totem$currentDecorations = List.copyOf(this.mapRenderState.decorations);
         this.mapRenderState.decorations.clear();
     }
 
-    /** Fine historical maps cover only their true world extent; overlays are restored above every terrain layer. */
-    @Inject(
-            method = "drawMap",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;disableScissor()V",
-                    shift = At.Shift.AFTER
-            )
-    )
-    private void totem$drawDetailAndOverlays(
-            GuiGraphicsExtractor extractor,
-            int mouseX,
-            int mouseY,
-            CallbackInfo ci
-    ) {
+    @Inject(method = "drawMap", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;disableScissor()V", shift = At.Shift.AFTER))
+    private void totem$drawDetailAndOverlays(GuiGraphicsExtractor extractor, int mouseX, int mouseY, CallbackInfo ci) {
         this.totem$localPlayerMarkerRendered = false;
+        this.totem$observedPlayerMarkerRendered = false;
+        ArrayList<Integer> renderedDetails = new ArrayList<>();
         MapItemSavedData current = cachedMapData();
         Minecraft minecraft = Minecraft.getInstance();
         if (current == null || minecraft == null || minecraft.level == null) {
             this.totem$currentDecorations = List.of();
+            this.totem$detailLayersRendered = List.of();
             return;
         }
 
@@ -189,67 +117,70 @@ public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualT
         float centerY = currentTop + currentRenderedSize / 2.0F;
 
         extractor.enableScissor(mapX() + 1, mapY() + 1, mapX() + mapWidth() - 1, mapY() + mapHeight() - 1);
-        if(!totem$isObserver()) {
-            int viewX = current.centerX + Math.round((mapX()+mapWidth()/2.0F-centerX)*(1<<current.scale)/currentPixelScale);
-            int viewZ = current.centerZ + Math.round((mapY()+mapHeight()/2.0F-centerY)*(1<<current.scale)/currentPixelScale);
-            int extent=64<<current.scale;
-            NexusMapDetailClientState.viewport(this.payload.mapId(),Math.clamp(viewX,current.centerX-extent,current.centerX+extent),
-                    Math.clamp(viewZ,current.centerZ-extent,current.centerZ+extent),Math.max(1,(int)Math.ceil(Math.max(mapWidth(),mapHeight())*(double)(1<<current.scale)/(2*currentPixelScale))));
+        if (!totem$isObserver()) {
+            int viewX = current.centerX + Math.round((mapX() + mapWidth() / 2.0F - centerX) * (1 << current.scale) / currentPixelScale);
+            int viewZ = current.centerZ + Math.round((mapY() + mapHeight() / 2.0F - centerY) * (1 << current.scale) / currentPixelScale);
+            int extent = 64 << current.scale;
+            NexusMapDetailClientState.viewport(this.payload.mapId(), Math.clamp(viewX, current.centerX - extent, current.centerX + extent),
+                    Math.clamp(viewZ, current.centerZ - extent, current.centerZ + extent),
+                    Math.max(1, (int) Math.ceil(Math.max(mapWidth(), mapHeight()) * (double) (1 << current.scale) / (2 * currentPixelScale))));
         }
         List<Integer> ancestors = NexusMapDetailClientState.ancestorMapIds(this.payload.mapId());
         for (int index = ancestors.size() - 1; index >= 0; index--) {
-            MapId ancestorId = new MapId(ancestors.get(index));
+            int ancestorValue = ancestors.get(index);
+            MapId ancestorId = new MapId(ancestorValue);
             MapItemSavedData ancestor = minecraft.level.getMapData(ancestorId);
             if (!totem$isCompatibleAncestor(current, ancestor)) continue;
             int scaleDelta = current.scale - ancestor.scale;
             int requiredZoom = 1 << scaleDelta;
             if (requiredZoom > this.mapZoom || currentPixelScale % requiredZoom != 0) continue;
-
             int ancestorPixelScale = currentPixelScale / requiredZoom;
             int ancestorRenderedSize = 128 * ancestorPixelScale;
-            int ancestorLeft = Math.round(centerX + (ancestor.centerX-current.centerX) * (float)currentPixelScale / (1<<current.scale) - ancestorRenderedSize / 2.0F);
-            int ancestorTop = Math.round(centerY + (ancestor.centerZ-current.centerZ) * (float)currentPixelScale / (1<<current.scale) - ancestorRenderedSize / 2.0F);
+            int ancestorLeft = Math.round(centerX + (ancestor.centerX - current.centerX) * (float) currentPixelScale / (1 << current.scale) - ancestorRenderedSize / 2.0F);
+            int ancestorTop = Math.round(centerY + (ancestor.centerZ - current.centerZ) * (float) currentPixelScale / (1 << current.scale) - ancestorRenderedSize / 2.0F);
             MapRenderState detailState = new MapRenderState();
             minecraft.getMapRenderer().extractRenderState(ancestorId, ancestor, detailState);
             detailState.decorations.clear();
-
             extractor.nextStratum();
             extractor.pose().pushMatrix();
             extractor.pose().translate(ancestorLeft, ancestorTop);
             extractor.pose().scale(ancestorPixelScale, ancestorPixelScale);
             extractor.map(detailState);
             extractor.pose().popMatrix();
+            renderedDetails.add(ancestorValue);
         }
 
         extractor.nextStratum();
         int overlayScale = Math.max(1, baseMapScale());
-        for (MapRenderState.MapDecorationRenderState decoration : this.totem$currentDecorations) {
+        for (MapRenderState.MapDecorationRenderState decoration : this.totem$currentDecorations)
             totem$drawDecoration(extractor, decoration, currentLeft, currentTop, currentPixelScale, overlayScale);
-        }
-        totem$drawLocalPlayer(extractor, current, currentLeft, currentTop, currentPixelScale, overlayScale);
+        if (totem$isObserver()) totem$drawObservedPlayer(extractor, currentLeft, currentTop, currentPixelScale, overlayScale);
+        else totem$drawLocalPlayer(extractor, current, currentLeft, currentTop, currentPixelScale, overlayScale);
         extractor.disableScissor();
         this.totem$currentDecorations = List.of();
+        this.totem$detailLayersRendered = List.copyOf(renderedDetails);
+    }
+
+    @Override public boolean totem$localPlayerMarkerRenderedForVisualTest() { return this.totem$localPlayerMarkerRendered; }
+    @Override public boolean totem$observedPlayerMarkerRenderedForVisualTest() { return this.totem$observedPlayerMarkerRendered; }
+    @Override public List<Integer> totem$detailLayersRenderedForVisualTest() { return this.totem$detailLayersRendered; }
+
+    @Override
+    public NexusMapPlayerMarker.Marker totem$captureLocalPlayerMarker() {
+        MapItemSavedData current = cachedMapData();
+        return current == null ? null : NexusMapPlayerMarker.current(current);
     }
 
     @Override
-    public boolean totem$localPlayerMarkerRenderedForVisualTest() {
-        return this.totem$localPlayerMarkerRendered;
+    public void totem$applyObservedPlayerMarker(NexusMapPlayerMarker.Marker marker) {
+        if (totem$isObserver()) this.totem$observedPlayerMarker = marker;
     }
 
-    @Unique
-    private void totem$requestDetailIfOwner() {
-        if (hasMapVisualization() && this.payload.mapId() >= 0 && !totem$isObserver()) {
-            NexusMapDetailClientState.request(this.payload.mapId());
-        }
+    @Unique private void totem$requestDetailIfOwner() {
+        if (hasMapVisualization() && this.payload.mapId() >= 0 && !totem$isObserver()) NexusMapDetailClientState.request(this.payload.mapId());
     }
-
-    @Unique
-    private boolean totem$isObserver() {
-        return ((NexusSpaceUnitMapScreen) (Object) this).totem$isObserverReadOnly();
-    }
-
-    @Unique
-    private int totem$maximumAvailableDetailZoom() {
+    @Unique private boolean totem$isObserver() { return ((NexusSpaceUnitMapScreen) (Object) this).totem$isObserverReadOnly(); }
+    @Unique private int totem$maximumAvailableDetailZoom() {
         MapItemSavedData current = cachedMapData();
         Minecraft minecraft = Minecraft.getInstance();
         if (current == null || minecraft == null || minecraft.level == null || this.payload.mapId() < 0) return 1;
@@ -262,32 +193,17 @@ public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualT
         }
         return Math.min(16, maximum);
     }
-
-    @Unique
-    private static int totem$normalizeZoom(int zoom) {
+    @Unique private static int totem$normalizeZoom(int zoom) {
         if (zoom <= 1) return 1;
         if (zoom >= 16) return 16;
         int highest = Integer.highestOneBit(zoom);
         return highest == zoom ? zoom : highest;
     }
-
-    @Unique
-    private static boolean totem$isCompatibleAncestor(MapItemSavedData current, MapItemSavedData ancestor) {
-        return ancestor != null
-                && ancestor.scale >= 0
-                && ancestor.scale < current.scale
-                && ancestor.dimension.equals(current.dimension);
+    @Unique private static boolean totem$isCompatibleAncestor(MapItemSavedData current, MapItemSavedData ancestor) {
+        return ancestor != null && ancestor.scale >= 0 && ancestor.scale < current.scale && ancestor.dimension.equals(current.dimension);
     }
-
-    @Unique
-    private static void totem$drawDecoration(
-            GuiGraphicsExtractor extractor,
-            MapRenderState.MapDecorationRenderState decoration,
-            int currentLeft,
-            int currentTop,
-            int currentPixelScale,
-            int iconScale
-    ) {
+    @Unique private static void totem$drawDecoration(GuiGraphicsExtractor extractor,
+            MapRenderState.MapDecorationRenderState decoration, int currentLeft, int currentTop, int currentPixelScale, int iconScale) {
         if (decoration == null || decoration.atlasSprite == null) return;
         float screenX = currentLeft + (64.0F + decoration.x / 2.0F) * currentPixelScale;
         float screenY = currentTop + (64.0F + decoration.y / 2.0F) * currentPixelScale;
@@ -298,24 +214,20 @@ public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualT
         extractor.blitSprite(RenderPipelines.GUI_TEXTURED, decoration.atlasSprite, -2, -2, 4, 4);
         extractor.pose().popMatrix();
     }
-
-    @Unique
-    private void totem$drawLocalPlayer(
-            GuiGraphicsExtractor extractor,
-            MapItemSavedData current,
-            int currentLeft,
-            int currentTop,
-            int currentPixelScale,
-            int iconScale
-    ) {
-        if (totem$isObserver()) return;
+    @Unique private void totem$drawLocalPlayer(GuiGraphicsExtractor extractor, MapItemSavedData current,
+            int currentLeft, int currentTop, int currentPixelScale, int iconScale) {
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.player == null || minecraft.level == null
-                || !minecraft.level.dimension().equals(current.dimension)) return;
-
-        MapRenderState.MapDecorationRenderState state = dev.totem.nexus.client.NexusMapPlayerMarker.extract(current);
-        if(state==null) return;
+        if (minecraft.player == null || minecraft.level == null || !minecraft.level.dimension().equals(current.dimension)) return;
+        MapRenderState.MapDecorationRenderState state = NexusMapPlayerMarker.extract(current);
+        if (state == null) return;
         totem$drawDecoration(extractor, state, currentLeft, currentTop, currentPixelScale, iconScale);
         this.totem$localPlayerMarkerRendered = true;
+    }
+    @Unique private void totem$drawObservedPlayer(GuiGraphicsExtractor extractor,
+            int currentLeft, int currentTop, int currentPixelScale, int iconScale) {
+        MapRenderState.MapDecorationRenderState state = NexusMapPlayerMarker.extract(this.totem$observedPlayerMarker);
+        if (state == null) return;
+        totem$drawDecoration(extractor, state, currentLeft, currentTop, currentPixelScale, iconScale);
+        this.totem$observedPlayerMarkerRendered = true;
     }
 }

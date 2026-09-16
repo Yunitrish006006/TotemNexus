@@ -166,7 +166,7 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                     new ObserverScreenContext(UUID.randomUUID(), "Target", () -> { }), semanticZoom));
             context.runOnClient(client -> require(
                     ((NexusSpaceUnitMapScreen) semanticHandle.screen()).observerMapZoom() == 2,
-                    "Protocol 4 map snapshot did not accept power-of-two detail zoom"));
+                    "Protocol 5 map snapshot did not accept power-of-two detail zoom"));
         }
 
         AtomicInteger stops = new AtomicInteger();

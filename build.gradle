@@ -139,7 +139,7 @@ tasks.named('processGametestResources').configure {
                 it.endsWith('NexusMapRecordingGameTest') || it.endsWith('NexusInterfaceLifecycleGameTest')
             }
             data.entrypoints['fabric-client-gametest'] = data.entrypoints['fabric-client-gametest'].findAll {
-                it.endsWith('NexusMapPlayerMarkerClientGameTest') || it.endsWith('NexusSpaceUnitMapVisualGameTest') || it.endsWith('NexusObserverProviderClientGameTest')
+                it.endsWith('NexusMapPlayerMarkerClientGameTest') || it.endsWith('NexusSpaceUnitMapVisualGameTest') || it.endsWith('NexusObserverProviderClientGameTest') || it.endsWith('NexusObserverMapDetailClientGameTest')
             }
             manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
         } else if (nexusTestFocus.get() != 'all') {
