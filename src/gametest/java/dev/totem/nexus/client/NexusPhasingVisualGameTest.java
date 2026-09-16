@@ -18,7 +18,7 @@ public final class NexusPhasingVisualGameTest implements FabricClientGameTest {
         String oldLanguage = context.computeOnClient(client -> client.options.languageCode);
         int oldScale = context.computeOnClient(client -> client.options.guiScale().get());
         try (TestSingleplayerContext world = context.worldBuilder().create()) {
-            world.getClientLevel().waitForChunksRender();
+            world.getConnection().waitForChunksRender();
             context.getInput().resizeWindow(1280, 720);
             world.getServer().runOnServer(server -> {
                 var player = server.getPlayerList().getPlayers().getFirst();

@@ -33,7 +33,7 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
 
     @Override public void runTest(ClientGameTestContext context) {
         try (TestSingleplayerContext world = context.worldBuilder().create()) {
-            world.getClientLevel().waitForChunksRender();
+            world.getConnection().waitForChunksRender();
             context.getInput().resizeWindow(1280, 720);
             List<ObserverScreenProvider> providers = context.computeOnClient(client -> FabricLoader.getInstance()
                     .getEntrypoints(ObserverScreenProvider.ENTRYPOINT, ObserverScreenProvider.class));

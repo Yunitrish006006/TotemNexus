@@ -15,6 +15,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.Prediction;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -2339,7 +2340,7 @@ public final class NexusSpaceUnitAuthority {
     }
 
     private static void giveOrDrop(ServerPlayer player, ItemStack stack) {
-        if (!player.getInventory().add(stack)) player.drop(stack, false);
+        if (!player.getInventory().add(stack)) player.drop(stack, false, Prediction.SERVER_ONLY);
     }
 
     private static SpaceUnitMapPayload buildMapPayload(ServerPlayer player, MapSource source, List<NexusSpaceUnitRecord> visibleUnits) {

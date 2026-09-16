@@ -17,7 +17,7 @@ public final class NexusSpaceUnitMaterialVisualGameTest implements FabricClientG
     public void runTest(ClientGameTestContext context) {
         context.getInput().resizeWindow(1280, 720);
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            singleplayer.getClientLevel().waitForChunksRender();
+            singleplayer.getConnection().waitForChunksRender();
             context.setScreen(() -> {
                 NexusSpaceUnitMapScreen screen = new NexusSpaceUnitMapScreen(materialPayload());
                 screen.showMaterialDiagnosticsForVisualTest();

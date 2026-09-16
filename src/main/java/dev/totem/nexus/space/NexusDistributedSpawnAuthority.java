@@ -213,7 +213,7 @@ public final class NexusDistributedSpawnAuthority {
         BlockState floor = level.getBlockState(floorPos);
         BlockState feet = level.getBlockState(pos);
         BlockState head = level.getBlockState(pos.above());
-        return floor.blocksMotion()
+        return floor.isSolid() && !floor.is(Blocks.COBWEB) && !floor.is(Blocks.BAMBOO_SAPLING)
                 && floor.getFluidState().isEmpty()
                 && !isDangerousFloor(floor)
                 && isSafeAir(feet)

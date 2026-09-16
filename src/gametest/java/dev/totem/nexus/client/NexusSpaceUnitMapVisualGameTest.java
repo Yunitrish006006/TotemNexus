@@ -35,7 +35,7 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
     public void runTest(ClientGameTestContext context) {
         selectLanguage(context, "en_us", "Nexus Compass");
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            singleplayer.getClientLevel().waitForChunksRender();
+            singleplayer.getConnection().waitForChunksRender();
             context.getInput().resizeWindow(1280, 720);
 
             context.setScreen(() -> new NexusSpaceUnitMapScreen(managementPayload()));

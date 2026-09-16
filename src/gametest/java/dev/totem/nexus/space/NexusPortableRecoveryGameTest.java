@@ -165,7 +165,7 @@ public final class NexusPortableRecoveryGameTest {
                                net.minecraft.world.damagesource.DamageSource source, float expected) {
         p.setHealth(20);
         p.setAbsorptionAmount(0);
-        p.invulnerableTime = 0;
+        p.damageCooldownTime = 0;
         check(h, p.hurtServer(h.getLevel(), source, 10), "Damage fixture was unexpectedly invulnerable");
         check(h, Math.abs(p.getHealth() - (20 - expected)) < .001F,
                 "Wrong Phasing/native resistance damage: expected " + expected + ", actual " + (20 - p.getHealth()));

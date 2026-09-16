@@ -128,7 +128,7 @@ public final class NexusArrayVisualizationClientGameTest implements FabricClient
         BlockPos origin = new BlockPos(0, 81, -4);
 
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            singleplayer.getClientLevel().waitForChunksRender();
+            singleplayer.getConnection().waitForChunksRender();
             buildComplexArrayScene(singleplayer);
             awaitComplexArrayScene(context, origin);
             TeleportArrayVisualizationPayload payload = productionScenePayload(
@@ -157,7 +157,7 @@ public final class NexusArrayVisualizationClientGameTest implements FabricClient
         BlockPos origin = new BlockPos(0, 81, -4);
 
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            singleplayer.getClientLevel().waitForChunksRender();
+            singleplayer.getConnection().waitForChunksRender();
             buildComplexArrayScene(singleplayer);
             awaitComplexArrayScene(context, origin);
             TeleportArrayVisualizationPayload payload = productionScenePayload(

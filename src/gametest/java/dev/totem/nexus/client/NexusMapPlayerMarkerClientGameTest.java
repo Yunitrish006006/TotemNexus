@@ -24,7 +24,7 @@ public final class NexusMapPlayerMarkerClientGameTest implements FabricClientGam
     @Override
     public void runTest(ClientGameTestContext context) {
         try (TestSingleplayerContext world = context.worldBuilder().create()) {
-            world.getClientLevel().waitForChunksRender();
+            world.getConnection().waitForChunksRender();
             AtomicReference<SpaceUnitMapPayload> payload = new AtomicReference<>();
             context.runOnClient(client -> {
                 int centerX = Mth.floor(client.player.getX());
@@ -58,11 +58,11 @@ public final class NexusMapPlayerMarkerClientGameTest implements FabricClientGam
                     client.player.setXRot(65);
                     client.player.xRotO = 65;
                     NexusMapDetailClientState.setForVisualTest(MAP_ID,List.of());
-                    ((NexusHeldMapVisualTestAccess)client.gameRenderer.itemInHandRenderer).totem$resetHeldProbe();
+                    ((NexusHeldMapVisualTestAccess)client.player.firstPersonHandsAndItems()).totem$resetHeldProbe();
                 });
-                context.waitFor(client -> ((NexusHeldMapVisualTestAccess)client.gameRenderer.itemInHandRenderer).totem$lastHeldMap()==MAP_ID);
+                context.waitFor(client -> ((NexusHeldMapVisualTestAccess)client.player.firstPersonHandsAndItems()).totem$lastHeldMap()==MAP_ID);
                 context.runOnClient(client -> {
-                    if(((NexusHeldMapVisualTestAccess)client.gameRenderer.itemInHandRenderer).totem$heldMarkerCount()!=1)
+                    if(((NexusHeldMapVisualTestAccess)client.player.firstPersonHandsAndItems()).totem$heldMarkerCount()!=1)
                         throw new AssertionError("Held map must contain exactly one transient player marker");
                 });
                 context.takeScreenshot("totem-nexus-held-player-marker-"+mode);

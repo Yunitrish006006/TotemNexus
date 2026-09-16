@@ -9,7 +9,7 @@ group = project.maven_group
 base { archivesName = project.archives_base_name }
 
 def totemCoreJar = file(providers.gradleProperty('totemCoreJar')
-        .getOrElse('../TotemCore/build/libs/totem-core-0.7.21.jar'))
+        .getOrElse('../TotemCore/build/libs/totem-core-0.7.22.jar'))
 
 loom {
     splitEnvironmentSourceSets()
@@ -63,21 +63,21 @@ if (totemVisualModuleJars != null && !totemVisualModuleJars.isBlank()) {
 
 tasks.withType(Test).configureEach { useJUnitPlatform() }
 
-// Named development copies are private to this build. Never rewrite Gradle's shared
-// official artifacts: the production runner and sibling modules consume those too.
 def namedRuntimeSources = new LinkedHashSet<File>()
 def namedRuntimeCopies = [:]
 def namedRuntimeCopyFor = { File source ->
     namedRuntimeCopies.computeIfAbsent(source.absolutePath) {
         def digest = java.security.MessageDigest.getInstance('SHA-256').digest(source.bytes).encodeHex().toString()
-        layout.buildDirectory.file("named-runtime-api/${digest}-${source.name}").get().asFile
+        layout.buildDirectory.file("named-runtime-api/v2/${digest}-${source.name}").get().asFile
     }
 }
 tasks.register('normalizeFabricApiTweakersForNamedDevRuntime') {
     group = 'fabric'
     description = 'Creates isolated named-namespace Fabric API copies for development runs.'
+    inputs.files(provider { namedRuntimeSources })
+    outputs.dir(layout.buildDirectory.dir('named-runtime-api/v2'))
     doLast {
-        def outputDir = layout.buildDirectory.dir('named-runtime-api').get().asFile
+        def outputDir = layout.buildDirectory.dir('named-runtime-api/v2').get().asFile
         outputDir.mkdirs()
         namedRuntimeSources.each { jarFile ->
             def zip = new java.util.zip.ZipFile(jarFile)
@@ -92,7 +92,8 @@ tasks.register('normalizeFabricApiTweakersForNamedDevRuntime') {
                 }
                 def copy = namedRuntimeCopyFor(jarFile)
                 if (!copy.isFile()) {
-                    def out = new java.util.zip.ZipOutputStream(new FileOutputStream(copy))
+                    def temporary = new File(copy.parentFile, copy.name + ".tmp")
+                    def out = new java.util.zip.ZipOutputStream(new FileOutputStream(temporary))
                     try {
                         zip.entries().each { entry ->
                             out.putNextEntry(new java.util.zip.ZipEntry(entry.name))
@@ -100,6 +101,7 @@ tasks.register('normalizeFabricApiTweakersForNamedDevRuntime') {
                             out.closeEntry()
                         }
                     } finally { out.close() }
+                    java.nio.file.Files.move(temporary.toPath(), copy.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE)
                 }
             } finally { zip.close() }
         }
@@ -107,13 +109,14 @@ tasks.register('normalizeFabricApiTweakersForNamedDevRuntime') {
     }
 }
 
-gradle.projectsEvaluated {
-    tasks.matching { it.name in ['runClient','runServer','runDatagen','runGameTest','runClientGameTest'] }.configureEach {
+afterEvaluate {
+    tasks.withType(net.fabricmc.loom.task.RunGameTask).all { runTask ->
         dependsOn('normalizeFabricApiTweakersForNamedDevRuntime')
-        // Resolve and replace before Loom finalizes its internalClasspath task input.
+        def classpathProducers = classpath.buildDependencies.getDependencies(runTask).toList()
+        dependsOn(classpathProducers)
         def originals = classpath.files.toList()
         def copies = originals.collect { file ->
-            if (file.name.startsWith('fabric-') && file.name.endsWith('.jar')) {
+            if (file.absolutePath.contains('/net.fabricmc.fabric-api/') && file.name.endsWith('.jar')) {
                 namedRuntimeSources.add(file)
                 return namedRuntimeCopyFor(file)
             }
@@ -308,7 +311,7 @@ sourceSets {
     }
 }
 def accessObserverJar = file(providers.gradleProperty('accessObserverJar')
-        .getOrElse('../TotemObserver/build/libs/totem-observer-0.1.0.jar'))
+        .getOrElse('../TotemObserver/build/libs/totem-observer-0.1.4.jar'))
 sourceSets.accessE2e.runtimeClasspath += files(accessObserverJar)
 loom {
     mods { 'totem-nexus-access-e2e' { sourceSet sourceSets.accessE2e } }

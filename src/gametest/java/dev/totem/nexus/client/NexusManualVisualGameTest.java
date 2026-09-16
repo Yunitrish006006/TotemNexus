@@ -64,7 +64,7 @@ public final class NexusManualVisualGameTest implements FabricClientGameTest {
             String screenshotPrefix
     ) {
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            singleplayer.getClientLevel().waitForChunksRender();
+            singleplayer.getConnection().waitForChunksRender();
             List<TotemManualSection> sections = TotemManualRegistry.global().sections();
             int firstPage = firstPageOf(sections, NEXUS_SECTION);
             int pageCount = sectionPageCount(sections, NEXUS_SECTION);

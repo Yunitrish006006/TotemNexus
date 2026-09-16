@@ -21,7 +21,7 @@ public final class TotemAdvancementsVisualGameTest implements FabricClientGameTe
     @Override
     public void runTest(ClientGameTestContext context) {
         try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
-            singleplayer.getClientLevel().waitForChunksRender();
+            singleplayer.getConnection().waitForChunksRender();
             singleplayer.getServer().runCommand("gamemode creative @a");
             context.waitFor(TotemAdvancementsVisualGameTest::hasCreativeAbilities);
             context.takeScreenshot("totem-standalone-overview-before");

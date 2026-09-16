@@ -418,7 +418,7 @@ public final class NexusSafeLanding {
                 && open(head)
                 && !floor.isAir()
                 && floor.getFluidState().isEmpty()
-                && floor.blocksMotion()
+                && floor.isSolid() && !floor.is(Blocks.COBWEB) && !floor.is(Blocks.BAMBOO_SAPLING)
                 && !unsafe(feet)
                 && !unsafe(head)
                 && !unsafe(floor);
