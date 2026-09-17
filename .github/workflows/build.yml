@@ -71,6 +71,9 @@ jobs:
           set -euo pipefail
           core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
           core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
+          export SDL_VIDEO_DRIVER=x11
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export VK_ICD_FILENAMES="$VK_DRIVER_FILES"
           xvfb-run -a ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" \
             -PtotemCoreJar="$core_jar" runClientGameTest --no-daemon --stacktrace
 
@@ -83,6 +86,9 @@ jobs:
         run: |
           set -euo pipefail
           core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-0.7.23.jar"
+          export SDL_VIDEO_DRIVER=x11
+          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
+          export VK_ICD_FILENAMES="$VK_DRIVER_FILES"
           ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" \
             -PtotemCoreJar="$core_jar" -PnexusTestFocus=map runProductionClientGameTest --no-daemon --stacktrace
 
