@@ -47,7 +47,7 @@ for role in target observer; do
   [[ "$role" != observer ]] || username=AccessObserver
   (
     cd "build/access-e2e/$role"
-    exec setsid xvfb-run -a -s "-screen 0 1280x720x24 +extension GLX +render -noreset" "$JAVA_HOME/bin/java" @"$root/build/access-e2e/client.args" \
+    exec setsid xvfb-run -a -s "-screen 0 1280x720x24 +extension GLX +render +iglx -noreset" "$JAVA_HOME/bin/java" @"$root/build/access-e2e/client.args" \
       -Dfabric.dli.config="$root/.gradle/loom-cache/launch.cfg" \
       -Dfabric.dli.env=client -Dfabric.dli.main=net.fabricmc.loader.impl.launch.knot.KnotClient \
       -Dnexus.access.e2e.results="$results" --enable-native-access=ALL-UNNAMED \
