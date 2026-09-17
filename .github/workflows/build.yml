@@ -41,7 +41,7 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x .lockstep/TotemCore/gradlew
-          ./.lockstep/TotemCore/gradlew -p .lockstep/TotemCore jar --no-daemon --stacktrace
+          ./.lockstep/TotemCore/gradlew -p .lockstep/TotemCore jar --init-script ${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle --no-daemon --stacktrace
           core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
           test "$core_version" = '0.7.23'
           test -f ".lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
@@ -54,7 +54,7 @@ jobs:
           core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
           ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" \
             -PtotemCoreJar="$core_jar" \
-            test assemble compileGametestJava --no-daemon --stacktrace
+            test assemble compileGametestJava --init-script ${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle --no-daemon --stacktrace
 
       - name: Run server GameTests
         shell: bash
@@ -63,7 +63,7 @@ jobs:
           core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
           core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
           ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" \
-            -PtotemCoreJar="$core_jar" runGameTest --no-daemon --stacktrace
+            -PtotemCoreJar="$core_jar" runGameTest --init-script ${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle --no-daemon --stacktrace
 
       - name: Run client GameTests
         shell: bash
@@ -75,7 +75,7 @@ jobs:
           export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
           export VK_ICD_FILENAMES="$VK_DRIVER_FILES"
           xvfb-run -a ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" \
-            -PtotemCoreJar="$core_jar" runClientGameTest --no-daemon --stacktrace
+            -PtotemCoreJar="$core_jar" runClientGameTest --init-script ${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle --no-daemon --stacktrace
 
       - name: Run map production runtime regressions
         shell: bash
@@ -90,7 +90,7 @@ jobs:
           export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
           export VK_ICD_FILENAMES="$VK_DRIVER_FILES"
           ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" \
-            -PtotemCoreJar="$core_jar" -PnexusTestFocus=map runProductionClientGameTest --no-daemon --stacktrace
+            -PtotemCoreJar="$core_jar" -PnexusTestFocus=map runProductionClientGameTest --init-script ${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle --no-daemon --stacktrace
 
       - name: Preserve runtime evidence
         if: always()
