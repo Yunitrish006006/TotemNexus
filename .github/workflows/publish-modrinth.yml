@@ -19,8 +19,8 @@ concurrency:
 
 env:
   MODULE_ID: totem-nexus
-  # Reviewed Core 0.7.22 player-directory API.
-  CORE_REF: 58deabdd4a81bc751679876f202a3fa062729c58
+  # Reviewed Core 0.7.23 player-directory API.
+  CORE_REF: 424b90dc3929caa8c1afcfca7e63c50a64bde669
 
 jobs:
   publish:
@@ -58,65 +58,78 @@ jobs:
             echo 'dry_run=false' >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Set up Java 25
+      - name: Require exact-source release gates
+        id: gates
         if: steps.release.outputs.should_publish == 'true'
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '25'
-
-      - name: Set up Gradle
-        if: steps.release.outputs.should_publish == 'true'
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Check out pinned TotemCore
-        if: steps.release.outputs.should_publish == 'true'
-        uses: actions/checkout@v4
-        with:
-          repository: Yunitrish006006/TotemCore
-          ref: ${{ env.CORE_REF }}
-          path: .lockstep/TotemCore
-          persist-credentials: false
-
-      - name: Build release JAR
-        if: steps.release.outputs.should_publish == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          chmod +x .lockstep/TotemCore/gradlew
-          ./.lockstep/TotemCore/gradlew -p .lockstep/TotemCore jar --no-daemon --stacktrace
-          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
-          test "$core_version" = '0.7.22'
-          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
-          test -f "$core_jar"
-          ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" -PtotemCoreJar="$core_jar" jar --no-daemon --stacktrace
-          version="$(sed -n 's/^mod_version=//p' gradle.properties)"
-          archive="$(sed -n 's/^archives_base_name=//p' gradle.properties)"
-          artifact="build/libs/${archive}-${version}.jar"
-          if [[ ! -f "$artifact" ]]; then
-            ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" -PtotemCoreJar="$core_jar" remapJar --no-daemon --stacktrace
-          fi
-          test -f "$artifact"
-
-      - name: Require successful Build for this commit
-        if: steps.release.outputs.should_publish == 'true' && steps.release.outputs.dry_run == 'false'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          for attempt in {1..120}; do
-            runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/build.yml/runs?head_sha=${GITHUB_SHA}&event=push&per_page=10")"
-            latest="$(jq -c '.workflow_runs | sort_by(.run_number) | last // null' <<<"$runs")"
-            if [[ "$(jq -r '.status // empty' <<<"$latest")" == completed ]]; then
-              test "$(jq -r '.conclusion' <<<"$latest")" = success || { echo 'Build failed; refusing publication.' >&2; exit 1; }
-              echo "Verified Build for ${GITHUB_SHA}."
-              exit 0
-            fi
-            sleep 20
+          release_sha="$(git rev-parse HEAD)"
+          echo "source=$release_sha" >> "$GITHUB_OUTPUT"
+          for workflow in build.yml; do
+            passed=false
+            for attempt in {1..120}; do
+              runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?head_sha=${release_sha}&event=push&per_page=10")"
+              latest="$(jq -c '.workflow_runs | sort_by(.run_number) | last // null' <<<"$runs")"
+              if [[ "$(jq -r '.status // empty' <<<"$latest")" == completed ]]; then
+                jq -e --arg sha "$release_sha" --arg repo "$GITHUB_REPOSITORY" '.conclusion=="success" and .head_sha==$sha and .event=="push" and .repository.full_name==$repo' <<<"$latest" >/dev/null
+                if [[ "$workflow" == build.yml ]]; then
+                  echo "run_id=$(jq -er .id <<<"$latest")" >> "$GITHUB_OUTPUT"
+                  echo "run_attempt=$(jq -er .run_attempt <<<"$latest")" >> "$GITHUB_OUTPUT"
+                fi
+                passed=true
+                break
+              fi
+              sleep 10
+            done
+            test "$passed" = true || { echo "Timed out waiting for ${workflow}; refusing publication." >&2; exit 1; }
           done
-          echo 'Timed out waiting for Build; refusing publication.' >&2
-          exit 1
+
+      - name: Resolve immutable artifact identity
+        id: artifact
+        if: steps.release.outputs.should_publish == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN_ID: ${{ steps.gates.outputs.run_id }}
+          BUILD_RUN_ATTEMPT: ${{ steps.gates.outputs.run_attempt }}
+          RELEASE_SHA: ${{ steps.gates.outputs.source }}
+        run: |
+          set -euo pipefail
+          artifacts="$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/actions/runs/${BUILD_RUN_ID}/artifacts?per_page=100")"
+          artifact_id="$(jq -er --arg name "release-${RELEASE_SHA}-${BUILD_RUN_ATTEMPT}" --arg run "$BUILD_RUN_ID" --arg source "$RELEASE_SHA" '[.[].artifacts[] | select(.name==$name)] | select(length==1) | .[0] | select(.expired==false and .size_in_bytes>0 and .workflow_run.id==($run|tonumber) and .workflow_run.head_sha==$source) | .id' <<<"$artifacts")"
+          echo "id=$artifact_id" >> "$GITHUB_OUTPUT"
+
+      - name: Download exact Build artifact
+        if: steps.release.outputs.should_publish == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ steps.artifact.outputs.id }}
+          merge-multiple: true
+          path: build/libs
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.gates.outputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Verify immutable artifact provenance and SHA512
+        if: steps.release.outputs.should_publish == 'true'
+        shell: bash
+        env:
+          BUILD_RUN_ID: ${{ steps.gates.outputs.run_id }}
+          BUILD_RUN_ATTEMPT: ${{ steps.gates.outputs.run_attempt }}
+          RELEASE_SHA: ${{ steps.gates.outputs.source }}
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^mod_version=//p' gradle.properties)"
+          archive="$(sed -n 's/^archives_base_name=//p' gradle.properties)"
+          artifact="${archive}-${version}.jar"
+          sha="$(sha512sum "build/libs/${artifact}" | awk '{print $1}')"
+          expected_sha="$(jq -er .sha512 ".github/staging/release-validation-${version}.json")"
+          core_sha="$(jq -er .core_artifact_sha512 ".github/staging/release-validation-${version}.json")"
+          test "$sha" = "$expected_sha"
+          jq -e --arg repo "$GITHUB_REPOSITORY" --arg source "$RELEASE_SHA" --arg run "$BUILD_RUN_ID" --arg attempt "$BUILD_RUN_ATTEMPT" --arg version "$version" --arg artifact "$artifact" --arg sha "$sha" --arg core "$CORE_REF" --arg core_sha "$core_sha" '.repository==$repo and .source_commit==$source and .run_id==$run and .run_attempt==$attempt and .version==$version and .artifact==$artifact and .sha512==$sha and .core_version=="0.7.23" and .core_source_commit==$core and .core_artifact_sha512==$core_sha' build/libs/build-provenance.json >/dev/null
 
       - name: Validate or publish to Modrinth
         id: modrinth
@@ -136,7 +149,7 @@ jobs:
           test -n "$MODRINTH_PROJECT_ID"
           test -f "$artifact"
           unzip -p "$artifact" fabric.mod.json >/tmp/fabric.mod.json
-          jq -e --arg id "$MODULE_ID" --arg version "$version" --arg minecraft "~${minecraft}" --arg core '>=0.7.22 <0.8.0' '.id == $id and .version == $version and .depends.minecraft == $minecraft and .depends["totem-core"] == $core' /tmp/fabric.mod.json >/dev/null
+          jq -e --arg id "$MODULE_ID" --arg version "$version" --arg minecraft "~${minecraft}" --arg core '>=0.7.23 <0.8.0' '.id == $id and .version == $version and .depends.minecraft == $minecraft and .depends["totem-core"] == $core' /tmp/fabric.mod.json >/dev/null
 
           api='https://api.modrinth.com/v2'
           ua="Yunitrish006006/${MODULE_ID}-publisher/2.0"
@@ -174,7 +187,7 @@ jobs:
           test "$sha" = "$(jq -er .sha512 ".github/staging/release-validation-${version}.json")"
           if [[ "$DRY_RUN" == true ]]; then
             test "$count" = '0' || { echo "Version ${version} already exists; choose an unused release version." >&2; exit 1; }
-            echo "Validated unused version ${version}; dependencies: Fabric API and external totem-core-0.7.22.jar."
+            echo "Validated unused version ${version}; dependencies: Fabric API and external totem-core-0.7.23.jar."
             echo "version=$version" >> "$GITHUB_OUTPUT"
             echo "project_id=$project" >> "$GITHUB_OUTPUT"
             echo "sha512=$sha" >> "$GITHUB_OUTPUT"
@@ -192,14 +205,14 @@ jobs:
           else
             changelog_file=".github/staging/modrinth-changelog-${version}.md"
             if [[ -f "$changelog_file" ]]; then changelog="$(cat "$changelog_file")"; else changelog="$(git log -1 --format=%B)"; fi
-            data="$(jq -nc --arg name "${MODULE_ID} ${version}" --arg version "$version" --arg changelog "$changelog" --arg project "$project" --arg minecraft "$minecraft" '{name:$name,version_number:$version,changelog:$changelog,dependencies:[{project_id:"P7dR8mSH",dependency_type:"required"},{file_name:"totem-core-0.7.22.jar",dependency_type:"required"}],game_versions:[$minecraft],version_type:"release",loaders:["fabric"],featured:false,status:"listed",project_id:$project,file_parts:["primary"],primary_file:"primary",environment:"client_and_server"}')"
+            data="$(jq -nc --arg name "${MODULE_ID} ${version}" --arg version "$version" --arg changelog "$changelog" --arg project "$project" --arg minecraft "$minecraft" '{name:$name,version_number:$version,changelog:$changelog,dependencies:[{project_id:"P7dR8mSH",dependency_type:"required"},{file_name:"totem-core-0.7.23.jar",dependency_type:"required"}],game_versions:[$minecraft],version_type:"release",loaders:["fabric"],featured:false,status:"listed",project_id:$project,file_parts:["primary"],primary_file:"primary",environment:"client_and_server"}')"
             printf '%s\n' "$data" >/tmp/version-create.json
             curl --fail-with-body "${args[@]}" -X POST "$api/version" -F 'data=</tmp/version-create.json;type=application/json' -F "primary=@${artifact};filename=$(basename "$artifact");type=application/java-archive" >/tmp/version.json
             version_id="$(jq -er '.id' /tmp/version.json)"
           fi
           curl --fail-with-body "${args[@]}" "$api/version/${version_id}" >/tmp/remote.json
           jq -e --arg project "$project" --arg version "$version" --arg minecraft "$minecraft" --arg filename "$(basename "$artifact")" --arg sha "$sha" '.project_id == $project and .version_number == $version and .game_versions == [$minecraft] and .loaders == ["fabric"] and (([.files[] | select(.primary == true)][0] // .files[0]).filename == $filename) and (([.files[] | select(.primary == true)][0] // .files[0]).hashes.sha512 == $sha)' /tmp/remote.json >/dev/null
-          jq -e --arg fabric 'P7dR8mSH' --arg core_file 'totem-core-0.7.22.jar' -f .github/scripts/verify-modrinth-remote-dependencies.jq /tmp/remote.json >/dev/null
+          jq -e --arg fabric 'P7dR8mSH' --arg core_file 'totem-core-0.7.23.jar' -f .github/scripts/verify-modrinth-remote-dependencies.jq /tmp/remote.json >/dev/null
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "project_id=$project" >> "$GITHUB_OUTPUT"
           echo "version_id=$version_id" >> "$GITHUB_OUTPUT"
