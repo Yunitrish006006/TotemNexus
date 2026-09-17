@@ -79,7 +79,7 @@ jobs:
           export SDL_VIDEO_DRIVER=x11
           export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
           export VK_ICD_FILENAMES="$VK_DRIVER_FILES"
-          xvfb-run -a ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" \
+          xvfb-run -a -s "-screen 0 1280x720x24 +extension GLX +render -noreset" ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" \
             -PtotemCoreJar="$core_jar" runClientGameTest --init-script ${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle --no-daemon --stacktrace
 
       - name: Run map production runtime regressions
