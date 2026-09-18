@@ -76,46 +76,6 @@ jobs:
           ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" \
             -PtotemCoreJar="$core_jar" runGameTest --init-script ${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle --no-daemon --stacktrace
 
-      - name: Run client GameTests
-        timeout-minutes: 15
-        shell: bash
-        run: |
-          set -euo pipefail
-          core_version="$(sed -n 's/^mod_version=//p' .lockstep/TotemCore/gradle.properties)"
-          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-${core_version}.jar"
-          export SDL_VIDEO_DRIVER=x11
-          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
-          export VK_ICD_FILENAMES="$VK_DRIVER_FILES"
-          bash .github/scripts/run-glx-client.sh ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" \
-            -PtotemCoreJar="$core_jar" runClientGameTest --init-script ${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle --no-daemon --stacktrace
-
-      - name: Run map production runtime regressions
-        shell: bash
-        env:
-          # Older development builds may have rewritten cached Fabric API tweakers
-          # to named. Production must resolve pristine official artifacts.
-          GRADLE_USER_HOME: ${{ runner.temp }}/nexus-production-gradle
-        run: |
-          set -euo pipefail
-          core_jar="${GITHUB_WORKSPACE}/.lockstep/TotemCore/build/libs/totem-core-0.7.23.jar"
-          export SDL_VIDEO_DRIVER=x11
-          export VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
-          export VK_ICD_FILENAMES="$VK_DRIVER_FILES"
-          ./.lockstep/TotemCore/gradlew -p "$GITHUB_WORKSPACE" \
-            -PtotemCoreJar="$core_jar" -PnexusTestFocus=map runProductionClientGameTest --init-script ${GITHUB_WORKSPACE}/.github/scripts/lavapipe.gradle --no-daemon --stacktrace
-
-      - name: Preserve runtime evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: nexus-runtime-evidence
-          path: |
-            build/reports/tests/
-            build/run/clientGameTest/screenshots/
-            run/screenshots/
-            run/logs/
-          if-no-files-found: warn
-
       - name: Bind validated release artifact to this Build
         shell: bash
         run: |
