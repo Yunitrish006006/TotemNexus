@@ -1,5 +1,6 @@
 package dev.totem.nexus.client;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.totem.core.api.v1.client.observer.ObserverRemoteCursor;
 import dev.totem.core.api.v1.client.observer.ObserverScreenContext;
 import dev.totem.core.api.v1.client.observer.ObserverScreenHandle;
@@ -228,9 +229,24 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                     Math.max(1, handle.screen().width), Math.max(1, handle.screen().height), ItemStack.EMPTY));
             ObserverPacketProbe.reset();
             require(handle.screen().mouseClicked(new MouseButtonEvent(1, 1,
-                            new MouseButtonInfo(0, 0)), false), "Observer mouse input was not consumed");
+                            new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0)), false), "Observer mouse input was not consumed");
             require(handle.screen().keyPressed(new KeyEvent(65, 0, 0)),
                     "Observer keyboard input was not consumed");
+            if (handle.screen() instanceof NexusSpaceUnitMapScreen map) {
+                int[] before = map.mapViewForVisualTest();
+                var selection = map.observerSelectedUnitId();
+                int[] center = map.mapViewportCenterForVisualTest();
+                require(map.mouseClicked(new MouseButtonEvent(center[0], center[1],
+                        new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0)), false), "Observer map press was not consumed");
+                require(map.mouseDragged(new MouseButtonEvent(center[0] + 20, center[1] + 20,
+                        new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0)), 20, 20), "Observer map drag was not consumed");
+                require(map.mouseReleased(new MouseButtonEvent(center[0] + 20, center[1] + 20,
+                        new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0))), "Observer map release was not consumed");
+                require(map.mouseScrolled(center[0], center[1], 0, 1), "Observer map scroll was not consumed");
+                require(java.util.Arrays.equals(before, map.mapViewForVisualTest())
+                                && java.util.Objects.equals(selection, map.observerSelectedUnitId()),
+                        "Observer input mutated map viewport or selection");
+            }
             require(ObserverPacketProbe.sends() == 0, "Nexus Observer input attempted a packet");
         });
         context.waitTicks(2);

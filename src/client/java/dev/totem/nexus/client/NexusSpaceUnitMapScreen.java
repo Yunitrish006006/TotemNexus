@@ -1,5 +1,7 @@
 package dev.totem.nexus.client;
 
+import com.mojang.blaze3d.platform.InputConstants;
+import dev.totem.nexus.map.MapPointerTransform;
 import dev.totem.nexus.network.CalibrateSpaceUnitPayload;
 import dev.totem.nexus.network.RenameSpaceUnitPayload;
 import dev.totem.nexus.network.RequestSpaceUnitMapPayload;
@@ -13,6 +15,7 @@ import dev.totem.nexus.network.UpdateSpaceUnitVisibilityPayload;
 import dev.totem.nexus.space.TeleportInterfaceType;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
@@ -399,20 +402,27 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         }
 
         if (hasMapVisualization()) {
+            // Only an actionable widget under the pointer gets first refusal. An
+            // unrelated focused child must not consume a map click/drag gesture.
+            boolean overControl = children().stream().anyMatch(child ->
+                    child instanceof AbstractWidget widget && widget.visible && widget.active
+                            && widget.isMouseOver(event.x(), event.y()));
+            if (overControl && super.mouseClicked(event, doubleClick)) {
+                return true;
+            }
             boolean insideMap = isInside(event.x(), event.y(), mapX(), mapY(), mapWidth(), mapHeight());
             UUID mapHit = insideMap ? mapEntryAt(event.x(), event.y()) : null;
 
-            // Map gestures take precedence over child widgets: left press starts a potential
-            // click-or-drag gesture, and selection is committed only on release when the
-            // drag threshold was not crossed.
-            if (event.button() == 0 && insideMap) {
+            // Outside actionable controls, commit selection only on release if
+            // the drag threshold was not crossed.
+            if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && insideMap) {
                 this.mapDragging = true;
                 this.mapDragDistance = 0.0D;
                 this.pendingMapClickId = mapHit;
                 return true;
             }
             // Keep favorite toggling on the secondary button only.
-            if (event.button() == 1 && mapHit != null) {
+            if (event.button() == InputConstants.MOUSE_BUTTON_RIGHT && mapHit != null) {
                 selectDestination(mapHit, true);
                 toggleFavorite(mapHit);
                 return true;
@@ -424,7 +434,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             UUID rowHit = listEntryAt(event.x(), event.y());
             if (rowHit != null) {
                 selectDestination(rowHit, true);
-                if (event.button() == 1) {
+                if (event.button() == InputConstants.MOUSE_BUTTON_RIGHT) {
                     toggleFavorite(rowHit);
                 }
                 return true;
@@ -437,7 +447,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
         if (observerReadOnly()) return true;
-        if (this.mapDragging && event.button() == 0 && hasMapVisualization()) {
+        if (this.mapDragging && event.button() == InputConstants.MOUSE_BUTTON_LEFT && hasMapVisualization()) {
             this.mapDragDistance += Math.hypot(dragX, dragY);
             this.mapPanX += (int) Math.round(dragX);
             this.mapPanY += (int) Math.round(dragY);
@@ -450,7 +460,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
         if (observerReadOnly()) return true;
-        if (this.mapDragging && event.button() == 0) {
+        if (this.mapDragging && event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             UUID clickId = this.pendingMapClickId;
             boolean select = this.mapDragDistance < MAP_CLICK_DRAG_THRESHOLD && clickId != null;
             this.mapDragging = false;
@@ -591,8 +601,6 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
 
     private void setMapZoomAt(int zoom, double anchorX, double anchorY) {
         MapRenderArea before = mapRenderArea();
-        double mapPixelX = (anchorX - before.x()) / before.scale();
-        double mapPixelY = (anchorY - before.y()) / before.scale();
         int previousZoom = this.mapZoom;
 
         setMapZoom(zoom);
@@ -604,8 +612,8 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         int renderedSize = VANILLA_MAP_SIZE * scale;
         int centeredX = mapX() + (mapWidth() - renderedSize) / 2;
         int centeredY = mapY() + (mapHeight() - renderedSize) / 2;
-        this.mapPanX = (int) Math.round(anchorX - mapPixelX * scale - centeredX);
-        this.mapPanY = (int) Math.round(anchorY - mapPixelY * scale - centeredY);
+        this.mapPanX = MapPointerTransform.anchoredPan(anchorX, before.x(), before.scale(), centeredX, scale);
+        this.mapPanY = MapPointerTransform.anchoredPan(anchorY, before.y(), before.scale(), centeredY, scale);
         clampMapPan();
     }
 
@@ -618,10 +626,8 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         }
         int baseScale = baseMapScale();
         int renderedSize = VANILLA_MAP_SIZE * baseScale * this.mapZoom;
-        int maxPanX = Math.max(0, (renderedSize - (mapWidth() - 2)) / 2);
-        int maxPanY = Math.max(0, (renderedSize - (mapHeight() - 2)) / 2);
-        this.mapPanX = Math.max(-maxPanX, Math.min(maxPanX, this.mapPanX));
-        this.mapPanY = Math.max(-maxPanY, Math.min(maxPanY, this.mapPanY));
+        this.mapPanX = MapPointerTransform.clampPan(this.mapPanX, renderedSize, mapWidth());
+        this.mapPanY = MapPointerTransform.clampPan(this.mapPanY, renderedSize, mapHeight());
     }
 
     private List<SpaceUnitMapPayload.Entry> selectionEntries() {
@@ -961,6 +967,10 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     /** Package-visible interaction point guaranteed to remain inside the map viewport. */
     int[] mapViewportCenterForVisualTest() {
         return new int[]{mapX() + mapWidth() / 2, mapY() + mapHeight() / 2};
+    }
+
+    int[] mapViewportForVisualTest() {
+        return new int[]{mapX(), mapY(), mapWidth(), mapHeight(), baseMapScale()};
     }
 
     /** Package-visible transform probe for cursor-anchored zoom regression coverage. */
