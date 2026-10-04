@@ -94,17 +94,27 @@ own local player position for the observed target.
 
 Detail-aware terrain composition SHALL use the same bounded world-to-screen
 viewport transform as Nexus marker placement, hit testing, panning, and labels.
-Terrain layers MUST NOT duplicate Nexus decorations. The module-owned Observer
-provider SHALL version the changed zoom/terrain semantics, validate bounded
-semantic state, and preserve read-only framebuffer-free reconstruction.
+Mouse-wheel zoom SHALL preserve the map coordinate beneath the cursor whenever
+the bounded pan limits permit it. Primary-button click SHALL select a visible
+Nexus marker, while primary-button drag SHALL pan the map and MUST NOT toggle
+favorite state or commit a marker selection after crossing the drag threshold.
+Favorite toggling SHALL remain a secondary-button action. Terrain layers MUST
+NOT duplicate Nexus decorations. The module-owned Observer provider SHALL
+version the changed zoom/terrain semantics, validate bounded semantic state, and
+preserve read-only framebuffer-free reconstruction.
 
 #### Scenario: Player zooms, pans, and selects a Nexus marker
 
-- **WHEN** the player changes detail zoom, pans the map, and clicks a visible
-  Nexus marker
+- **WHEN** the player zooms with the cursor away from viewport center, pans with
+  the primary mouse button, and clicks a visible Nexus marker
 - **THEN** terrain, marker, label, and hit-test coordinates remain aligned to the
   same world position
-- **AND** a drag beyond the existing threshold does not become a marker click
+- **AND** the map coordinate beneath the zoom cursor remains stable unless a pan
+  bound prevents it
+- **AND** a primary-button drag beyond the existing threshold does not become a
+  marker click or favorite toggle
+- **AND** a primary-button click selects the marker while favorite toggling
+  remains on the secondary button
 
 #### Scenario: Observer receives protocol-5 viewport semantics
 

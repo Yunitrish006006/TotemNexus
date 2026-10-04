@@ -1,0 +1,109 @@
+{
+  "version": "0.3.26",
+  "java": 25,
+  "minecraft": "26.3",
+  "fabric_loader": "0.19.5",
+  "fabric_api": "0.160.5+26.3",
+  "artifact": "totem-nexus-0.3.26.jar",
+  "artifact_bytes": 828081,
+  "sha512": "c2e6c11a0e1023f5671fcdab0320aec8e120c8312127bcdcccf55f23a994eeb2cf82a0f80b57bce85b1ae92ce0de4e0c5a2d61699bb6730dc9b365a3d9daa2fe",
+  "sha256": "322b87c8a19c0ac0fdd79b771415deefbaad2638afa7b40b0d032a5b3ec6d4d8",
+  "core_version": "0.7.23",
+  "core_source_commit": "424b90dc3929caa8c1afcfca7e63c50a64bde669",
+  "core_artifact_sha512": "c3d2f88252ee23500d91f7d49a742f47ae981f25acf1e3cdfcf76c81aa36319943ea92f7aa0a7caf1685d89cb765a1e83ac6a0ee1f1af00cec9ea071cdbe923d",
+  "source_base_commit": "01fd68748a0654ecd190f9d460011c0755bef643",
+  "source_state": "Release candidate on fix/map-pointer-interactions. The base commit alone does not identify this artifact; exact-source CI provenance must bind the final release commit and JAR hash.",
+  "validated_local_date": "2026-10-05",
+  "timezone": "Asia/Taipei",
+  "status": "local-validation-and-independent-review-passed-final-release-gates-pending",
+  "validation_scope": "Java 25 unit tests, full build/server GameTests, map-focused development and production-JAR client GameTests, isolated Observer three-JVM E2E, independent review and candidate PR CI passed. Exact-source final CI and Modrinth read-back remain mandatory; this candidate record is not publication evidence.",
+  "independent_review": {
+    "status": "passed-no-blocking-findings",
+    "reviewer": "/root/nexus_release_review",
+    "mode": "independent read-only agent explicitly authorized by user",
+    "reviewed_base": "98208e0452ea608d30d583e83689b4d4d0dca37e",
+    "reviewed_head": "74f7a2c2ab4fa18ad6fc782768b8aa9b1b0a1737",
+    "scope": "Full PR diff, widget priority, actual SDL button constants, deferred drag selection, anchored zoom including existing power-of-two mixin, exact pan clamps, Observer guards, saved test evidence and artifact hash.",
+    "result": "No blocking findings. Preliminary concern about linear zoom stepping resolved by inspecting NexusMapDetailScreenMixin.",
+    "limitations": [
+      "Software Vulkan rendering and map-focused client tests; not physical GPU performance evidence.",
+      "Drag regression asserts pan and selection but not an explicit zero-favorite-packet count or right-click favorite action; separation was verified by source inspection."
+    ]
+  },
+  "candidate_pr_ci": {
+    "head_sha": "74f7a2c2ab4fa18ad6fc782768b8aa9b1b0a1737",
+    "build_run": 37221584574,
+    "openspec_run": 37221584575,
+    "build": "success",
+    "openspec": "success",
+    "security_check": "success",
+    "note": "PR evidence only. Publication requires a successful push Build for the final merged source and its immutable artifact."
+  },
+  "consumer_impact": "No shared API, wire protocol, server authorization, persistence or audit-event contract changes. Core/Remnant/Discord consumers require no source edits. Observer integration was compiled and exercised with the candidate Nexus JAR. The curated graph still reports nexus@3; production source uses nexus@5 and was not changed by this fix.",
+  "changes": [
+    "Actionable map widgets receive primary clicks before map gestures.",
+    "Use Minecraft InputConstants for SDL primary/secondary buttons (1/3), not legacy numeric 0/1.",
+    "Cursor anchoring is bounded by at most half a logical screen pixel from integer rounding, with separate exact pan-clamp assertions.",
+    "Observer map press/drag/release/scroll must leave viewport and selection unchanged and send no action packets."
+  ],
+  "validation": {
+    "unit_tests": {
+      "tests": 98,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "full_build": {
+      "status": "passed",
+      "duration": "6m 29s",
+      "server_gametests_passed": 115,
+      "log": "build/reports/map-pointer-0.3.26/nexus-0326-final-build.log"
+    },
+    "client_runtime": {
+      "status": "passed",
+      "tasks": [
+        "runClientGameTest",
+        "runProductionClientGameTest"
+      ],
+      "focus": "map",
+      "gui_scales": [
+        2,
+        3
+      ],
+      "combined_validation_duration": "5m 12s",
+      "graphics": "SDL X11 + Xvfb + Vulkan Lavapipe software rendering; not native GPU performance evidence",
+      "log": "build/reports/map-pointer-0.3.26/nexus-0326-runtime-validation.log"
+    },
+    "observer_e2e": {
+      "status": "passed",
+      "owner_source_commit": "c89f31ab5d47211294aceb05f1199806052d6659",
+      "topology": "dedicated server + Target client + Observer client",
+      "log": "build/reports/map-pointer-0.3.26/nexus-0326-e2e-whitelist.log",
+      "isolation": "/tmp/nexus-0326-observer.oqFv0H",
+      "harness_only_adjustments": [
+        "Use Xvfb and Vulkan Lavapipe in place of Xorg/OpenGL.",
+        "Bind test server to 127.0.0.1; retain whitelist and explicitly admit Target, Observer and derived account-v1 fixture identity."
+      ],
+      "prior_failures": [
+        "Initial attempt: Target/Observer rejected by empty test whitelist.",
+        "Second attempt: account-v1 admission closed with code 1008; derived fixture identity was also absent from whitelist. Passed after adding that test identity."
+      ],
+      "assertions_changed": false,
+      "owner_repository_modified": false
+    }
+  },
+  "evidence_directory": "build/reports/map-pointer-0.3.26",
+  "modrinth_version_check": {
+    "project_id": "FfCkJemY",
+    "latest": "0.3.25",
+    "candidate_exists": false,
+    "checked_local_date": "2026-10-05"
+  },
+  "pending_gates": [
+    "Exact-source GitHub CI after release-record update and merge",
+    "Merge into default branch master only after gates pass",
+    "Publish only after all gates pass and verify Modrinth read-back"
+  ],
+  "publication_authorization": "User explicitly authorized upload to Modrinth in the release follow-up.",
+  "published": false
+}
