@@ -15,9 +15,30 @@
   "source_state": "Release candidate on fix/map-pointer-interactions. The base commit alone does not identify this artifact; exact-source CI provenance must bind the final release commit and JAR hash.",
   "validated_local_date": "2026-10-05",
   "timezone": "Asia/Taipei",
-  "status": "local-validation-passed-release-gates-pending",
-  "validation_scope": "Java 25 unit tests, full build/server GameTests, map-focused development and production-JAR client GameTests, and isolated Observer three-JVM E2E passed. Exact-source remote CI and independent review remain mandatory; this is not publication evidence.",
-  "independent_review": "Pending. No independent reviewer has inspected these changes; self-check is not independent review.",
+  "status": "local-validation-and-independent-review-passed-final-release-gates-pending",
+  "validation_scope": "Java 25 unit tests, full build/server GameTests, map-focused development and production-JAR client GameTests, isolated Observer three-JVM E2E, independent review and candidate PR CI passed. Exact-source final CI and Modrinth read-back remain mandatory; this candidate record is not publication evidence.",
+  "independent_review": {
+    "status": "passed-no-blocking-findings",
+    "reviewer": "/root/nexus_release_review",
+    "mode": "independent read-only agent explicitly authorized by user",
+    "reviewed_base": "98208e0452ea608d30d583e83689b4d4d0dca37e",
+    "reviewed_head": "74f7a2c2ab4fa18ad6fc782768b8aa9b1b0a1737",
+    "scope": "Full PR diff, widget priority, actual SDL button constants, deferred drag selection, anchored zoom including existing power-of-two mixin, exact pan clamps, Observer guards, saved test evidence and artifact hash.",
+    "result": "No blocking findings. Preliminary concern about linear zoom stepping resolved by inspecting NexusMapDetailScreenMixin.",
+    "limitations": [
+      "Software Vulkan rendering and map-focused client tests; not physical GPU performance evidence.",
+      "Drag regression asserts pan and selection but not an explicit zero-favorite-packet count or right-click favorite action; separation was verified by source inspection."
+    ]
+  },
+  "candidate_pr_ci": {
+    "head_sha": "74f7a2c2ab4fa18ad6fc782768b8aa9b1b0a1737",
+    "build_run": 37221584574,
+    "openspec_run": 37221584575,
+    "build": "success",
+    "openspec": "success",
+    "security_check": "success",
+    "note": "PR evidence only. Publication requires a successful push Build for the final merged source and its immutable artifact."
+  },
   "consumer_impact": "No shared API, wire protocol, server authorization, persistence or audit-event contract changes. Core/Remnant/Discord consumers require no source edits. Observer integration was compiled and exercised with the candidate Nexus JAR. The curated graph still reports nexus@3; production source uses nexus@5 and was not changed by this fix.",
   "changes": [
     "Actionable map widgets receive primary clicks before map gestures.",
@@ -79,8 +100,7 @@
     "checked_local_date": "2026-10-05"
   },
   "pending_gates": [
-    "Independent review",
-    "Exact-source GitHub CI after authorized branch update",
+    "Exact-source GitHub CI after release-record update and merge",
     "Merge into default branch master only after gates pass",
     "Publish only after all gates pass and verify Modrinth read-back"
   ],
