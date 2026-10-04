@@ -399,23 +399,25 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         }
 
         if (hasMapVisualization()) {
-            if (super.mouseClicked(event, doubleClick)) {
-                return true;
-            }
-            UUID mapHit = mapEntryAt(event.x(), event.y());
-            if (event.button() == 0 && isInside(
-                    event.x(), event.y(), mapX(), mapY(), mapWidth(), mapHeight())) {
+            boolean insideMap = isInside(event.x(), event.y(), mapX(), mapY(), mapWidth(), mapHeight());
+            UUID mapHit = insideMap ? mapEntryAt(event.x(), event.y()) : null;
+
+            // Map gestures take precedence over child widgets: left press starts a potential
+            // click-or-drag gesture, and selection is committed only on release when the
+            // drag threshold was not crossed.
+            if (event.button() == 0 && insideMap) {
                 this.mapDragging = true;
                 this.mapDragDistance = 0.0D;
                 this.pendingMapClickId = mapHit;
                 return true;
             }
+            // Keep favorite toggling on the secondary button only.
             if (event.button() == 1 && mapHit != null) {
                 selectDestination(mapHit, true);
                 toggleFavorite(mapHit);
                 return true;
             }
-            return false;
+            return super.mouseClicked(event, doubleClick);
         }
 
         if (hasDestinationList()) {
@@ -480,7 +482,7 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         if (hasMapVisualization()
                 && isInside(mouseX, mouseY, mapX(), mapY(), mapWidth(), mapHeight())) {
             if (verticalAmount != 0.0D) {
-                setMapZoom(this.mapZoom + (verticalAmount > 0.0D ? 1 : -1));
+                setMapZoomAt(this.mapZoom + (verticalAmount > 0.0D ? 1 : -1), mouseX, mouseY);
             }
             return true;
         }
@@ -585,6 +587,26 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
             this.minecraft.getNarrator().saySystemNow(Component.translatable(
                     "message.totem.space_unit.map_zoom_narration", this.mapZoom * 100));
         }
+    }
+
+    private void setMapZoomAt(int zoom, double anchorX, double anchorY) {
+        MapRenderArea before = mapRenderArea();
+        double mapPixelX = (anchorX - before.x()) / before.scale();
+        double mapPixelY = (anchorY - before.y()) / before.scale();
+        int previousZoom = this.mapZoom;
+
+        setMapZoom(zoom);
+        if (this.mapZoom == previousZoom) {
+            return;
+        }
+
+        int scale = baseMapScale() * this.mapZoom;
+        int renderedSize = VANILLA_MAP_SIZE * scale;
+        int centeredX = mapX() + (mapWidth() - renderedSize) / 2;
+        int centeredY = mapY() + (mapHeight() - renderedSize) / 2;
+        this.mapPanX = (int) Math.round(anchorX - mapPixelX * scale - centeredX);
+        this.mapPanY = (int) Math.round(anchorY - mapPixelY * scale - centeredY);
+        clampMapPan();
     }
 
     private void clampMapPan() {
@@ -939,6 +961,15 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
     /** Package-visible interaction point guaranteed to remain inside the map viewport. */
     int[] mapViewportCenterForVisualTest() {
         return new int[]{mapX() + mapWidth() / 2, mapY() + mapHeight() / 2};
+    }
+
+    /** Package-visible transform probe for cursor-anchored zoom regression coverage. */
+    double[] mapPixelAtForVisualTest(double screenX, double screenY) {
+        MapRenderArea area = mapRenderArea();
+        return new double[]{
+                (screenX - area.x()) / area.scale(),
+                (screenY - area.y()) / area.scale()
+        };
     }
 
     /** Package-visible semantic proof for the explicit Observer/client cache-miss presentation. */
