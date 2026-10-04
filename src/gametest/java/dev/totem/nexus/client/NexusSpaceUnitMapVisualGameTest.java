@@ -178,48 +178,76 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
             if (!screen.mapOnlyTeleportPresentationForVisualTest()) {
                 throw new AssertionError("Nexus map rendered a destination list");
             }
-            int[] point = screen.mapEntryCenterForVisualTest(MAP_TARGET_ID);
-            if (point.length != 2 || !screen.mouseClicked(new MouseButtonEvent(
-                    point[0], point[1], new MouseButtonInfo(0, 0)), false)) {
-                throw new AssertionError("Nexus map coordinate did not select its destination marker");
-            }
-            if (!screen.mouseReleased(new MouseButtonEvent(
-                    point[0], point[1], new MouseButtonInfo(0, 0)))) {
-                throw new AssertionError("Nexus map coordinate click was not released");
-            }
-            if (!MAP_TARGET_ID.equals(screen.selectedUnitIdForVisualTest())) {
-                throw new AssertionError("Nexus map selected a different destination than the clicked marker");
+            if (!SOURCE_ID.equals(screen.selectedUnitIdForVisualTest())) {
+                throw new AssertionError("Nexus map did not begin with its source selected");
             }
 
             int[] center = screen.mapViewportCenterForVisualTest();
-            if (!screen.mouseScrolled(center[0], center[1], 0.0D, 1.0D)
+            int anchorX = center[0] + 64;
+            int anchorY = center[1] - 48;
+            double[] beforeZoom = screen.mapPixelAtForVisualTest(anchorX, anchorY);
+            if (!screen.mouseScrolled(anchorX, anchorY, 0.0D, 1.0D)
                     || screen.mapViewForVisualTest()[0] != 2) {
                 throw new AssertionError("Nexus map mouse wheel did not reveal scale-1 detail at 2x");
             }
-            if (!screen.mouseScrolled(center[0], center[1], 0.0D, 1.0D)
+            double[] at2x = screen.mapPixelAtForVisualTest(anchorX, anchorY);
+            assertMapAnchorStable(beforeZoom, at2x, "2x");
+
+            if (!screen.mouseScrolled(anchorX, anchorY, 0.0D, 1.0D)
                     || screen.mapViewForVisualTest()[0] != 4) {
                 throw new AssertionError("Nexus map mouse wheel did not reveal scale-0 detail at 4x");
             }
-            if (!screen.mouseScrolled(center[0], center[1], 0.0D, 1.0D)
+            double[] at4x = screen.mapPixelAtForVisualTest(anchorX, anchorY);
+            assertMapAnchorStable(at2x, at4x, "4x");
+
+            if (!screen.mouseScrolled(anchorX, anchorY, 0.0D, 1.0D)
                     || screen.mapViewForVisualTest()[0] != 4) {
                 throw new AssertionError("Nexus map zoom exceeded its finest proven scale-0 detail");
             }
-            if (!screen.mouseClicked(new MouseButtonEvent(
-                    center[0], center[1], new MouseButtonInfo(0, 0)), false)
-                    || !screen.mouseDragged(new MouseButtonEvent(
-                    center[0], center[1] - 28, new MouseButtonInfo(0, 0)), 0.0D, -28.0D)
-                    || !screen.mouseReleased(new MouseButtonEvent(
-                    center[0], center[1] - 28, new MouseButtonInfo(0, 0)))) {
-                throw new AssertionError("Nexus map drag-to-pan gesture was not consumed");
+
+            int[] point = screen.mapEntryCenterForVisualTest(MAP_TARGET_ID);
+            if (point.length != 2) {
+                throw new AssertionError("Nexus map target marker was unavailable after zoom");
             }
-            int[] view = screen.mapViewForVisualTest();
-            if (view[0] != 4 || view[2] >= 0) {
-                throw new AssertionError("Nexus map drag did not preserve detail zoom and update visible pan state");
+            int[] beforeDrag = screen.mapViewForVisualTest();
+            if (!screen.mouseClicked(new MouseButtonEvent(
+                    point[0], point[1], new MouseButtonInfo(0, 0)), false)
+                    || !screen.mouseDragged(new MouseButtonEvent(
+                    point[0], point[1] - 28, new MouseButtonInfo(0, 0)), 0.0D, -28.0D)
+                    || !screen.mouseReleased(new MouseButtonEvent(
+                    point[0], point[1] - 28, new MouseButtonInfo(0, 0)))) {
+                throw new AssertionError("Nexus map left-drag gesture was not consumed");
+            }
+            int[] afterDrag = screen.mapViewForVisualTest();
+            if (afterDrag[0] != 4
+                    || (afterDrag[1] == beforeDrag[1] && afterDrag[2] == beforeDrag[2])) {
+                throw new AssertionError("Nexus map left-drag did not preserve zoom and update pan");
+            }
+            if (!SOURCE_ID.equals(screen.selectedUnitIdForVisualTest())) {
+                throw new AssertionError("Dragging from an unselected Nexus marker incorrectly selected it");
+            }
+
+            point = screen.mapEntryCenterForVisualTest(MAP_TARGET_ID);
+            if (point.length != 2 || !screen.mouseClicked(new MouseButtonEvent(
+                    point[0], point[1], new MouseButtonInfo(0, 0)), false)) {
+                throw new AssertionError("Nexus map left click was not consumed for destination selection");
+            }
+            if (!screen.mouseReleased(new MouseButtonEvent(
+                    point[0], point[1], new MouseButtonInfo(0, 0)))) {
+                throw new AssertionError("Nexus map destination left click was not released");
             }
             if (!MAP_TARGET_ID.equals(screen.selectedUnitIdForVisualTest())) {
-                throw new AssertionError("Dragging the Nexus map changed the selected destination");
+                throw new AssertionError("Nexus map left click selected a different destination");
             }
         });
+    }
+
+    private static void assertMapAnchorStable(double[] before, double[] after, String zoomLabel) {
+        if (before.length != 2 || after.length != 2
+                || Math.abs(before[0] - after[0]) > 0.51D
+                || Math.abs(before[1] - after[1]) > 0.51D) {
+            throw new AssertionError("Nexus map cursor anchor drifted while zooming to " + zoomLabel);
+        }
     }
 
     private static void selectLanguage(ClientGameTestContext context, String language, String expectedCompassTitle) {
