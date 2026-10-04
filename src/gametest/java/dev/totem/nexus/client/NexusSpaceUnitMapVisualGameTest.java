@@ -183,24 +183,27 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
             }
 
             int[] center = screen.mapViewportCenterForVisualTest();
-            int anchorX = center[0] + 64;
-            int anchorY = center[1] - 48;
-            double[] beforeZoom = screen.mapPixelAtForVisualTest(anchorX, anchorY);
-            if (!screen.mouseScrolled(anchorX, anchorY, 0.0D, 1.0D)
+            int firstAnchorX = center[0];
+            int firstAnchorY = center[1] - 48;
+            double[] beforeZoom = screen.mapPixelAtForVisualTest(firstAnchorX, firstAnchorY);
+            if (!screen.mouseScrolled(firstAnchorX, firstAnchorY, 0.0D, 1.0D)
                     || screen.mapViewForVisualTest()[0] != 2) {
                 throw new AssertionError("Nexus map mouse wheel did not reveal scale-1 detail at 2x");
             }
-            double[] at2x = screen.mapPixelAtForVisualTest(anchorX, anchorY);
+            double[] at2x = screen.mapPixelAtForVisualTest(firstAnchorX, firstAnchorY);
             assertMapAnchorStable(beforeZoom, at2x, "2x");
 
-            if (!screen.mouseScrolled(anchorX, anchorY, 0.0D, 1.0D)
+            int secondAnchorX = center[0] + 64;
+            int secondAnchorY = center[1] - 48;
+            double[] before4x = screen.mapPixelAtForVisualTest(secondAnchorX, secondAnchorY);
+            if (!screen.mouseScrolled(secondAnchorX, secondAnchorY, 0.0D, 1.0D)
                     || screen.mapViewForVisualTest()[0] != 4) {
                 throw new AssertionError("Nexus map mouse wheel did not reveal scale-0 detail at 4x");
             }
-            double[] at4x = screen.mapPixelAtForVisualTest(anchorX, anchorY);
-            assertMapAnchorStable(at2x, at4x, "4x");
+            double[] at4x = screen.mapPixelAtForVisualTest(secondAnchorX, secondAnchorY);
+            assertMapAnchorStable(before4x, at4x, "4x");
 
-            if (!screen.mouseScrolled(anchorX, anchorY, 0.0D, 1.0D)
+            if (!screen.mouseScrolled(secondAnchorX, secondAnchorY, 0.0D, 1.0D)
                     || screen.mapViewForVisualTest()[0] != 4) {
                 throw new AssertionError("Nexus map zoom exceeded its finest proven scale-0 detail");
             }
