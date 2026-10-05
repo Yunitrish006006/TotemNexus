@@ -66,7 +66,7 @@ public final class NexusObserverMapDetailClientGameTest implements FabricClientG
                 List<Integer> rendered = probe.totem$detailLayersRenderedForVisualTest();
                 return probe.totem$observedPlayerMarkerRenderedForVisualTest()
                         && !probe.totem$localPlayerMarkerRenderedForVisualTest()
-                        && rendered.contains(SCALE_ONE_ID) && !rendered.contains(SCALE_ZERO_ID);
+                        && rendered.contains(SCALE_ONE_ID) && rendered.contains(SCALE_ZERO_ID);
             }, 100);
 
             ObserverScreenSnapshot zoom4 = withZoom(captured, 2, 4, true);

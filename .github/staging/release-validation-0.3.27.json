@@ -1,0 +1,75 @@
+{
+  "version": "0.3.27",
+  "java": 25,
+  "minecraft": "26.3",
+  "fabric_loader": "0.19.5",
+  "fabric_api": "0.160.5+26.3",
+  "artifact": "totem-nexus-0.3.27.jar",
+  "artifact_bytes": 829286,
+  "sha512": "950403384b1494f3e024bef729fd28d600c4b1ebc9d5a4f75e56c01e40d4d79ebe42aeadb97337c72d6e6dda696a8b8fd075f29c15a659dfd790164bb7e49d37",
+  "sha256": "e19b6393a2c30e56d568cbc01cc4f535d2fd45f0a6ea0a6aaded7a68d57b5e54",
+  "core_version": "0.7.23",
+  "core_source_commit": "424b90dc3929caa8c1afcfca7e63c50a64bde669",
+  "core_artifact_sha512": "c3d2f88252ee23500d91f7d49a742f47ae981f25acf1e3cdfcf76c81aa36319943ea92f7aa0a7caf1685d89cb765a1e83ac6a0ee1f1af00cec9ea071cdbe923d",
+  "source_base_commit": "cf1b174",
+  "source_state": "Candidate on fix/map-detail-intermediate-zoom. Base commit alone does not identify this artifact; the final exact-source GitHub Build must bind source commit and JAR hash before publication.",
+  "validated_local_date": "2026-10-05",
+  "timezone": "Asia/Taipei",
+  "status": "local-validation-and-independent-review-passed-final-release-gates-pending",
+  "changes": [
+    "Render compatible map detail pages at fractional texture scales instead of suppressing them below an integer zoom threshold.",
+    "Use one world-to-screen transform without independent page-origin rounding; preserve coarse-to-fine layering and vanilla transparent unknown texels.",
+    "Keep sampling, persistence, authorization, protocol and existing page/cache/network budgets unchanged."
+  ],
+  "consumer_impact": "Nexus-only implementation. ObserverNexusTerrainRelay still invokes the unchanged enqueueObserved contract and nexus@5 owner renderer. Core APIs, Remnant death lifecycle and Discord audit events are unchanged. Observer was compiled and exercised with the candidate JAR in isolated three-JVM E2E. No sibling repository was modified.",
+  "validation": {
+    "unit_tests": {"tests": 101, "failures": 0, "errors": 0, "skipped": 0},
+    "full_build": {"status": "passed", "duration": "4m 39s", "server_gametests_passed": 115, "log": "build/reports/map-detail-0.3.27/build.log"},
+    "client_runtime": {
+      "status": "passed",
+      "tasks": ["runClientGameTest", "runProductionClientGameTest"],
+      "focus": "map",
+      "duration": "4m 50s",
+      "zoom_percentages": [200, 400, 800, 1600],
+      "gui_scales": [2, 3],
+      "modes": ["owner", "read-only Observer"],
+      "pixel_assertions": "At all 16 combinations, recorded water texels match exact vanilla water RGB and unsurveyed texels match exact underlying grass RGB. Fixture has no historical ancestors and no node labels obscuring pixel probes.",
+      "screenshots": "build/reports/map-detail-0.3.27/production-screenshots",
+      "log": "build/reports/map-detail-0.3.27/client-runtime.log",
+      "graphics": "SDL X11, Xvfb, Vulkan Lavapipe software renderer; not physical-GPU performance evidence"
+    },
+    "observer_e2e": {
+      "status": "passed",
+      "topology": "dedicated server + Target JVM + Observer JVM",
+      "owner_source_commit": "c89f31ab5d47211294aceb05f1199806052d6659",
+      "isolation": "/tmp/nexus-0327-observer.OT21KR",
+      "log": "build/reports/map-detail-0.3.27/observer-e2e.log",
+      "harness_only_adaptations": ["Xvfb and Vulkan Lavapipe", "localhost binding with test whitelist containing Target, Observer and derived account fixture identity"],
+      "assertions_changed": false,
+      "owner_repository_modified": false
+    },
+    "openspec": {"status": "passed", "strict_changes": ["update-nexus-map-detail-zoom", "fix-map-recording-and-unloaded-teleport"]},
+    "diff_check": "passed"
+  },
+  "prior_test_setup_failures": [
+    "Initial new test fixture referenced unavailable resize/handle-close APIs; corrected to current configured APIs before successful runs.",
+    "Initial client launch lacked an X11 display; supplied Xvfb.",
+    "Initial pixel probes intersected node labels; removed fixture labels without weakening exact RGB assertions."
+  ],
+  "limitations": [
+    "Runtime validation used software Vulkan, not the user's own save or physical GPU.",
+    "Existing bounded terrain delivery and nearest/vanilla texture sampling are unchanged; this is not an unbounded full-map detail transfer or a new area-averaged terrain pyramid.",
+    "Existing headless audio, synthetic-account authentication and swapchain resize/shutdown warnings occurred without failing the completed tests."
+  ],
+  "independent_review": {
+    "status": "passed-no-blocking-findings",
+    "reviewer": "/root/nexus_0327_readonly_review",
+    "mode": "independent read-only agent authorized by user",
+    "scope": "Working diff, new transform and unit test, world alignment, layering, bounded page count, Observer guards, actual logs/screenshots/E2E markers and candidate hash.",
+    "result": "No blocking findings. Fractional projection, fallback, unchanged authority and validation evidence confirmed.",
+    "limitations": "Reviewer inspected existing completed validation without rerunning suites. Screenshot assertions sample interiors; seam continuity has mathematical rather than screenshot-edge assertions."
+  },
+  "publication_authorization": "User explicitly requested fixing this issue and uploading the new version to Modrinth.",
+  "pending_gates": ["Exact-source GitHub CI", "Modrinth publication and remote file/hash read-back"],
+  "published": false
+}

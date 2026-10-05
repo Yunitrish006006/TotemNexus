@@ -137,7 +137,93 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
             context.waitForScreen(null);
             selectLanguage(context, "en_us", "Nexus Compass");
             exerciseMapPointerBounds(context);
+            exerciseExpandedDetailAtEveryZoom(context);
         }
+    }
+
+    private static void exerciseExpandedDetailAtEveryZoom(ClientGameTestContext context) {
+        int originalGuiScale = context.computeOnClient(client -> client.options.guiScale().get());
+        var provider = new dev.totem.nexus.client.NexusObserverScreenProvider();
+        try {
+            for (int guiScale : new int[]{2, 3}) {
+                context.runOnClient(client -> {
+                    client.options.guiScale().set(guiScale);
+                    var base = NexusMapItemSavedDataInvoker.totem$createExact(
+                            0, 0, (byte) 4, false, false, false, Level.OVERWORLD);
+                    java.util.Arrays.fill(base.colors, MapColor.GRASS.getPackedId(MapColor.Brightness.NORMAL));
+                    var page = NexusMapItemSavedDataInvoker.totem$createExact(
+                            192, 64, (byte) 0, false, false, true, Level.OVERWORLD);
+                    // New outer region, no intermediate ancestors. Half remains unsurveyed.
+                    for (int z = 0; z < 128; z++) for (int x = 0; x < 64; x++)
+                        page.colors[x + z * 128] = MapColor.WATER.getPackedId(MapColor.Brightness.NORMAL);
+                    client.level.overrideMapData(new MapId(MAP_ID), base);
+                    client.level.overrideMapData(new MapId(7404), page);
+                    NexusMapDetailClientState.setForVisualTest(MAP_ID, List.of(7404));
+                });
+                for (int zoom : new int[]{2, 4, 8, 16}) {
+                    context.setScreen(() -> new NexusSpaceUnitMapScreen(new SpaceUnitMapPayload(
+                            SOURCE_ID, "lodestone", "Expanded detail", "minecraft:overworld",
+                            0, 64, 0, TeleportInterfaceType.FILLED_MAP, MAP_ID, List.of())));
+                    context.waitForScreen(NexusSpaceUnitMapScreen.class);
+                    context.runOnClient(client -> {
+                        var screen = (NexusSpaceUnitMapScreen) client.gui.screen();
+                        int[] center = screen.mapViewportCenterForVisualTest();
+                        for (int step = 1; step < zoom; step *= 2)
+                            screen.mouseScrolled(center[0], center[1], 0, 1);
+                        double pixelsPerBlock = screen.mapViewportForVisualTest()[4] * zoom / 16.0;
+                        double dx = -192 * pixelsPerBlock, dy = -64 * pixelsPerBlock;
+                        screen.mouseClicked(new MouseButtonEvent(center[0], center[1],
+                                new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0)), false);
+                        screen.mouseDragged(new MouseButtonEvent(center[0] + dx, center[1] + dy,
+                                new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0)), dx, dy);
+                        screen.mouseReleased(new MouseButtonEvent(center[0] + dx, center[1] + dy,
+                                new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0)));
+                        if (screen.mapViewForVisualTest()[0] != zoom)
+                            throw new AssertionError("Expanded map zoom mismatch");
+                    });
+                    assertExpandedDetailPixels(context, "owner", guiScale, zoom);
+                    var snapshot = context.computeOnClient(client -> provider.capture(client.gui.screen(), 1).orElseThrow());
+                    var handle = context.computeOnClient(client -> provider.create(
+                            new dev.totem.core.api.v1.client.observer.ObserverScreenContext(UUID.randomUUID(), "Target", () -> { }), snapshot));
+                    context.runOnClient(client -> client.setScreenAndShow(handle.screen()));
+                    assertExpandedDetailPixels(context, "observer", guiScale, zoom);
+                    context.setScreen(() -> null);
+                }
+            }
+        } finally {
+            context.setScreen(() -> null);
+            context.runOnClient(client -> client.options.guiScale().set(originalGuiScale));
+        }
+    }
+
+    private static void assertExpandedDetailPixels(ClientGameTestContext context, String mode, int guiScale, int zoom) {
+        context.waitFor(client -> ((NexusMapDetailVisualTestAccess) client.gui.screen())
+                .totem$detailLayersRenderedForVisualTest().contains(7404), 100);
+        context.waitTicks(2);
+        int[] pixels = context.computeOnClient(client -> {
+            var screen = (NexusSpaceUnitMapScreen) client.gui.screen();
+            int[] viewport = screen.mapViewportForVisualTest(), view = screen.mapViewForVisualTest();
+            int scale = viewport[4] * view[0], size = 128 * scale;
+            double centerX = viewport[0] + (viewport[2] - size) / 2 + view[1] + size / 2.0;
+            double centerY = viewport[1] + (viewport[3] - size) / 2 + view[2] + size / 2.0;
+            double nativeScale = client.getWindow().getGuiScale();
+            // Interior of the known and unknown halves, away from decorations and edges.
+            return new int[]{(int) ((centerX + 160 * scale / 16.0) * nativeScale),
+                    (int) ((centerX + 224 * scale / 16.0) * nativeScale),
+                    (int) ((centerY + 96 * scale / 16.0) * nativeScale)};
+        });
+        var path = context.takeScreenshot("nexus-expanded-detail-" + mode + "-gui-" + guiScale + "-zoom-" + zoom);
+        try {
+            var image = javax.imageio.ImageIO.read(path.toFile());
+            int known = image.getRGB(pixels[0], pixels[2]) & 0xffffff;
+            int unknown = image.getRGB(pixels[1], pixels[2]) & 0xffffff;
+            int water = MapColor.WATER.calculateARGBColor(MapColor.Brightness.NORMAL) & 0xffffff;
+            int grass = MapColor.GRASS.calculateARGBColor(MapColor.Brightness.NORMAL) & 0xffffff;
+            if (known != water || unknown != grass)
+                throw new AssertionError("Expanded " + mode + " zoom " + zoom + " pixels: known="
+                        + Integer.toHexString(known) + " expected=" + Integer.toHexString(water)
+                        + " fallback=" + Integer.toHexString(unknown) + " expected=" + Integer.toHexString(grass));
+        } catch (java.io.IOException error) { throw new AssertionError("Cannot inspect native screenshot", error); }
     }
 
     private static void installMapDetailFixture(ClientGameTestContext context) {

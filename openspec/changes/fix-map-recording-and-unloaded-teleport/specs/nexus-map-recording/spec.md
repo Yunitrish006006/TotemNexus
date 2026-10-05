@@ -33,6 +33,12 @@ Nexus SHALL record bounded, map-owned fine-detail pages from legitimately explor
 - **WHEN** a legacy map only has coarse pixels in a region
 - **THEN** those pixels remain a fallback until valid terrain sampling supplies detail and migration does not invent ancestry or fine pixels
 
+#### Scenario: New outer detail is viewed at intermediate zoom
+- **WHEN** a scale-4 map has recorded scale-zero pages in its expanded outer region but no intermediate historical map covers that region
+- **THEN** 200%, 400%, 800%, and 1600% views render those real pages at their world-aligned extent, including fractional texture scales
+- **AND** vanilla texture sampling minifies existing pixels without generating new terrain, while unknown transparent texels retain the underlying map
+- **AND** owner and read-only Observer use the same production composition without new persistence or wire formats
+
 ### Requirement: Deferred unloaded endpoint validation
 Nexus SHALL distinguish an unloaded destination from an invalid one and SHALL use bounded asynchronous loading before physical endpoint validation.
 

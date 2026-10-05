@@ -6,6 +6,7 @@ import dev.totem.nexus.client.NexusMapObserverStateAccess;
 import dev.totem.nexus.client.NexusMapPlayerMarker;
 import dev.totem.nexus.client.NexusSpaceUnitMapScreen;
 import dev.totem.nexus.network.SpaceUnitMapPayload;
+import dev.totem.nexus.map.MapDetailTransform;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -131,20 +132,19 @@ public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualT
             MapId ancestorId = new MapId(ancestorValue);
             MapItemSavedData ancestor = minecraft.level.getMapData(ancestorId);
             if (!totem$isCompatibleAncestor(current, ancestor)) continue;
-            int scaleDelta = current.scale - ancestor.scale;
-            int requiredZoom = 1 << scaleDelta;
-            if (requiredZoom > this.mapZoom || currentPixelScale % requiredZoom != 0) continue;
-            int ancestorPixelScale = currentPixelScale / requiredZoom;
-            int ancestorRenderedSize = 128 * ancestorPixelScale;
-            int ancestorLeft = Math.round(centerX + (ancestor.centerX - current.centerX) * (float) currentPixelScale / (1 << current.scale) - ancestorRenderedSize / 2.0F);
-            int ancestorTop = Math.round(centerY + (ancestor.centerZ - current.centerZ) * (float) currentPixelScale / (1 << current.scale) - ancestorRenderedSize / 2.0F);
+            // Newly surveyed regions may have only scale-zero pages, not intermediate ancestors.
+            // Let vanilla texture sampling minify those real pixels at every zoom; unknown
+            // MapColor.NONE texels remain transparent over the coarse terrain beneath them.
+            MapDetailTransform detail = MapDetailTransform.project(current.scale, ancestor.scale,
+                    currentPixelScale, centerX, centerY,
+                    ancestor.centerX - current.centerX, ancestor.centerZ - current.centerZ);
             MapRenderState detailState = new MapRenderState();
             minecraft.getMapRenderer().extractRenderState(ancestorId, ancestor, detailState);
             detailState.decorations.clear();
             extractor.nextStratum();
             extractor.pose().pushMatrix();
-            extractor.pose().translate(ancestorLeft, ancestorTop);
-            extractor.pose().scale(ancestorPixelScale, ancestorPixelScale);
+            extractor.pose().translate(detail.left(), detail.top());
+            extractor.pose().scale(detail.pixelScale(), detail.pixelScale());
             extractor.map(detailState);
             extractor.pose().popMatrix();
             renderedDetails.add(ancestorValue);
