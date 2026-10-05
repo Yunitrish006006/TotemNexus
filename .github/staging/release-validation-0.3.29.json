@@ -1,0 +1,80 @@
+{
+  "version": "0.3.29",
+  "java": 25,
+  "minecraft": "26.3",
+  "fabric_loader": "0.19.5",
+  "fabric_api": "0.160.5+26.3",
+  "artifact": "totem-nexus-0.3.29.jar",
+  "artifact_bytes": 849087,
+  "sha512": "fd3aee559fe3a961ad090b1726b32095e10f93a09d6f197017b9e662eef4b2e7a5909454d3c15b989f02d2435a5596d748da68251e94a3bb077b41a500ab3bf0",
+  "sha256": "3a482bfe0e561d0fb257610a61eccd27b84faeedc153fcb777c8a0f8470ccf94",
+  "core_version": "0.7.23",
+  "core_source_commit": "424b90dc3929caa8c1afcfca7e63c50a64bde669",
+  "core_artifact_sha512": "c3d2f88252ee23500d91f7d49a742f47ae981f25acf1e3cdfcf76c81aa36319943ea92f7aa0a7caf1685d89cb765a1e83ac6a0ee1f1af00cec9ea071cdbe923d",
+  "source_base_commit": "da44ff3",
+  "source_state": "Local release candidate validated before the exact-source GitHub Build. CI must reproduce the recorded Nexus and Core artifact hashes before publication.",
+  "validated_local_date": "2026-10-05",
+  "timezone": "Asia/Taipei",
+  "status": "validated-pending-ci-and-publication",
+  "changes": [
+    "Keep integrated singleplayer server ticks running while a filled-map Space Unit screen is open so detail LOD generation and vanilla color delivery continue.",
+    "Request and render separate matching resolutions at 200%, 400%, 800% and 1600% rather than leaving every zoom on the coarsest base map.",
+    "Add an integrated Client GameTest using real owner requests, server-side LOD generation and vanilla map packets without client map-data injection.",
+    "Preserve existing pause behavior for non-map Space Unit interfaces."
+  ],
+  "consumer_impact": "Nexus-only Screen behavior and Nexus-owned tests. TotemCore APIs, Observer protocols, input suppression, privacy boundaries, Remnant lifecycle and Discord audit events are unchanged. No sibling repository was edited.",
+  "validation": {
+    "unit_tests": {"tests": 113, "failures": 0, "errors": 0, "skipped": 0},
+    "full_build": {
+      "status": "passed",
+      "duration": "7m 45s",
+      "server_gametests_passed": 120,
+      "log": "build/reports/map-pause-0.3.29/build.log"
+    },
+    "network_resolution_regression": {
+      "status": "passed",
+      "zoom_percentages": [200, 400, 800, 1600],
+      "path": "real owner request -> server LOD build -> vanilla map color packet -> production Screen layer",
+      "client_map_data_injected": false,
+      "paired_causality": "The valid fixture fails at 200% with no layers and serverPaused=true when only the isPauseScreen override is removed; the same fixture passes all four zooms with the override restored."
+    },
+    "client_runtime": {
+      "status": "passed",
+      "tasks": ["runClientGameTest", "runProductionClientGameTest"],
+      "focus": "map",
+      "duration": "5m 38s",
+      "screenshots": 62,
+      "zoom_percentages": [100, 200, 400, 800, 1600],
+      "gui_scales": [2, 3],
+      "modes": ["owner", "read-only Observer"],
+      "log": "build/reports/map-pause-0.3.29/client-production.log",
+      "graphics": "SDL X11, Xvfb, Vulkan Lavapipe software rendering; no physical-GPU performance claim"
+    },
+    "observer_e2e": {
+      "status": "passed",
+      "topology": "dedicated server + Target JVM + Observer JVM",
+      "owner_source_commit": "c89f31ab5d47211294aceb05f1199806052d6659",
+      "isolation": "/tmp/nexus-0329-e2e-final.3Znupp",
+      "log": "build/reports/map-pause-0.3.29/observer-e2e.log",
+      "required_markers": ["observer-native-nexus-map-ok", "observer-native-nexus-closed", "server-cleanup-ok"],
+      "assertions_changed": false
+    },
+    "diff_check": "passed"
+  },
+  "limitations": [
+    "The new regression test asserts matching rendered layer IDs and exact map palette colors; captured screenshots are visually reviewed evidence rather than screenshot-RGB assertions.",
+    "The runtime uses Vulkan Lavapipe under Xvfb, not physical Apple Silicon or native desktop GPU performance acceptance.",
+    "The confirmed cause is integrated-singleplayer pausing; it is not evidence that the same pause cause applies to multiplayer."
+  ],
+  "independent_review": {
+    "status": "passed",
+    "agent": "/root/nexus_0328_release_review",
+    "finding": "No findings; no release-blocking implementation issue found.",
+    "remaining_limit": "No separate non-map pause regression was added; the implementation condition is limited to FILLED_MAP and other interfaces delegate to the parent behavior."
+  },
+  "publication_authorization": "User explicitly instructed the validated fix to be uploaded directly to Modrinth.",
+  "ci": {"status": "pending"},
+  "modrinth": {"status": "pending"},
+  "pending_gates": ["exact-source GitHub Build", "OpenSpec CI", "Modrinth publish workflow", "public API and CDN artifact read-back"],
+  "published": false
+}

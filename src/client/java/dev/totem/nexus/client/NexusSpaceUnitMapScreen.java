@@ -133,6 +133,13 @@ public class NexusSpaceUnitMapScreen extends NexusOwnedScreen {
         return this.payload.sourceType().equals(sourceType) && this.payload.sourceUnitId().equals(sourceUnitId);
     }
 
+    @Override
+    public boolean isPauseScreen() {
+        // Detail selection, LOD generation and color delivery require live server ticks,
+        // including while a singleplayer owner is inspecting/zooming the map.
+        return !hasMapVisualization() && super.isPauseScreen();
+    }
+
     public void applyPayload(SpaceUnitMapPayload payload) {
         UUID previousSelection = this.selectedUnitId;
         String previousDimension = this.activeDimension;
