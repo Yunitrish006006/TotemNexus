@@ -12,10 +12,10 @@
   "core_source_commit": "424b90dc3929caa8c1afcfca7e63c50a64bde669",
   "core_artifact_sha512": "c3d2f88252ee23500d91f7d49a742f47ae981f25acf1e3cdfcf76c81aa36319943ea92f7aa0a7caf1685d89cb765a1e83ac6a0ee1f1af00cec9ea071cdbe923d",
   "source_base_commit": "0b53a254803c321a0d4ac6c3a918b9ba3f145efa",
-  "source_state": "Candidate working tree. Exact-source GitHub Build must bind the final commit and artifact hash before publication.",
+  "source_state": "Release source d3bf3ae4614b34392a07dafc56afdcfa51d210fa. Exact-source GitHub Build bound the artifact and Core hashes before publication; subsequent commits record publication evidence only.",
   "validated_local_date": "2026-10-05",
   "timezone": "Asia/Taipei",
-  "status": "local-validation-and-independent-review-passed-ci-publication-pending",
+  "status": "published-and-remote-artifact-verified",
   "changes": [
     "Choose real resolution per zoom; derive intermediate palette-aware pixels only from complete original fine footprints, without finest-texture minification.",
     "Keep authoritative SavedData v1 unchanged; rebuild derived detail in a bounded transient cache, including isolated locked-map source records.",
@@ -86,6 +86,18 @@
     "resolution": "Added full production tick scheduler integration with eligible held maps, solo/shared holders and competing offhand map, walking/sprinting/turning/page-boundary routes, per-step derived builds and per-scale completion checks. Reviewer verified final during-movement assertion, 120 passing server tests and final JAR SHA512; no remaining implementation blockers. Final runtime, CI and publication gates are tracked separately."
   },
   "publication_authorization": "User explicitly approved implementing the proposal and directly uploading the completed new version to Modrinth.",
-  "pending_gates": ["Exact-source GitHub CI", "Modrinth publication and remote artifact/hash read-back"],
-  "published": false
+  "ci": {
+    "source_commit": "d3bf3ae4614b34392a07dafc56afdcfa51d210fa",
+    "build": {"status": "passed", "run_id": "37260359630"},
+    "openspec": {"status": "passed", "run_id": "37260359616"},
+    "publish": {"status": "passed", "run_id": "37260577658"}
+  },
+  "modrinth": {
+    "project_id": "FfCkJemY", "version_id": "jXLTXFhF", "status": "listed",
+    "url": "https://modrinth.com/mod/totem-nexus/version/jXLTXFhF",
+    "game_versions": ["26.3"], "loaders": ["fabric"],
+    "readback": "Public API metadata and SHA512 matched. CDN JAR downloaded to /tmp/nexus-0328-modrinth-readback.QeJCUL/totem-nexus-0.3.28.jar; cmp confirms byte identity with the 849060-byte locally validated JAR."
+  },
+  "pending_gates": [],
+  "published": true
 }

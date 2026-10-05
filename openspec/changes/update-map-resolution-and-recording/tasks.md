@@ -19,5 +19,5 @@
 - [x] 3.2 Run Java 25 wrapper build, unit/server GameTests and actual moving-path budget/coverage comparisons (113 unit tests, 120 server GameTests; production-worker comparison plus full scheduler solo/shared/offhand route integration with real deadlines and per-scale completion, not an FPS benchmark).
 - [x] 3.3 Run native-scale owner/Observer client screenshots, production runtime and dedicated three-JVM E2E (20 combinations per client runner; final isolated E2E passed without assertion changes).
 - [x] 3.4 Obtain independent implementation/evidence review without loosening assertions (read-only reviewer verified the full scheduler gap closure and final server build).
-- [ ] 3.5 Prepare new version and release evidence, record final JAR hashes; verify exact-source CI.
-- [ ] 3.6 Publish only with applicable authorization, then read back Modrinth metadata and artifact hash.
+- [x] 3.5 Prepare new version and release evidence, record final JAR hashes; verify exact-source CI (release d3bf3ae; Build 37260359630 and OpenSpec 37260359616 passed).
+- [x] 3.6 Publish only with applicable authorization, then read back Modrinth metadata and artifact hash (publish 37260577658; listed version jXLTXFhF; public CDN byte comparison and SHA512 match).
