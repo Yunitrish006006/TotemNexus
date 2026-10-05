@@ -124,7 +124,8 @@ public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualT
             int extent = 64 << current.scale;
             NexusMapDetailClientState.viewport(this.payload.mapId(), Math.clamp(viewX, current.centerX - extent, current.centerX + extent),
                     Math.clamp(viewZ, current.centerZ - extent, current.centerZ + extent),
-                    Math.max(1, (int) Math.ceil(Math.max(mapWidth(), mapHeight()) * (double) (1 << current.scale) / (2 * currentPixelScale))));
+                    Math.max(1, (int) Math.ceil(Math.max(mapWidth(), mapHeight()) * (double) (1 << current.scale) / (2 * currentPixelScale))),
+                    dev.totem.nexus.map.MapResolution.selectedScale(current.scale,Math.min(1<<current.scale,totem$normalizeZoom(this.mapZoom))));
         }
         List<Integer> ancestors = NexusMapDetailClientState.ancestorMapIds(this.payload.mapId());
         for (int index = ancestors.size() - 1; index >= 0; index--) {
@@ -132,9 +133,8 @@ public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualT
             MapId ancestorId = new MapId(ancestorValue);
             MapItemSavedData ancestor = minecraft.level.getMapData(ancestorId);
             if (!totem$isCompatibleAncestor(current, ancestor)) continue;
-            // Newly surveyed regions may have only scale-zero pages, not intermediate ancestors.
-            // Let vanilla texture sampling minify those real pixels at every zoom; unknown
-            // MapColor.NONE texels remain transparent over the coarse terrain beneath them.
+            // Matching resolution plus coarser recorded fallback; never minify a finer LOD.
+            if (ancestor.scale < dev.totem.nexus.map.MapResolution.selectedScale(current.scale,Math.min(1<<current.scale,totem$normalizeZoom(this.mapZoom)))) continue;
             MapDetailTransform detail = MapDetailTransform.project(current.scale, ancestor.scale,
                     currentPixelScale, centerX, centerY,
                     ancestor.centerX - current.centerX, ancestor.centerZ - current.centerZ);

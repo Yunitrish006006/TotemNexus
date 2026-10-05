@@ -25,6 +25,9 @@ public final class NexusMapDetailClientState {
     public static void viewport(int id,int x,int z,int radius) {
         VIEWS.put(id,new RequestNexusMapDetailPayload(id,x,z,Math.clamp(radius,1,2048)));
     }
+    public static void viewport(int id,int x,int z,int radius,int scale) {
+        VIEWS.put(id,new RequestNexusMapDetailPayload(id,x,z,Math.clamp(radius,1,2048),scale));
+    }
 
     private NexusMapDetailClientState() {
     }

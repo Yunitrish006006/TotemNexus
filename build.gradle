@@ -136,7 +136,7 @@ tasks.named('processGametestResources').configure {
             def manifest = file("${destinationDir}/fabric.mod.json")
             def data = new groovy.json.JsonSlurper().parse(manifest)
             data.entrypoints['fabric-gametest'] = data.entrypoints['fabric-gametest'].findAll {
-                it.endsWith('NexusMapRecordingGameTest') || it.endsWith('NexusInterfaceLifecycleGameTest')
+                it.endsWith('NexusMapRecordingGameTest') || it.endsWith('NexusMapResolutionGameTest') || it.endsWith('NexusInterfaceLifecycleGameTest')
             }
             data.entrypoints['fabric-client-gametest'] = data.entrypoints['fabric-client-gametest'].findAll {
                 it.endsWith('NexusMapPlayerMarkerClientGameTest') || it.endsWith('NexusSpaceUnitMapVisualGameTest') || it.endsWith('NexusObserverProviderClientGameTest') || it.endsWith('NexusObserverMapDetailClientGameTest')

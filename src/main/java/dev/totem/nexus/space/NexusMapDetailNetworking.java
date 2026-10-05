@@ -20,18 +20,22 @@ public final class NexusMapDetailNetworking {
     private static final Map<UUID,Long> LAST=new HashMap<>();
     private static final Map<UUID,Pending> PENDING=new HashMap<>();
     private static final Map<UUID,Map<Integer,Long>> SENT=new HashMap<>();
+    private static final Map<UUID,RequestNexusMapDetailPayload> OWNER_VIEWS=new HashMap<>();
+    private static final Map<UUID,BaseStamp> BASE_SENT=new HashMap<>();
+    private static final Map<UUID,NexusMapDetailPayload> GEOMETRY_SENT=new HashMap<>();
     private NexusMapDetailNetworking() { }
     public static void registerReceiver() {
         if(!REGISTERED.compareAndSet(false,true)) return;
         ServerPlayNetworking.registerGlobalReceiver(RequestNexusMapDetailPayload.TYPE,(p,c)->c.server().execute(()->send(c.player(),p)));
         ServerTickEvents.END_SERVER_TICK.register(server->{
             NexusMapDetailSampling.tick(server);
+            NexusMapDetailSavedData.get(server.overworld()).buildResolutions();
             for(var player:server.getPlayerList().getPlayers()) flush(player);
         });
         ServerPlayConnectionEvents.DISCONNECT.register((handler,server)->clear(handler.player.getUUID()));
-        ServerLifecycleEvents.SERVER_STOPPED.register(server->{LAST.clear();PENDING.clear();SENT.clear();NexusMapDetailSampling.clear();});
+        ServerLifecycleEvents.SERVER_STOPPED.register(server->{LAST.clear();PENDING.clear();SENT.clear();OWNER_VIEWS.clear();BASE_SENT.clear();GEOMETRY_SENT.clear();NexusMapDetailSampling.clear();});
     }
-    private static void clear(UUID id) { LAST.remove(id);PENDING.remove(id);SENT.remove(id); }
+    private static void clear(UUID id) { LAST.remove(id);PENDING.remove(id);SENT.remove(id);OWNER_VIEWS.remove(id);BASE_SENT.remove(id);GEOMETRY_SENT.remove(id); }
     static void send(ServerPlayer player,int id) { send(player,new RequestNexusMapDetailPayload(id)); }
     private static void send(ServerPlayer player,RequestNexusMapDetailPayload request) {
         sendTo(player,player,request,()->true);
@@ -40,7 +44,11 @@ public final class NexusMapDetailNetworking {
     public static void enqueueObserved(ServerPlayer target,ServerPlayer observer,int mapId,int x,int z,int radius,
                                        java.util.function.BooleanSupplier stillAuthorized) {
         if(target==null || observer==null || stillAuthorized==null || !stillAuthorized.getAsBoolean()) return;
-        sendTo(target,observer,new RequestNexusMapDetailPayload(mapId,x,z,radius),stillAuthorized);
+        // Protocol-5 relay stays source/binary compatible. Resolution comes only from the
+        // target's validated v3 presentation request for this exact viewport, never radius guessing.
+        var view=OWNER_VIEWS.get(target.getUUID());
+        int scale=view!=null && view.mapId()==mapId && view.centerX()==x && view.centerZ()==z && view.radius()==radius ? view.scale() : -1;
+        sendTo(target,observer,new RequestNexusMapDetailPayload(mapId,x,z,radius,scale),stillAuthorized);
     }
     private static void sendTo(ServerPlayer player,ServerPlayer recipient,RequestNexusMapDetailPayload request,
                                java.util.function.BooleanSupplier allowed) {
@@ -58,23 +66,39 @@ public final class NexusMapDetailNetworking {
         int radius=request.radius()==0?64<<base.scale:request.radius();
         int extent=64<<base.scale;
         if(Math.abs((long)x-base.centerX)>extent || Math.abs((long)z-base.centerZ)>extent) return;
-        var selected=store.pages(mapId.id()).stream()
+        if(request.scale()>base.scale) return;
+        if(player==recipient) OWNER_VIEWS.put(player.getUUID(),request);
+        int scale=request.scale()<0?base.scale:request.scale();
+        var selected=store.resolutionPages(player.level(),mapId.id(),scale,x,z,radius).stream()
                 .filter(p->Math.abs((long)p.x-x)<radius+(64<<p.scale) && Math.abs((long)p.z-z)<radius+(64<<p.scale))
-                .sorted(Comparator.<NexusMapDetailSavedData.Page>comparingInt(p->-p.scale)
-                        .thenComparingInt(p->p.historical?0:1)
+                .sorted(Comparator.<NexusMapDetailSavedData.Page>comparingInt(p->p.scale==scale?0:1)
+                        .thenComparingInt(p->p.historical?1:0)
                         .thenComparingLong(p->Math.abs((long)p.x-x)+Math.abs((long)p.z-z)))
                 .limit(NexusMapDetailPayload.MAX_DETAIL_MAPS)
                 .sorted(Comparator.<NexusMapDetailSavedData.Page>comparingInt(p->p.scale)
                         .thenComparingInt(p->p.historical?1:0)).toList();
-        var packet=new net.minecraft.network.protocol.game.ClientboundMapItemDataPacket(mapId,base.scale,base.locked,
-                List.of(),new MapItemSavedData.MapPatch(0,0,128,128,base.colors.clone()));
         var geometry=new ArrayList<NexusMapDetailPayload.Layer>();
         geometry.add(new NexusMapDetailPayload.Layer(mapId.id(),base.centerX,base.centerZ,base.scale,base.dimension.identifier().toString(),base.locked));
         for(var p:selected) geometry.add(new NexusMapDetailPayload.Layer(p.id,p.x,p.z,p.scale,base.dimension.identifier().toString(),true));
-        ServerPlayNetworking.send(recipient,new NexusMapDetailPayload(mapId.id(),selected.stream().map(p->p.id).toList(),geometry));
+        var detail=new NexusMapDetailPayload(mapId.id(),selected.stream().map(p->p.id).toList(),geometry);
+        boolean geometryChanged=!detail.equals(GEOMETRY_SENT.get(recipient.getUUID()));
+        if(geometryChanged) { ServerPlayNetworking.send(recipient,detail);GEOMETRY_SENT.put(recipient.getUUID(),detail); }
         var sent=SENT.computeIfAbsent(recipient.getUUID(),ignored->new HashMap<>());
         sent.keySet().retainAll(selected.stream().map(p->p.id).toList());
-        PENDING.put(recipient.getUUID(),new Pending(mapId,player.getUUID(),allowed,new ArrayDeque<>(selected),packet,now));
+        Pending pending=PENDING.get(recipient.getUUID());
+        if(pending==null || !pending.mapId.equals(mapId) || !pending.target.equals(player.getUUID()))
+            pending=new Pending(mapId,player.getUUID(),allowed,new ArrayDeque<>(),null,now);
+        var merged=dev.totem.nexus.map.MapDeliveryQueue.merge(pending.pages,selected,p->p.id);
+        pending.pages.clear();pending.pages.addAll(merged);
+        pending.allowed=allowed;
+        if(geometryChanged) pending.geometryTick=now;
+        var previous=BASE_SENT.get(recipient.getUUID());
+        if(previous==null || !previous.matches(mapId,base)) {
+            pending.base=new net.minecraft.network.protocol.game.ClientboundMapItemDataPacket(mapId,base.scale,base.locked,
+                    List.of(),new MapItemSavedData.MapPatch(0,0,128,128,base.colors.clone()));
+            pending.baseStamp=new BaseStamp(mapId,base.scale,base.locked,base.colors.clone());
+        }
+        PENDING.put(recipient.getUUID(),pending);
     }
     private static void flush(ServerPlayer player) {
         Pending pending=PENDING.get(player.getUUID());
@@ -83,8 +107,8 @@ public final class NexusMapDetailNetworking {
         if(target==null || !pending.allowed.getAsBoolean() || heldNexusMap(target,pending.mapId)==null) { clear(player.getUUID());return; }
         var sent=SENT.computeIfAbsent(player.getUUID(),ignored->new HashMap<>());
         long now=player.level().getServer().overworld().getGameTime();
-        int bytes=now==pending.created?4096:0; // Geometry envelope has an enforced <4 KiB bound.
-        if(pending.base!=null) { player.connection.send(pending.base);pending.base=null;bytes+=16512; }
+        int bytes=now==pending.geometryTick?4096:0; // Geometry envelope has an enforced <4 KiB bound.
+        if(pending.base!=null) { player.connection.send(pending.base);pending.base=null;BASE_SENT.put(player.getUUID(),pending.baseStamp);bytes+=16512; }
         while(!pending.pages.isEmpty() && bytes+16512<=32768) {
             var page=pending.pages.removeFirst();
             if(sent.getOrDefault(page.id,-1L)==page.revision()) continue;
@@ -100,12 +124,18 @@ public final class NexusMapDetailNetworking {
         return null;
     }
     private static final class Pending {
-        final MapId mapId; final UUID target; final java.util.function.BooleanSupplier allowed;
+        final MapId mapId; final UUID target; java.util.function.BooleanSupplier allowed;
         final ArrayDeque<NexusMapDetailSavedData.Page> pages; final long created;
         net.minecraft.network.protocol.game.ClientboundMapItemDataPacket base;
+        BaseStamp baseStamp; long geometryTick=Long.MIN_VALUE;
         Pending(MapId mapId,UUID target,java.util.function.BooleanSupplier allowed,
                 ArrayDeque<NexusMapDetailSavedData.Page> pages,net.minecraft.network.protocol.game.ClientboundMapItemDataPacket base,long created) {
             this.mapId=mapId;this.target=target;this.allowed=allowed;this.pages=pages;this.base=base;this.created=created;
+        }
+    }
+    private record BaseStamp(MapId id,byte scale,boolean locked,byte[] colors) {
+        boolean matches(MapId id,MapItemSavedData data) {
+            return this.id.equals(id) && scale==data.scale && locked==data.locked && Arrays.equals(colors,data.colors);
         }
     }
 }

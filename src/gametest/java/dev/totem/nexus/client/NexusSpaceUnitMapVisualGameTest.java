@@ -151,16 +151,25 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
                     var base = NexusMapItemSavedDataInvoker.totem$createExact(
                             0, 0, (byte) 4, false, false, false, Level.OVERWORLD);
                     java.util.Arrays.fill(base.colors, MapColor.GRASS.getPackedId(MapColor.Brightness.NORMAL));
-                    var page = NexusMapItemSavedDataInvoker.totem$createExact(
-                            192, 64, (byte) 0, false, false, true, Level.OVERWORLD);
-                    // New outer region, no intermediate ancestors. Half remains unsurveyed.
-                    for (int z = 0; z < 128; z++) for (int x = 0; x < 64; x++)
-                        page.colors[x + z * 128] = MapColor.WATER.getPackedId(MapColor.Brightness.NORMAL);
                     client.level.overrideMapData(new MapId(MAP_ID), base);
-                    client.level.overrideMapData(new MapId(7404), page);
-                    NexusMapDetailClientState.setForVisualTest(MAP_ID, List.of(7404));
+                    byte[] source=new byte[16384];
+                    // A nonuniform nested pattern has a different expected majority at each LOD.
+                    for(int z=0;z<128;z++) for(int x=0;x<64;x++) {
+                        int a=x&7,b=z&7;
+                        MapColor color=a==0&&b==0?MapColor.WATER:a<2&&b<2?MapColor.SAND:a<4&&b<4?MapColor.STONE:MapColor.WOOD;
+                        source[x+z*128]=color.getPackedId(MapColor.Brightness.NORMAL);
+                    }
+                    for(int scale=0;scale<=3;scale++) {
+                        int width=128<<scale, left=Math.floorDiv(128,width)*width;
+                        var page=NexusMapItemSavedDataInvoker.totem$createExact(left+width/2,width/2,(byte)scale,false,false,true,Level.OVERWORLD);
+                        int size=1<<scale;int[] counts=new int[256];
+                        for(int z=0;z<128;z+=size) for(int x=0;x<128;x+=size)
+                            page.colors[(128+x-left)/size+(z/size)*128]=scale==0?source[x+z*128]:dev.totem.nexus.map.MapResolution.reduce(source,x,z,scale,counts);
+                        client.level.overrideMapData(new MapId(7404+scale),page);
+                    }
+                    NexusMapDetailClientState.setForVisualTest(MAP_ID, List.of(7404,7405,7406,7407));
                 });
-                for (int zoom : new int[]{2, 4, 8, 16}) {
+                for (int zoom : new int[]{1, 2, 4, 8, 16}) {
                     context.setScreen(() -> new NexusSpaceUnitMapScreen(new SpaceUnitMapPayload(
                             SOURCE_ID, "lodestone", "Expanded detail", "minecraft:overworld",
                             0, 64, 0, TeleportInterfaceType.FILLED_MAP, MAP_ID, List.of())));
@@ -197,8 +206,13 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
     }
 
     private static void assertExpandedDetailPixels(ClientGameTestContext context, String mode, int guiScale, int zoom) {
-        context.waitFor(client -> ((NexusMapDetailVisualTestAccess) client.gui.screen())
-                .totem$detailLayersRenderedForVisualTest().contains(7404), 100);
+        int desired=dev.totem.nexus.map.MapResolution.selectedScale(4,zoom);
+        context.waitFor(client -> {
+            var rendered=((NexusMapDetailVisualTestAccess)client.gui.screen()).totem$detailLayersRenderedForVisualTest();
+            if(zoom==1) return rendered.isEmpty();
+            for(int s=0;s<desired;s++) if(rendered.contains(7404+s)) return false;
+            return rendered.contains(7404+desired);
+        },100);
         context.waitTicks(2);
         int[] pixels = context.computeOnClient(client -> {
             var screen = (NexusSpaceUnitMapScreen) client.gui.screen();
@@ -208,16 +222,18 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
             double centerY = viewport[1] + (viewport[3] - size) / 2 + view[2] + size / 2.0;
             double nativeScale = client.getWindow().getGuiScale();
             // Interior of the known and unknown halves, away from decorations and edges.
-            return new int[]{(int) ((centerX + 160 * scale / 16.0) * nativeScale),
-                    (int) ((centerX + 224 * scale / 16.0) * nativeScale),
-                    (int) ((centerY + 96 * scale / 16.0) * nativeScale)};
+            double half=(1<<desired)/2.0;
+            return new int[]{(int) ((centerX + (160+half) * scale / 16.0) * nativeScale),
+                    (int) ((centerX + (224+half) * scale / 16.0) * nativeScale),
+                    (int) ((centerY + (96+half) * scale / 16.0) * nativeScale)};
         });
         var path = context.takeScreenshot("nexus-expanded-detail-" + mode + "-gui-" + guiScale + "-zoom-" + zoom);
         try {
             var image = javax.imageio.ImageIO.read(path.toFile());
             int known = image.getRGB(pixels[0], pixels[2]) & 0xffffff;
             int unknown = image.getRGB(pixels[1], pixels[2]) & 0xffffff;
-            int water = MapColor.WATER.calculateARGBColor(MapColor.Brightness.NORMAL) & 0xffffff;
+            MapColor expected=switch(desired) {case 0->MapColor.WATER;case 1->MapColor.SAND;case 2->MapColor.STONE;case 3->MapColor.WOOD;default->MapColor.GRASS;};
+            int water = expected.calculateARGBColor(MapColor.Brightness.NORMAL) & 0xffffff;
             int grass = MapColor.GRASS.calculateARGBColor(MapColor.Brightness.NORMAL) & 0xffffff;
             if (known != water || unknown != grass)
                 throw new AssertionError("Expanded " + mode + " zoom " + zoom + " pixels: known="

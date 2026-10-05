@@ -66,7 +66,7 @@ public final class NexusObserverMapDetailClientGameTest implements FabricClientG
                 List<Integer> rendered = probe.totem$detailLayersRenderedForVisualTest();
                 return probe.totem$observedPlayerMarkerRenderedForVisualTest()
                         && !probe.totem$localPlayerMarkerRenderedForVisualTest()
-                        && rendered.contains(SCALE_ONE_ID) && rendered.contains(SCALE_ZERO_ID);
+                        && rendered.contains(SCALE_ONE_ID) && !rendered.contains(SCALE_ZERO_ID);
             }, 100);
 
             ObserverScreenSnapshot zoom4 = withZoom(captured, 2, 4, true);
@@ -85,6 +85,12 @@ public final class NexusObserverMapDetailClientGameTest implements FabricClientG
                         && !probe.totem$localPlayerMarkerRenderedForVisualTest();
             }, 100);
             context.takeScreenshot("totem-nexus-observer-restored-detail-no-local-substitution");
+            // Valid protocol-wide zoom can arrive before matching terrain geometry. Selection
+            // must stop at scale zero rather than throwing from the rendering callback.
+            context.runOnClient(client -> handle.applySnapshot(withZoom(captured,4,16,false)));
+            context.waitTicks(3);
+            context.waitFor(client -> ((NexusMapDetailVisualTestAccess)client.gui.screen())
+                    .totem$detailLayersRenderedForVisualTest().contains(SCALE_ZERO_ID),100);
         }
     }
 

@@ -11,6 +11,7 @@
     "fabric-gametest": [
       "dev.totem.nexus.space.NexusPortableRecoveryGameTest",
       "dev.totem.nexus.space.NexusMapRecordingGameTest",
+      "dev.totem.nexus.space.NexusMapResolutionGameTest",
       "dev.totem.nexus.space.NexusVanillaContainerGameTest",
       "dev.totem.nexus.space.NexusDistributedSpawnGameTest",
       "dev.totem.nexus.space.NexusInterfaceLifecycleGameTest",

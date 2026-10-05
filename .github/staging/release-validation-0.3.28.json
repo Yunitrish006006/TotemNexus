@@ -1,0 +1,91 @@
+{
+  "version": "0.3.28",
+  "java": 25,
+  "minecraft": "26.3",
+  "fabric_loader": "0.19.5",
+  "fabric_api": "0.160.5+26.3",
+  "artifact": "totem-nexus-0.3.28.jar",
+  "artifact_bytes": 849060,
+  "sha512": "6f18035a8e735e19f4da0462991f1fd5d35bffab4af4900bac71681421af4e0a536c695f752c9522ed08a15eef45ecbc77f236e6a7474f22de9ede062adae303",
+  "sha256": "151222e96b1cb77f44dd0131bef8b1f37c1fe5cdae463f2adbe4740e0880072b",
+  "core_version": "0.7.23",
+  "core_source_commit": "424b90dc3929caa8c1afcfca7e63c50a64bde669",
+  "core_artifact_sha512": "c3d2f88252ee23500d91f7d49a742f47ae981f25acf1e3cdfcf76c81aa36319943ea92f7aa0a7caf1685d89cb765a1e83ac6a0ee1f1af00cec9ea071cdbe923d",
+  "source_base_commit": "0b53a254803c321a0d4ac6c3a918b9ba3f145efa",
+  "source_state": "Candidate working tree. Exact-source GitHub Build must bind the final commit and artifact hash before publication.",
+  "validated_local_date": "2026-10-05",
+  "timezone": "Asia/Taipei",
+  "status": "local-validation-and-independent-review-passed-ci-publication-pending",
+  "changes": [
+    "Choose real resolution per zoom; derive intermediate palette-aware pixels only from complete original fine footprints, without finest-texture minification.",
+    "Keep authoritative SavedData v1 unchanged; rebuild derived detail in a bounded transient cache, including isolated locked-map source records.",
+    "Use world-anchored 8x8 work, route priority, deferred coverage/budget retries, hand rotation, bounded surface reuse and fair background work.",
+    "Preserve pending delivery order across repeated requests and avoid retransmitting unchanged base terrain.",
+    "Version owner detail requests as v3 with explicit scale; keep response v2 and the reflected Observer protocol-5 method compatible."
+  ],
+  "consumer_impact": "Nexus-only source edits. Core APIs, Remnant death lifecycle and Discord audit events are unchanged. The Observer relay signature and existing semantic metadata are unchanged; it gets resolution only from a matching validated target request, otherwise coarse fallback. No sibling repository was edited.",
+  "validation": {
+    "unit_tests": {"tests": 113, "failures": 0, "errors": 0, "skipped": 0},
+    "full_build": {
+      "status": "passed", "duration": "7m 44s", "server_gametests_passed": 120,
+      "log": "build/reports/map-detail-0.3.28/nexus-0328-build-reviewed.log",
+      "scope_note": "Includes the full scheduler integration seam and the final assertion requiring completed footprints during movement at every detail scale."
+    },
+    "recording_comparison": {
+      "status": "passed",
+      "fixture": "Controlled moving-coordinate route exercising the production sampling worker against real loaded terrain and SavedData, with known base coverage; not a full-player travel timing or FPS benchmark.",
+      "route_blocks": 64, "corridor_width_blocks": 8, "steps": 64, "attempt_budget_per_step": 128,
+      "new_known_cells": 512, "eligible_cells": 512, "new_attempts_used": 512,
+      "old_relative_stride_candidate_coverage_upper_bound": 65,
+      "derived_scales_verified": [1, 2, 3],
+      "limitations": "The old comparison replays candidate selection, not a measured old-build runtime. This does not establish a universal speedup, unloaded-area completion, arbitrary-flight coverage or FPS."
+    },
+    "full_scheduler_integration": {
+      "status": "passed",
+      "fixture": "Simulated tick-driven integration through the production scheduler, with actual binding/held-map authorization, admission, rotation, shared MapId deduplication and 3 ms scheduling deadline. Not real-player elapsed timing or FPS.",
+      "movement_ticks": 240, "walking_blocks_per_tick": 0.22, "sprinting_blocks_per_tick": 0.29,
+      "route": "Walk east, sprint south then west; cross a 128-block page boundary. All route footprints remain loaded. Base coverage is pre-established, not measured as sampler output.",
+      "hold_limit_ticks": 400, "hold_ticks_used": 0,
+      "derived_builds": "One real 32768-source-read / 2 ms build slice per simulated tick, requested during movement. Every pixel in every visited 8x8 footprint is checked at scales 0, 1, 2 and 3; scale 4 is the known base map.",
+      "solo": {"map_route_tiles": 8, "first_completion_ticks_scale_0_to_3": [1,4,1,1], "last_completion_ticks_scale_0_to_3": [223,223,223,223], "max_footprint_latency_ticks": 4, "max_attempts_per_tick": 512, "max_block_reads_per_tick": 552, "max_pending_tiles": 18, "max_deferred_cells": 1024},
+      "shared_with_competing_offhand": {"map_route_tiles": 24, "first_completion_ticks_scale_0_to_3": [1,4,1,1], "last_completion_ticks_scale_0_to_3": [223,223,223,223], "max_footprint_latency_ticks": 21, "max_attempts_per_tick": 1024, "max_block_reads_per_tick": 1104, "max_pending_tiles": 67, "max_deferred_cells": 2048},
+      "limits": "Global limits 2048 attempts / 16384 reads, and per-map limits 1024 pending tiles / 1024 deferred cells asserted. Unavailable background cells can saturate deferred capacity; eligible route footprints still completed in this fixture. Completion timing varies with the real deadline and host load."
+    },
+    "client_runtime": {
+      "status": "passed", "tasks": ["runClientGameTest", "runProductionClientGameTest"],
+      "focus": "map", "duration": "4m 25s",
+      "zoom_percentages": [100, 200, 400, 800, 1600], "gui_scales": [2, 3],
+      "modes": ["owner", "read-only Observer"],
+      "pixel_assertions": "All 20 combinations per runner check exact expected palette RGB for a nested nonuniform pattern, coarse fallback for unknown texels, and exclusion of finer-than-selected submitted layers. Pure reduction tests independently distinguish direct-footprint majority from child-winner majority.",
+      "screenshots": "build/reports/map-detail-0.3.28/production-screenshots",
+      "log": "build/reports/map-detail-0.3.28/nexus-0328-client-reviewed.log",
+      "graphics": "SDL X11, Xvfb, Vulkan Lavapipe software rendering; no physical-GPU performance claim"
+    },
+    "observer_e2e": {
+      "status": "passed",
+      "topology": "dedicated server + Target JVM + Observer JVM",
+      "owner_source_commit": "c89f31ab5d47211294aceb05f1199806052d6659",
+      "isolation": "/tmp/nexus-0328-e2e-final.zYC1eM",
+      "log": "build/reports/map-detail-0.3.28/nexus-0328-e2e-reviewed.log",
+      "harness_only_adaptations": ["Xvfb/Vulkan Lavapipe", "localhost binding and existing three-identity fixture whitelist"],
+      "assertions_changed": false,
+      "prior_interruption": "The combined client-plus-E2E invocation exited with SIGTERM (143) before all markers. No failure marker or application crash was found; the termination source was not established. Only E2E was restarted separately in a fresh isolated directory, retaining the interrupted run at /tmp/nexus-0328-observer.Qd1Wrr."
+    },
+    "openspec": {"status": "passed", "strict_changes": ["update-map-resolution-and-recording", "fix-map-recording-and-unloaded-teleport"]},
+    "diff_check": "passed"
+  },
+  "limitations": [
+    "Recording and caches are bounded. Under saturation, deferred work can wait for a later eligible visit; no cartography chunk tickets are used.",
+    "Intermediate colors use deterministic map-palette majority, not vanilla coarse height/water resampling or RGB averaging.",
+    "Synthetic-account authentication, headless audio and resize/shutdown warnings occurred in the test environment; they are not evidence of physical-device acceptance."
+  ],
+  "independent_review": {
+    "status": "passed",
+    "agent": "/root/nexus_0328_release_review",
+    "finding": "Initial worker-only route validation bypassed admission, rotation and real deadlines.",
+    "resolution": "Added full production tick scheduler integration with eligible held maps, solo/shared holders and competing offhand map, walking/sprinting/turning/page-boundary routes, per-step derived builds and per-scale completion checks. Reviewer verified final during-movement assertion, 120 passing server tests and final JAR SHA512; no remaining implementation blockers. Final runtime, CI and publication gates are tracked separately."
+  },
+  "publication_authorization": "User explicitly approved implementing the proposal and directly uploading the completed new version to Modrinth.",
+  "pending_gates": ["Exact-source GitHub CI", "Modrinth publication and remote artifact/hash read-back"],
+  "published": false
+}

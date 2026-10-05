@@ -44,4 +44,14 @@ class NexusMapDetailPayloadTest {
         assertEquals(4, new RequestNexusMapDetailPayload(4).mapId());
         assertThrows(IllegalArgumentException.class, () -> new RequestNexusMapDetailPayload(-1));
     }
+    @Test void v3RequestCarriesExplicitResolutionAndRejectsInvalidScale() {
+        for(int scale=-1;scale<=4;scale++) {
+            var payload=new RequestNexusMapDetailPayload(5,-128,128,64,scale);
+            var buffer=new FriendlyByteBuf(Unpooled.buffer());
+            try {RequestNexusMapDetailPayload.CODEC.encode(buffer,payload);assertEquals(payload,RequestNexusMapDetailPayload.CODEC.decode(buffer));}
+            finally {buffer.release();}
+        }
+        assertThrows(IllegalArgumentException.class,()->new RequestNexusMapDetailPayload(5,0,0,64,5));
+        assertThrows(IllegalArgumentException.class,()->new RequestNexusMapDetailPayload(5,0,0,64,-2));
+    }
 }
