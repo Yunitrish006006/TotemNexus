@@ -12,10 +12,10 @@
   "core_source_commit": "424b90dc3929caa8c1afcfca7e63c50a64bde669",
   "core_artifact_sha512": "c3d2f88252ee23500d91f7d49a742f47ae981f25acf1e3cdfcf76c81aa36319943ea92f7aa0a7caf1685d89cb765a1e83ac6a0ee1f1af00cec9ea071cdbe923d",
   "source_base_commit": "da44ff3",
-  "source_state": "Local release candidate validated before the exact-source GitHub Build. CI must reproduce the recorded Nexus and Core artifact hashes before publication.",
+  "source_state": "Release source ae9d129f733b5c0ec40d1b3058026f9e131bd8a4. Exact-source GitHub Build reproduced and bound the Nexus/Core hashes; b554707 records verified publication.",
   "validated_local_date": "2026-10-05",
   "timezone": "Asia/Taipei",
-  "status": "validated-pending-ci-and-publication",
+  "status": "published-and-remote-artifact-verified",
   "changes": [
     "Keep integrated singleplayer server ticks running while a filled-map Space Unit screen is open so detail LOD generation and vanilla color delivery continue.",
     "Request and render separate matching resolutions at 200%, 400%, 800% and 1600% rather than leaving every zoom on the coarsest base map.",
@@ -73,8 +73,18 @@
     "remaining_limit": "No separate non-map pause regression was added; the implementation condition is limited to FILLED_MAP and other interfaces delegate to the parent behavior."
   },
   "publication_authorization": "User explicitly instructed the validated fix to be uploaded directly to Modrinth.",
-  "ci": {"status": "pending"},
-  "modrinth": {"status": "pending"},
-  "pending_gates": ["exact-source GitHub Build", "OpenSpec CI", "Modrinth publish workflow", "public API and CDN artifact read-back"],
-  "published": false
+  "ci": {
+    "source_commit": "ae9d129f733b5c0ec40d1b3058026f9e131bd8a4",
+    "build": {"status": "passed", "run_id": "37289411854"},
+    "openspec": {"status": "passed", "run_id": "37289411935"},
+    "publish": {"status": "passed", "run_id": "37289741210"}
+  },
+  "modrinth": {
+    "project_id": "FfCkJemY", "version_id": "rRQoCZQf", "status": "listed",
+    "url": "https://modrinth.com/mod/totem-nexus/version/rRQoCZQf",
+    "game_versions": ["26.3"], "loaders": ["fabric"],
+    "readback": "Public API metadata, file size and SHA512 matched. CDN JAR downloaded to /tmp/totem-nexus-0.3.29-modrinth.jar; cmp confirms byte identity with the 849087-byte locally validated JAR."
+  },
+  "pending_gates": [],
+  "published": true
 }
