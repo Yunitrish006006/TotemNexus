@@ -13,7 +13,7 @@
   "core_artifact_sha512": "c3d2f88252ee23500d91f7d49a742f47ae981f25acf1e3cdfcf76c81aa36319943ea92f7aa0a7caf1685d89cb765a1e83ac6a0ee1f1af00cec9ea071cdbe923d",
   "source_base_commit": "9273dae328cb0d5fd7b2c1c06e5c210b0eaa8c93",
   "validated_local_date": "2026-10-20",
-  "status": "local-validation-complete-awaiting-exact-source-ci",
+  "status": "published-and-remote-artifact-verified",
   "validation": {
     "unit_tests": 318,
     "native_tests": 83,
@@ -24,12 +24,28 @@
     "pipeline_exit": 0
   },
   "evidence_reuse": "All source hashes matched the completed gameplay validation before release preparation. Release JAR differs from the validated JAR only in fabric.mod.json version and locale resources; all class bytes are identical. Source and artifact preflight validate release metadata/locales. CI Build must reproduce Nexus and Core hashes before publication.",
-  "independent_review": "Gameplay and screenshots accepted by safe_actions_review; release metadata review pending.",
+  "independent_review": "safe_actions_review accepted gameplay, visual evidence, release metadata, final locale correction, and byte-identical class comparison.",
   "deferred": "Experimental immutable-store migration/activation and reclamation remain deferred.",
-  "pending_gates": [
-    "exact-source GitHub Build",
-    "release metadata review",
-    "Modrinth publisher and API verification"
-  ],
-  "published": false
+  "pending_gates": [],
+  "published": true,
+  "ci": {
+    "source_commit": "ca2fcf08ed056e762d588b1ac14c3ce99ad2ee04",
+    "build": {
+      "status": "passed",
+      "run_id": "39447570519"
+    },
+    "publish": {
+      "status": "passed",
+      "run_id": "39450102868"
+    },
+    "openspec": {
+      "original_run_id": "39447570589",
+      "original_result": "failed due to two existing requirements exceeding new CLI length warnings; requirements split without changing behavior, local strict validation passed; follow-up CI pending"
+    }
+  },
+  "modrinth": {
+    "version_id": "eMIO6o1Z",
+    "url": "https://modrinth.com/mod/totem-nexus/version/eMIO6o1Z",
+    "readback": "Publish workflow verified version metadata, dependency declarations, primary filename and SHA512 against immutable Build artifact."
+  }
 }

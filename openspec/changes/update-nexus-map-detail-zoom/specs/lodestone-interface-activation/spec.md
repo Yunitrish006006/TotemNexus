@@ -44,13 +44,6 @@ map position and facing as a transient vanilla-style player decoration when the
 player is in the map dimension and within current map coverage. This decoration
 MUST NOT be persisted into `MapItemSavedData`, item components, or Nexus SavedData.
 
-A protocol-5 Observer reconstruction MAY receive the observed target's derived
-map-local player decoration, but MUST NOT receive the target's raw world X/Z
-coordinates for that marker. The Observer decoration SHALL consist only of an
-off-map flag, signed map-local X/Y bytes, and a vanilla rotation value in
-`[0, 15]`. An Observer reconstruction MUST NOT substitute the observer client's
-own local player position for the observed target.
-
 #### Scenario: Owner opens map while inside its coverage
 
 - **WHEN** the owning client opens a valid Nexus map while its player is in the
@@ -65,6 +58,13 @@ own local player position for the observed target.
 - **WHEN** the owning player is in another dimension or outside the current map
   coverage
 - **THEN** the Nexus Screen does not fabricate an in-bounds player marker
+
+### Requirement: Observer player markers preserve privacy
+
+A protocol-5 Observer reconstruction MUST use only the observed target's derived
+map-local decoration when present, MUST NOT receive raw world X/Z, and MUST NOT
+substitute the observer client's own position. Decorations SHALL contain only an off-map flag,
+signed map-local X/Y bytes, and a vanilla rotation value in `[0, 15]`.
 
 #### Scenario: Observer watches the target map
 
@@ -92,16 +92,11 @@ own local player position for the observed target.
 
 ### Requirement: Map detail viewport remains selection and Observer safe
 
-Detail-aware terrain composition SHALL use the same bounded world-to-screen
-viewport transform as Nexus marker placement, hit testing, panning, and labels.
-Mouse-wheel zoom SHALL preserve the map coordinate beneath the cursor whenever
-the bounded pan limits permit it. Primary-button click SHALL select a visible
-Nexus marker, while primary-button drag SHALL pan the map and MUST NOT toggle
-favorite state or commit a marker selection after crossing the drag threshold.
-Favorite toggling SHALL remain a secondary-button action. Terrain layers MUST
-NOT duplicate Nexus decorations. The module-owned Observer provider SHALL
-version the changed zoom/terrain semantics, validate bounded semantic state, and
-preserve read-only framebuffer-free reconstruction.
+Detail-aware terrain composition SHALL share the bounded viewport transform
+used by Nexus markers, hit testing, panning, and labels. Zoom SHALL preserve the
+cursor's map coordinate within pan limits. Primary click SHALL select markers;
+primary drag MUST NOT select or toggle favorites after the drag threshold.
+Favorites SHALL use the secondary button. Terrain MUST NOT duplicate decorations.
 
 #### Scenario: Player zooms, pans, and selects a Nexus marker
 
@@ -115,6 +110,12 @@ preserve read-only framebuffer-free reconstruction.
   marker click or favorite toggle
 - **AND** a primary-button click selects the marker while favorite toggling
   remains on the secondary button
+
+### Requirement: Observer validates detail viewport semantics
+
+The module-owned Observer provider SHALL version changed zoom and terrain
+semantics, validate bounded semantic state, and preserve read-only,
+framebuffer-free reconstruction.
 
 #### Scenario: Observer receives protocol-5 viewport semantics
 
