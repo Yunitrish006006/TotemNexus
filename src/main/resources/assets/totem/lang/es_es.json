@@ -135,7 +135,7 @@
   "message.totem.space_unit.interface.registration_requires_compass": "Usa una brújula, una brújula de recuperación, un libro normal agachado o un mapa vacío sobre esta magnetita",
   "message.totem.space_unit.interface.map_source_mismatch": "Un mapa Nexus requiere una magnetita de origen activa y ya registrada",
   "message.totem.space_unit.interface.management_unavailable": "La interfaz sostenida no está vinculada a una Space Unit activa que puedas gestionar",
-  "message.totem.space_unit.interface_bonus.book.active": "Códice de ruta activo: preparación -20%, desgaste de estructura -25%",
+  "message.totem.space_unit.interface_bonus.book.active": "Códice de ruta activo: preparación reducida un 20 por ciento, desgaste de estructura reducido un 25 por ciento",
   "message.totem.space_unit.interface_bonus.book.inactive": "El Códice de ruta requiere un objetivo de magnetita conocido",
   "message.totem.space_unit.interface_bonus.compass": "Ruta base: sin bonificación numérica",
   "message.totem.space_unit.interface_bonus.filled_map.active": "Cobertura de mapa activa: comida y desviación -20%",
@@ -226,6 +226,8 @@
   "message.totem.space_unit.map_nodes": "Destinos: %s",
   "message.totem.space_unit.destination_selected": "Destino seleccionado: %s",
   "message.totem.space_unit.map_navigation_hint": "Arrastra para desplazar | Rueda para ampliar %s%%",
+  "message.totem.space_unit.map_storage_full": "El almacenamiento de mapas está lleno. El terreno existente se conserva; no se pudo registrar terreno nuevo.",
+  "message.totem.space_unit.map_paging_hint": "PgDn: siguientes | Home: primeros",
   "message.totem.space_unit.map_zoom_narration": "Zoom del mapa: %s por ciento",
   "message.totem.space_unit.map_overflow": "%s entradas más del mapa ocultas del chat",
   "message.totem.space_unit.map_quote_footer": "%s | sat. %s, hambre %s, comida %s/%s | amatista %s/%s | %ss | estabilidad %s/100 | desviación %s | desgaste %s%%",
@@ -434,5 +436,8 @@
   "message.totem.space_unit.access_search_button": "Buscar",
   "message.totem.space_unit.access_online": "En línea",
   "message.totem.space_unit.access_offline": "Desconectado",
-  "message.totem.space_unit.access_no_players": "No hay jugadores coincidentes"
+  "message.totem.space_unit.access_no_players": "No hay jugadores coincidentes",
+  "message.totem.space_unit.map_destination_dimension": "%s · %s — otra dimensión; haz clic para seleccionar",
+  "message.totem.space_unit.map_destination_edge": "%s · %s — fuera de la vista; haz clic para seleccionar",
+  "message.totem.space_unit.map_destination_marker": "%s · %s — haz clic para seleccionar"
 }

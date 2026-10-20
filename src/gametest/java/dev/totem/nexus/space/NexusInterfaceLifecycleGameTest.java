@@ -34,13 +34,79 @@ import java.util.stream.StreamSupport;
 
 /** Server integration coverage for durable interfaces and Nexus-owned vanilla maps. */
 public final class NexusInterfaceLifecycleGameTest {
+    @GameTest(maxTicks = 100, structure = "totem-nexus-gametest:map_landing_region")
+    public void destinationPagesReachBeyond128AndRejectChangedHeldMap(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var player = helper.makeMockServerPlayerInLevel();
+        var friend = helper.makeMockServerPlayerInLevel();
+        friend.setPos(123.25, 75, -67.25);
+        var friendships = level.getServer().overworld().getDataStorage().computeIfAbsent(NexusFriendSavedData.TYPE);
+        friendships.inviteOrAccept(player.getUUID(), friend.getUUID());
+        friendships.inviteOrAccept(friend.getUUID(), player.getUUID());
+        var anchor = helper.absolutePos(new BlockPos(3, 2, 4));
+        buildFunctionalArray(level, anchor);
+        UUID sourceId = UUID.randomUUID();
+        putLodestone(level, sourceId, player.getUUID(), anchor, SpaceUnitVisibility.PRIVATE, Set.of());
+        var discovery = NexusSpaceDiscoverySavedData.loadCanonical(level.getServer().overworld().getDataStorage());
+        discovery.markDiscovered(player.getUUID(), sourceId);
+        var expected = new java.util.HashSet<UUID>(); expected.add(sourceId); expected.add(friend.getUUID());
+        for (int i = 0; i < 130; i++) {
+            UUID id = UUID.randomUUID(); expected.add(id);
+            var destination = anchor.offset(10 + i % 13, 0, 10 + i / 13);
+            level.setBlockAndUpdate(destination, Blocks.LODESTONE.defaultBlockState());
+            putLodestone(level, id, player.getUUID(), destination, SpaceUnitVisibility.PRIVATE, Set.of());
+            discovery.markDiscovered(player.getUUID(), id);
+        }
+        var map = NexusMapLifecycleAuthority.createBoundMap(level, anchor, sourceId, new ItemStack(Items.MAP)).orElseThrow();
+        player.setItemInHand(InteractionHand.MAIN_HAND, map);
+        player.setPos(Vec3.atCenterOf(anchor.above()));
+        try {
+            net.fabricmc.fabric.api.event.player.UseItemCallback.EVENT.invoker().interact(player, level, InteractionHand.MAIN_HAND);
+            var context = NexusSpaceUnitAuthority.currentInterfaceContext(player).orElseThrow();
+            if (!NexusSpaceUnitAuthority.acquireDestinationPageRequest(player)
+                    || NexusSpaceUnitAuthority.acquireDestinationPageRequest(player))
+                helper.fail("Page request burst was not throttled");
+            var firstRequest = new dev.totem.nexus.network.RequestMapDestinationPagePayload(UUID.randomUUID(),
+                    context.sourceType(), context.sourceId(), context.mapId().id(), null);
+            var first = NexusSpaceUnitAuthority.destinationPage(player, firstRequest).orElseThrow();
+            if (first.map().entries().size() != 128 || first.nextAfter() == null || !first.matches(firstRequest))
+                helper.fail("First destination page is not bounded or correlated: size=" + first.map().entries().size() + ", next=" + first.nextAfter());
+            var secondRequest = new dev.totem.nexus.network.RequestMapDestinationPagePayload(UUID.randomUUID(),
+                    context.sourceType(), context.sourceId(), context.mapId().id(), first.nextAfter());
+            var second = NexusSpaceUnitAuthority.destinationPage(player, secondRequest).orElseThrow();
+            var actual = new java.util.HashSet<UUID>();
+            first.map().entries().forEach(e -> actual.add(e.id()));
+            second.map().entries().forEach(e -> { if (!actual.add(e.id())) helper.fail("Repeated destination across pages"); });
+            if (!actual.equals(expected) || second.nextAfter() != null) helper.fail("Pages lost known destinations");
+            var friendEntry = java.util.stream.Stream.concat(first.map().entries().stream(), second.map().entries().stream())
+                    .filter(e -> e.id().equals(friend.getUUID())).findFirst().orElseThrow();
+            if (friendEntry.x() != 96 || friendEntry.y() != 72 || friendEntry.z() != -96)
+                helper.fail("Page exposed precise friend coordinates");
+            var wrongMap = new dev.totem.nexus.network.RequestMapDestinationPagePayload(UUID.randomUUID(),
+                    context.sourceType(), context.sourceId(), context.mapId().id() + 1, null);
+            if (NexusSpaceUnitAuthority.destinationPage(player, wrongMap).isPresent()) helper.fail("Wrong MapId authorized page");
+            player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+            if (NexusSpaceUnitAuthority.destinationPage(player, secondRequest).isPresent()) helper.fail("Removed held map authorized page");
+            helper.succeed();
+        } finally { NexusSpaceUnitAuthority.clearInterfaceContext(player.getUUID()); friendships.removeRelationship(player.getUUID(), friend.getUUID()); friend.discard(); player.discard(); }
+    }
+
     @GameTest(maxTicks = 300, environment = "totem-nexus-gametest:compass_teleport")
     public void friendTeleportCompletesFromPlayerSource(GameTestHelper helper) {
+        verifyFriendTeleport(helper, false);
+    }
+
+    @GameTest(maxTicks = 400, environment = "totem-nexus-gametest:compass_teleport", structure = "totem-nexus-gametest:map_landing_region")
+    public void unpaintedMapCanTeleportToCompassAuthorizedOnlineFriend(GameTestHelper helper) {
+        verifyFriendTeleport(helper, true);
+    }
+
+    private static void verifyFriendTeleport(GameTestHelper helper, boolean useMap) {
         ServerLevel level = helper.getLevel();
         var player = helper.makeMockServerPlayerInLevel();
         var friend = helper.makeMockServerPlayerInLevel();
-        BlockPos source = helper.absolutePos(new BlockPos(3, 2, 4));
-        BlockPos target = helper.absolutePos(new BlockPos(13, 2, 4));
+        BlockPos source = helper.absolutePos(useMap ? new BlockPos(54, 2, 64) : new BlockPos(3, 2, 4));
+        BlockPos target = helper.absolutePos(useMap ? new BlockPos(64, 2, 64) : new BlockPos(13, 2, 4));
         buildFunctionalArray(level, source);
         buildFunctionalArray(level, target);
         UUID id = UUID.randomUUID();
@@ -53,11 +119,34 @@ public final class NexusInterfaceLifecycleGameTest {
         player.setPos(Vec3.atCenterOf(source.above())); player.setNoGravity(true);
         friend.setPos(Vec3.atCenterOf(target.above())); friend.setNoGravity(true);
         player.getAbilities().instabuild = true;
-        ItemStack stack = new ItemStack(Items.COMPASS);
-        NexusInterfaceBinding.write(stack, level, source, id);
+        ItemStack stack;
+        if (useMap) {
+            stack = NexusMapLifecycleAuthority.createBoundMap(level, source, id, new ItemStack(Items.MAP)).orElseThrow();
+            for (int x = target.getX() - 48; x <= target.getX() + 48; x++)
+                for (int z = target.getZ() - 48; z <= target.getZ() + 48; z++) {
+                    var floor = new BlockPos(x, target.getY(), z);
+                    if (!floor.equals(source) && !floor.equals(target)) level.setBlockAndUpdate(floor, Blocks.STONE.defaultBlockState());
+                    level.setBlockAndUpdate(floor.above(), Blocks.AIR.defaultBlockState());
+                    level.setBlockAndUpdate(floor.above(2), Blocks.AIR.defaultBlockState());
+                }
+        } else {
+            stack = new ItemStack(Items.COMPASS);
+            NexusInterfaceBinding.write(stack, level, source, id);
+        }
+        if (useMap) {
+            buildFunctionalArray(level, source);
+            buildFunctionalArray(level, target);
+        }
         player.setItemInHand(InteractionHand.MAIN_HAND, stack);
         Vec3 original = player.position();
         NexusSpaceUnitAuthority.establishInterfaceContext(player, InteractionHand.MAIN_HAND, "player", player.getUUID()).orElseThrow();
+        if (useMap) {
+            var entry = NexusSpaceUnitAuthority.currentMapPayload(player).orElseThrow().entries().stream()
+                    .filter(value -> value.id().equals(friend.getUUID())).findFirst().orElseThrow();
+            if (Math.floorMod(entry.x(), 64) != 32 || Math.floorMod(entry.y(), 16) != 8
+                    || Math.floorMod(entry.z(), 64) != 32)
+                throw helper.assertionException("Map friend payload exposed precise coordinates");
+        }
         NexusSpaceUnitAuthority.startTeleport(player, "player", player.getUUID(), friend.getUUID());
         if (!NexusSpaceUnitAuthority.hasActiveTeleportSession(player.getUUID())) throw helper.assertionException("Friend teleport did not start");
         helper.succeedWhen(() -> {
@@ -109,9 +198,90 @@ public final class NexusInterfaceLifecycleGameTest {
         verifyBoundInterfaceTeleport(helper, new ItemStack(Items.COMPASS));
     }
 
-    @GameTest(maxTicks = 260, environment = "totem-nexus-gametest:map_teleport")
+    @GameTest(maxTicks = 260, environment = "totem-nexus-gametest:map_teleport", structure = "totem-nexus-gametest:map_landing_region")
     public void previouslyIssuedValidNexusMapStartsAndCompletesServerAuthoritativeTeleport(GameTestHelper helper) {
         verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP));
+    }
+
+    @GameTest(maxTicks = 260, environment = "totem-nexus-gametest:map_teleport", structure = "totem-nexus-gametest:map_landing_region")
+    public void boundMapReopensAndTeleportsAfterOriginalLodestoneDestroyed(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP), false, true, false);
+    }
+
+    @GameTest(maxTicks = 260, environment = "totem-nexus-gametest:map_teleport", structure = "totem-nexus-gametest:map_landing_region")
+    public void destroyingOriginalLodestoneDuringMapTeleportDoesNotCancelIt(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP), false, false, true);
+    }
+
+    @GameTest(maxTicks = 30, environment = "totem-nexus-gametest:map_teleport", structure = "totem-nexus-gametest:map_landing_region")
+    public void independentMapTeleportCancelsWhenHeldMapChanges(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP), false, true, false, "held_map");
+    }
+
+    @GameTest(maxTicks = 30, environment = "totem-nexus-gametest:map_teleport", structure = "totem-nexus-gametest:map_landing_region")
+    public void independentMapTeleportCancelsWhenDestinationDestroyed(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP), false, true, false, "disabled_target");
+    }
+
+    @GameTest(maxTicks = 30, environment = "totem-nexus-gametest:map_teleport", structure = "totem-nexus-gametest:map_landing_region")
+    public void independentMapTeleportCancelsWhenDestinationBecomesPrivate(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP), false, true, false, "private_target");
+    }
+
+    @GameTest(maxTicks = 30)
+    public void independentMapStillRequiresServerBindingAndDoesNotUnbindCompasses(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        var player = helper.makeMockServerPlayerInLevel();
+        player.getAbilities().instabuild = false;
+        BlockPos anchor = helper.absolutePos(new BlockPos(3, 2, 3));
+        level.setBlockAndUpdate(anchor, Blocks.LODESTONE.defaultBlockState());
+        UUID origin = UUID.randomUUID();
+        putLodestone(level, origin, player.getUUID(), anchor, SpaceUnitVisibility.PRIVATE, Set.of());
+        player.setPos(Vec3.atCenterOf(anchor.above()));
+        ItemStack map = bindSingle(helper, player, level, anchor, origin, new ItemStack(Items.MAP));
+        level.setBlockAndUpdate(anchor, Blocks.AIR.defaultBlockState());
+        NexusSpaceUnitSavedData.loadCanonical(level.getServer().overworld().getDataStorage())
+                .disableLodestone(origin, level.getGameTime());
+        try {
+            player.setItemInHand(InteractionHand.MAIN_HAND, map.copy());
+            if (NexusSpaceUnitAuthority.establishInterfaceContext(player, InteractionHand.MAIN_HAND,
+                    "player", player.getUUID()).isEmpty())
+                throw helper.assertionException("Registered map failed independent portable validation");
+            ItemStack forged = map.copy(); NexusInterfaceBinding.writeIdentity(forged, UUID.randomUUID());
+            player.setItemInHand(InteractionHand.MAIN_HAND, forged);
+            if (TeleportInterfaceItemResolver.resolve(player, InteractionHand.MAIN_HAND).isPresent()
+                    || NexusSpaceUnitAuthority.currentInterfaceContext(player).isPresent())
+                throw helper.assertionException("Forged map binding survived held-interface validation");
+            ItemStack unregistered = map.copy();
+            unregistered.set(DataComponents.MAP_ID, level.getFreeMapId());
+            player.setItemInHand(InteractionHand.MAIN_HAND, unregistered);
+            if (TeleportInterfaceItemResolver.resolve(player, InteractionHand.MAIN_HAND).isPresent())
+                throw helper.assertionException("Unregistered map accepted independent-map privileges");
+            ItemStack compass = new ItemStack(Items.COMPASS);
+            NexusInterfaceBinding.write(compass, level, anchor, origin);
+            player.setItemInHand(InteractionHand.MAIN_HAND, compass);
+            if (NexusSpaceUnitAuthority.establishInterfaceContext(player, InteractionHand.MAIN_HAND,
+                    "player", player.getUUID()).isPresent()
+                    || new NexusTeleportInterfaceAuthority(new TeleportInterfaceSessionStore())
+                    .establishPlayerAnchor(player, InteractionHand.MAIN_HAND).isPresent())
+                throw helper.assertionException("Map exception changed compass live-origin requirement");
+            helper.succeed();
+        } finally { NexusSpaceUnitAuthority.clearInterfaceContext(player.getUUID()); player.discard(); }
+    }
+
+    @GameTest(maxTicks = 400, environment = "totem-nexus-gametest:map_teleport", structure = "totem-nexus-gametest:map_landing_region")
+    public void mapCountdownSurvivesCoverageLossWithDiscoveryProof(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP), false, true, false, "coverage_to_discovery");
+    }
+
+    @GameTest(maxTicks = 400, environment = "totem-nexus-gametest:map_teleport", structure = "totem-nexus-gametest:map_landing_region")
+    public void mapCountdownSurvivesDiscoveryLossWithCoverageProof(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP), false, true, false, "discovery_to_coverage");
+    }
+
+    @GameTest(maxTicks = 30, environment = "totem-nexus-gametest:map_teleport", structure = "totem-nexus-gametest:map_landing_region")
+    public void independentMapTeleportCancelsWhenDestinationIsNoLongerDrawn(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP), false, true, false, "erased_coverage");
     }
 
     @GameTest(maxTicks = 30, environment = "totem-nexus-gametest:changed_interface_cancel")
@@ -711,11 +881,11 @@ public final class NexusInterfaceLifecycleGameTest {
                 SpaceUnitVisibility.PUBLIC, SpaceUnitStatus.ACTIVE);
         NexusSpaceUnitRecord atExcludedEdge = unit(
                 UUID.fromString("00000000-0000-0000-0000-000000000512"), otherOwner,
-                "No Edge Arrow", Level.OVERWORLD, center.offset(64, 0, 0),
+                "Known Edge", Level.OVERWORLD, center.offset(64, 0, 0),
                 SpaceUnitVisibility.PUBLIC, SpaceUnitStatus.ACTIVE);
         NexusSpaceUnitRecord otherDimension = unit(
                 UUID.fromString("00000000-0000-0000-0000-000000000513"), otherOwner,
-                "Nether Secret", Level.NETHER, center, SpaceUnitVisibility.PUBLIC, SpaceUnitStatus.ACTIVE);
+                "Known Nether", Level.NETHER, center, SpaceUnitVisibility.PUBLIC, SpaceUnitStatus.ACTIVE);
         NexusSpaceUnitRecord unauthorized = unit(
                 UUID.fromString("00000000-0000-0000-0000-000000000514"), otherOwner,
                 "Private Secret", Level.OVERWORLD, center.offset(8, 0, 0),
@@ -724,8 +894,10 @@ public final class NexusInterfaceLifecycleGameTest {
                 UUID.fromString("00000000-0000-0000-0000-000000000515"), otherOwner,
                 "Disabled Nexus", Level.OVERWORLD, center.offset(4, 0, 0),
                 SpaceUnitVisibility.PUBLIC, SpaceUnitStatus.DISABLED);
+        NexusSpaceUnitRecord unknown = unit(UUID.randomUUID(), otherOwner, "Unknown outside",
+                Level.OVERWORLD, center.offset(1000, 0, 0), SpaceUnitVisibility.PUBLIC, SpaceUnitStatus.ACTIVE);
         List<NexusSpaceUnitRecord> candidates = List.of(
-                source, inBounds, atExcludedEdge, otherDimension, unauthorized, disabled);
+                source, inBounds, atExcludedEdge, otherDimension, unauthorized, disabled, unknown);
 
         MapItemSavedData mapData = MapItemSavedData.createFresh(
                 center.getX(), center.getZ(), (byte) 0, false, false, Level.OVERWORLD);
@@ -736,7 +908,8 @@ public final class NexusInterfaceLifecycleGameTest {
         List<MapDecoration> decorationsBefore = StreamSupport.stream(
                 mapData.getDecorations().spliterator(), false).toList();
         NexusSpaceDiscoverySavedData discovery = new NexusSpaceDiscoverySavedData();
-        candidates.forEach(unit -> discovery.markDiscovered(viewer, unit.id()));
+        candidates.stream().filter(unit -> !unit.id().equals(unknown.id()))
+                .forEach(unit -> discovery.markDiscovered(viewer, unit.id()));
         NexusFriendSavedData friends = new NexusFriendSavedData();
         MapId mapId = new MapId(501);
 
@@ -748,12 +921,13 @@ public final class NexusInterfaceLifecycleGameTest {
                 mapData.getDecorations().spliterator(), false).toList();
         if (payload.mapId() != mapId.id()
                 || !payload.entries().stream().map(SpaceUnitMapPayload.Entry::id)
-                .toList().equals(List.of(source.id(), inBounds.id()))
+                .toList().equals(List.of(source.id(), inBounds.id(), atExcludedEdge.id(), otherDimension.id()))
                 || !payload.entries().stream().map(SpaceUnitMapPayload.Entry::name)
-                .toList().equals(List.of("Home Nexus", "East Archive"))
-                || payload.entries().stream().anyMatch(entry -> entry.id().equals(atExcludedEdge.id()))
+                .toList().equals(List.of("Home Nexus", "East Archive", "Known Edge", "Known Nether"))
+                || payload.entries().stream().anyMatch(entry -> entry.id().equals(unknown.id())
+                        || entry.id().equals(unauthorized.id()) || entry.id().equals(disabled.id()))
                 || !decorationsAfter.equals(decorationsBefore)) {
-            helper.fail("Nexus map leaked, renamed, or synthesized an out-of-bounds marker");
+            helper.fail("Map omitted discovered destinations, leaked unauthorized markers, or changed vanilla decorations");
             return;
         }
 
@@ -872,24 +1046,102 @@ public final class NexusInterfaceLifecycleGameTest {
         }).thenExecute(player::discard).thenSucceed();
     }
 
+    @GameTest(maxTicks = 400, environment = "totem-nexus-gametest:map_teleport", structure = "totem-nexus-gametest:map_landing_region")
+    public void survivalIndependentMapPaysExactlyOnce(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP), false, true, false, null, true);
+    }
+
+    @GameTest(maxTicks = 400, environment = "totem-nexus-gametest:map_teleport", structure = "totem-nexus-gametest:map_landing_region")
+    public void survivalIndependentMapCancellationPreservesPayment(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP), false, true, false, "erased_coverage", true);
+    }
+
+    @GameTest(maxTicks = 400, environment = "totem-nexus-gametest:map_teleport", structure = "totem-nexus-gametest:map_landing_region")
+    public void survivalIndependentMapResourceLossDoesNotPartiallyPay(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP), false, true, false, "resources", true);
+    }
+
+    @GameTest(maxTicks = 2000, environment = "totem-nexus-gametest:map_teleport", structure = "totem-nexus-gametest:map_landing_region")
+    public void survivalMapCoverageToDiscoveryPaysOnce(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP), false, true, false, "coverage_to_discovery", true);
+    }
+
+    @GameTest(maxTicks = 2000, environment = "totem-nexus-gametest:map_teleport", structure = "totem-nexus-gametest:map_landing_region")
+    public void survivalMapDiscoveryToCoveragePaysOnce(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP), false, true, false, "discovery_to_coverage", true);
+    }
+
+    @GameTest(maxTicks = 2000, environment = "totem-nexus-gametest:map_teleport", structure = "totem-nexus-gametest:map_landing_region")
+    public void survivalMapCrossDimensionPaysQuotedAmethyst(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP), false, true, false, "cross_dimension", true);
+    }
+
+    @GameTest(maxTicks = 2000, environment = "totem-nexus-gametest:map_teleport", structure = "totem-nexus-gametest:map_landing_region")
+    public void survivalMapCrossDimensionMissingAmethystDoesNotPay(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP), false, true, false, "cross_resources", true);
+    }
+
     private static void verifyBoundInterfaceTeleport(GameTestHelper helper, ItemStack input) {
         verifyBoundInterfaceTeleport(helper, input, false);
     }
 
     private static void verifyBoundInterfaceTeleport(GameTestHelper helper, ItemStack input, boolean deathTarget) {
+        verifyBoundInterfaceTeleport(helper, input, deathTarget, false, false);
+    }
+
+    private static void verifyBoundInterfaceTeleport(GameTestHelper helper, ItemStack input, boolean deathTarget,
+                                                     boolean destroyBeforeOpen, boolean destroyDuringTeleport) {
+        verifyBoundInterfaceTeleport(helper, input, deathTarget, destroyBeforeOpen, destroyDuringTeleport, null);
+    }
+
+    private static void verifyBoundInterfaceTeleport(GameTestHelper helper, ItemStack input, boolean deathTarget,
+                                                     boolean destroyBeforeOpen, boolean destroyDuringTeleport,
+                                                     String cancellation) {
+        verifyBoundInterfaceTeleport(helper, input, deathTarget, destroyBeforeOpen, destroyDuringTeleport, cancellation, false);
+    }
+
+    private static void verifyBoundInterfaceTeleport(GameTestHelper helper, ItemStack input, boolean deathTarget,
+                                                     boolean destroyBeforeOpen, boolean destroyDuringTeleport,
+                                                     String cancellation, boolean survival) {
         ServerLevel level = helper.getLevel();
-        BlockPos source = helper.absolutePos(new BlockPos(3, 2, 4));
-        BlockPos target = helper.absolutePos(new BlockPos(13, 2, 4));
+        boolean crossDimension = "cross_dimension".equals(cancellation) || "cross_resources".equals(cancellation);
+        ServerLevel destinationLevel = crossDimension
+                ? level.getServer().getLevel(net.minecraft.world.level.Level.END) : level;
+        if (destinationLevel == null) throw helper.assertionException("Missing cross-dimension fixture level");
+        boolean wideMapRegion = input.is(Items.MAP);
+        BlockPos source = helper.absolutePos(wideMapRegion ? new BlockPos(54, 2, 64) : new BlockPos(3, 2, 4));
+        BlockPos target = helper.absolutePos(wideMapRegion ? new BlockPos(64, 2, 64) : new BlockPos(13, 2, 4));
+        if (crossDimension) {
+            // Load the isolated destination fixture before testing the live countdown.
+            for (int x = (target.getX()-48)>>4; x <= (target.getX()+48)>>4; x++)
+                for (int z = (target.getZ()-48)>>4; z <= (target.getZ()+48)>>4; z++)
+                    destinationLevel.getChunk(x,z);
+        }
+        if (wideMapRegion) {
+            // Own every permitted landing column; random deviation must never borrow
+            // another GameTest's floor, which may disappear when that test finishes.
+            for (int x = -NexusSafeLanding.MAX_HORIZONTAL_RADIUS; x <= NexusSafeLanding.MAX_HORIZONTAL_RADIUS; x++) {
+                for (int z = -NexusSafeLanding.MAX_HORIZONTAL_RADIUS; z <= NexusSafeLanding.MAX_HORIZONTAL_RADIUS; z++) {
+                    BlockPos floor = target.offset(x, 0, z);
+                    destinationLevel.setBlockAndUpdate(floor, Blocks.STONE.defaultBlockState());
+                    destinationLevel.setBlockAndUpdate(floor.above(), Blocks.AIR.defaultBlockState());
+                    destinationLevel.setBlockAndUpdate(floor.above(2), Blocks.AIR.defaultBlockState());
+                }
+            }
+        }
         buildFunctionalArray(level, source);
-        buildFunctionalArray(level, target);
+        buildFunctionalArray(destinationLevel, target);
         var player = helper.makeMockServerPlayerInLevel();
+        NexusTeleportTestMessages.watch(player.getUUID());
         player.getAbilities().instabuild = false;
         player.setNoGravity(true);
         player.setPos(source.getX() + 0.5D, source.getY() + 1.0D, source.getZ() + 0.5D);
         UUID sourceId = UUID.randomUUID();
         UUID targetId = UUID.randomUUID();
         putLodestone(level, sourceId, player.getUUID(), source, SpaceUnitVisibility.PRIVATE, Set.of());
-        putLodestone(level, targetId, player.getUUID(), target, SpaceUnitVisibility.PRIVATE, Set.of());
+        UUID targetOwner = "private_target".equals(cancellation) ? UUID.randomUUID() : player.getUUID();
+        putLodestone(destinationLevel, targetId, targetOwner, target,
+                "private_target".equals(cancellation) ? SpaceUnitVisibility.PUBLIC : SpaceUnitVisibility.PRIVATE, Set.of());
         final net.minecraft.world.entity.item.ItemEntity[] deathBackpack = {null};
         if (deathTarget) {
             level.getServer().overworld().getDataStorage().computeIfAbsent(NexusSpaceUnitSavedData.TYPE).put(
@@ -912,17 +1164,56 @@ public final class NexusInterfaceLifecycleGameTest {
         discovery.markDiscovered(player.getUUID(), targetId);
 
         UUID mapAnchorId = input.is(Items.MAP) ? UUID.randomUUID() : sourceId;
-        BlockPos mapAnchor = input.is(Items.MAP) ? source.offset(0, 0, 6) : source;
+        BlockPos mapAnchor = input.is(Items.MAP) ? source.offset(0, 0, 3) : source;
         if (input.is(Items.MAP)) {
             level.setBlockAndUpdate(mapAnchor, Blocks.LODESTONE.defaultBlockState());
             putLodestone(level, mapAnchorId, player.getUUID(), mapAnchor, SpaceUnitVisibility.PRIVATE, Set.of());
             discovery.removeDiscovered(player.getUUID(), sourceId);
             discovery.removeDiscovered(player.getUUID(), targetId);
+            // These cases change only destination proof; keep the source array authorized.
+            if ("coverage_to_discovery".equals(cancellation) || "discovery_to_coverage".equals(cancellation))
+                discovery.markDiscovered(player.getUUID(), sourceId);
         }
+        if (crossDimension) {
+            discovery.markDiscovered(player.getUUID(), sourceId);
+            discovery.markDiscovered(player.getUUID(), targetId);
+        }
+        if (!level.isLoaded(mapAnchor) || !level.getBlockState(mapAnchor).is(Blocks.LODESTONE))
+            throw helper.assertionException("Binding fixture anchor must be a loaded lodestone: " + mapAnchor);
         ItemStack bound = bindSingle(helper, player, level, mapAnchor, mapAnchorId, input);
         if (bound.is(Items.FILLED_MAP)) java.util.Arrays.fill(MapItem.getSavedData(bound, level).colors, (byte) 4);
+        ItemStack alternateMap = "held_map".equals(cancellation)
+                ? bindSingle(helper, player, level, mapAnchor, mapAnchorId, new ItemStack(Items.MAP)) : ItemStack.EMPTY;
         player.setItemInHand(InteractionHand.MAIN_HAND, bound.copy());
-        player.getAbilities().instabuild = true;
+        player.getAbilities().instabuild = !survival;
+        if (survival) {
+            player.getFoodData().setFoodLevel(1);
+            player.getFoodData().setSaturation(0F);
+            player.getInventory().setItem(10, new ItemStack(Items.BREAD, 32));
+            player.getInventory().setItem(11, new ItemStack(Items.AMETHYST_SHARD, 7));
+        }
+        if (destroyBeforeOpen) {
+            level.setBlockAndUpdate(mapAnchor, Blocks.AIR.defaultBlockState());
+            var storage = level.getServer().overworld().getDataStorage();
+            NexusSpaceUnitSavedData.loadCanonical(storage).disableLodestone(mapAnchorId, level.getGameTime());
+            // Round-trip the existing SavedData format: old registered maps need no rebind or migration.
+            var ledger = NexusMapBindingSavedData.loadCanonical(storage);
+            var saved = NexusMapBindingSavedData.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE, ledger).getOrThrow();
+            storage.set(NexusMapBindingSavedData.TYPE,
+                    NexusMapBindingSavedData.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE, saved).getOrThrow());
+            if (TeleportInterfaceItemResolver.resolve(player, InteractionHand.MAIN_HAND).isEmpty())
+                throw helper.assertionException("Registered map became invalid after its origin was destroyed");
+            var authority = new NexusTeleportInterfaceAuthority(new TeleportInterfaceSessionStore());
+            if (authority.establishPlayerAnchor(player, InteractionHand.MAIN_HAND).isEmpty()
+                    || authority.require(player, "player", player.getUUID()).isEmpty())
+                throw helper.assertionException("Map interface authority still required live original lodestone");
+            NexusSpaceUnitAuthority.clearInterfaceContext(player.getUUID());
+            net.fabricmc.fabric.api.event.player.UseItemCallback.EVENT.invoker()
+                    .interact(player, level, InteractionHand.MAIN_HAND);
+            if (NexusSpaceUnitAuthority.currentMapPayload(player).isEmpty()
+                    || NexusSpaceUnitAuthority.currentInterfaceContext(player).isEmpty())
+                throw helper.assertionException("Real use-item event did not reopen the independently bound map");
+        }
         // Re-establishing after binding models reopening an already issued interface.
         NexusSpaceUnitAuthority.clearInterfaceContext(player.getUUID());
         if (NexusSpaceUnitAuthority.establishInterfaceContext(
@@ -931,12 +1222,70 @@ public final class NexusInterfaceLifecycleGameTest {
             helper.fail("Previously issued interface did not establish a teleport context");
             return;
         }
+        if ("discovery_to_coverage".equals(cancellation)) {
+            java.util.Arrays.fill(MapItem.getSavedData(player.getMainHandItem(), level).colors, (byte) 0);
+            discovery.markDiscovered(player.getUUID(), targetId);
+        }
+        var survivalQuote = survival ? NexusSpaceUnitAuthority.currentMapPayload(player).orElseThrow().entries()
+                .stream().filter(e -> e.id().equals(targetId)).findFirst().orElseThrow() : null;
+        if (survival && (survivalQuote.foodPointsNeeded() <= 0 || (crossDimension ? survivalQuote.amethystCost() <= 0 : survivalQuote.amethystCost() != 0)))
+            throw helper.assertionException("Survival fixture must require food and the expected dimension-specific amethyst cost");
         NexusSpaceUnitAuthority.startTeleport(
                 player, NexusSpaceUnitAuthority.SOURCE_TYPE_PLAYER, player.getUUID(), targetId);
+        if (survival && (player.getInventory().getItem(10).getCount() != 32
+                || player.getInventory().getItem(11).getCount() != 7 || player.getFoodData().getFoodLevel() != 1))
+            throw helper.assertionException("Starting countdown charged resources before completion");
         if (!NexusSpaceUnitAuthority.hasActiveTeleportSession(player.getUUID())) {
             player.discard();
             helper.fail("Valid bound interface did not start a teleport session: " + bound.getItem());
             return;
+        }
+
+        if ("coverage_to_discovery".equals(cancellation)) {
+            discovery.markDiscovered(player.getUUID(), targetId);
+            java.util.Arrays.fill(MapItem.getSavedData(player.getMainHandItem(), level).colors, (byte) 0);
+        } else if ("discovery_to_coverage".equals(cancellation)) {
+            java.util.Arrays.fill(MapItem.getSavedData(player.getMainHandItem(), level).colors, (byte) 4);
+            discovery.removeDiscovered(player.getUUID(), targetId);
+        } else if (cancellation != null && !"cross_dimension".equals(cancellation)) {
+            if ("held_map".equals(cancellation)) {
+                player.setItemInHand(InteractionHand.MAIN_HAND, alternateMap);
+                if (TeleportInterfaceItemResolver.resolve(player, InteractionHand.MAIN_HAND).isEmpty())
+                    throw helper.assertionException("Replacement map must itself be a registered valid map");
+            } else if ("disabled_target".equals(cancellation)) {
+                level.setBlockAndUpdate(target, Blocks.AIR.defaultBlockState());
+                NexusSpaceUnitSavedData.loadCanonical(level.getServer().overworld().getDataStorage())
+                        .disableLodestone(targetId, level.getGameTime());
+            } else if ("private_target".equals(cancellation)) {
+                NexusSpaceUnitSavedData.loadCanonical(level.getServer().overworld().getDataStorage()).put(
+                        unit(targetId, targetOwner, "Now private", level.dimension(), target,
+                                SpaceUnitVisibility.PRIVATE, SpaceUnitStatus.ACTIVE));
+            } else if ("cross_resources".equals(cancellation)) {
+                player.getInventory().setItem(11, ItemStack.EMPTY);
+            } else if ("resources".equals(cancellation)) {
+                player.getInventory().setItem(10, ItemStack.EMPTY);
+            } else if ("erased_coverage".equals(cancellation)) {
+                java.util.Arrays.fill(MapItem.getSavedData(player.getMainHandItem(), level).colors, (byte) 0);
+            } else throw new IllegalArgumentException("Unknown cancellation fixture");
+            helper.startSequence().thenExecuteAfter(2, () -> {
+                if (NexusSpaceUnitAuthority.hasActiveTeleportSession(player.getUUID())
+                        || player.blockPosition().closerThan(target, 3))
+                    throw helper.assertionException("Independent map bypassed teleport cancellation: " + cancellation);
+                if (survival && (player.getInventory().getItem(10).getCount() != ("resources".equals(cancellation) ? 0 : 32)
+                        || player.getInventory().getItem(11).getCount() != ("cross_resources".equals(cancellation) ? 0 : 7)
+                        || player.getFoodData().getFoodLevel() != 1 || player.getFoodData().getSaturationLevel() != 0F))
+                    throw helper.assertionException("Cancelled survival teleport changed payment resources");
+            }).thenExecute(() -> {
+                NexusSpaceUnitAuthority.clearInterfaceContext(player.getUUID());
+                NexusTeleportTestMessages.clear(player.getUUID()); player.discard();
+            }).thenSucceed();
+            return;
+        }
+
+        if (destroyDuringTeleport) {
+            level.setBlockAndUpdate(mapAnchor, Blocks.AIR.defaultBlockState());
+            NexusSpaceUnitSavedData.loadCanonical(level.getServer().overworld().getDataStorage())
+                    .disableLodestone(mapAnchorId, level.getGameTime());
         }
 
         if (deathTarget) helper.runAtTickTime(20, () -> {
@@ -944,6 +1293,7 @@ public final class NexusInterfaceLifecycleGameTest {
             new NexusDeathBackpackNodeAdapter(new NexusDeathNodeAuthority()).moved(level, targetId,
                     deathBackpack[0].getUUID(), player.getUUID(), deathBackpack[0].blockPosition());
         });
+        final long[] completedAt = {-1};
         helper.succeedWhen(() -> {
             BlockPos landed = player.blockPosition();
             int horizontalOffset = Math.max(
@@ -957,8 +1307,23 @@ public final class NexusInterfaceLifecycleGameTest {
                     || horizontalOffset > TeleportInterfaceQuotePolicy.MAX_DEVIATION + 1
                     || Math.abs(landed.getY() - target.above().getY()) > 8) {
                 throw helper.assertionException("Bound interface teleport did not reach its permitted target area: "
-                        + bound.getItem() + " at " + landed.toShortString());
+                        + bound.getItem() + " at " + landed.toShortString()
+                        + "; messages=" + NexusTeleportTestMessages.messages(player.getUUID())
+                        + "; target=" + level.getBlockState(target)
+                        + "; alive=" + player.isAlive() + "; removed=" + player.isRemoved());
             }
+            if (survival) {
+                int breadCost = (survivalQuote.foodPointsNeeded() + 4) / 5;
+                if (player.getInventory().getItem(10).getCount() != 32 - breadCost
+                        || player.getInventory().getItem(11).getCount() != 7 - survivalQuote.amethystCost()
+                        || player.getFoodData().getFoodLevel() != 1 || player.getFoodData().getSaturationLevel() != 0F)
+                    throw helper.assertionException("Successful survival teleport did not deduct its quoted food exactly once");
+                if (completedAt[0] < 0) completedAt[0] = level.getGameTime();
+                if (level.getGameTime() - completedAt[0] < 5)
+                    throw helper.assertionException("Checking completed teleport cannot charge again on later ticks");
+            }
+            if (player.level() != destinationLevel)
+                throw helper.assertionException("Teleport did not enter the expected destination dimension");
             if (bound.is(Items.FILLED_MAP)) {
                 ItemStack heldMap = player.getMainHandItem();
                 var data = MapItem.getSavedData(heldMap, level);
@@ -970,8 +1335,14 @@ public final class NexusInterfaceLifecycleGameTest {
             if (deathTarget && !NexusRecoveryLanding.reachable(level, landed, deathBackpack[0].blockPosition()))
                 throw helper.assertionException("Arrival did not follow moving backpack within short walk");
             if (NexusRecoveryGrace.active(player) != deathTarget) throw helper.assertionException("Completion rescue eligibility mismatch");
-            if (!NexusSafeLanding.isSafeLoaded(level, player.blockPosition())) throw helper.assertionException("Unsafe arrival");
+            if (!NexusSafeLanding.isSafeLoaded(destinationLevel, landed)) {
+                var chunk=level.getChunkSource().getChunkNow(landed.getX()>>4,landed.getZ()>>4);
+                throw helper.assertionException("Unsafe arrival: feet="+landed+" chunk="+(chunk!=null)
+                        +" blocks="+(chunk==null?"unloaded":chunk.getBlockState(landed.below())+" / "+chunk.getBlockState(landed)+" / "+chunk.getBlockState(landed.above()))
+                        +" velocity="+player.getDeltaMovement()+" target="+target+" messages="+NexusTeleportTestMessages.messages(player.getUUID()));
+            }
             NexusRecoveryGrace.cancel(player);
+            NexusTeleportTestMessages.clear(player.getUUID());
             player.discard();
         });
     }

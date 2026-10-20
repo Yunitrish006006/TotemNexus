@@ -32,9 +32,14 @@ public abstract class NexusCartographyTableMenuMixin {
         if (processing == null) return;
         this.access.execute((level, pos) -> {
             if (!(level instanceof ServerLevel serverLevel)) return;
-            if (NexusMapLifecycleAuthority.postProcessEligibility(map, serverLevel, processing)
-                    == NexusMapLifecycleAuthority.ScaleEligibility.DENIED) {
+            var eligibility = NexusMapLifecycleAuthority.postProcessEligibility(map, serverLevel, processing);
+            if (eligibility == NexusMapLifecycleAuthority.ScaleEligibility.DENIED) {
                 this.resultContainer.removeItemNoUpdate(CartographyTableMenu.RESULT_SLOT);
+            } else if (eligibility == NexusMapLifecycleAuthority.ScaleEligibility.ALLOWED
+                    && processing == MapPostProcessing.SCALE) {
+                var result = map.copyWithCount(1);
+                result.set(net.minecraft.core.component.DataComponents.MAP_POST_PROCESSING, processing);
+                this.resultContainer.setItem(CartographyTableMenu.RESULT_SLOT, result);
             }
         });
     }

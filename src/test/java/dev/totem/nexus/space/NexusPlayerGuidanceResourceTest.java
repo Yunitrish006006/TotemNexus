@@ -26,6 +26,9 @@ class NexusPlayerGuidanceResourceTest {
             "message.totem.space_unit.interface.map_source_mismatch",
             "message.totem.space_unit.interface.management_unavailable",
             "message.totem.space_unit.map_unnamed_nexus",
+            "message.totem.space_unit.map_destination_dimension",
+            "message.totem.space_unit.map_destination_edge",
+            "message.totem.space_unit.map_destination_marker",
             "book.totem.nexus_diagram.interfaces_bind_manage",
             "book.totem.nexus_diagram.book_normal_manual",
             "book.totem.nexus_diagram.book_sneak_nexus",
@@ -52,7 +55,7 @@ class NexusPlayerGuidanceResourceTest {
         JsonObject traditionalChinese = language("zh_tw");
         JsonObject spanish = language("es_es");
 
-        assertEquals(436, english.size(), "The complete English Nexus language surface must remain stable");
+        assertEquals(441, english.size(), "The complete English Nexus language surface must remain stable");
         assertLocaleParity(english, "en_us", traditionalChinese, "zh_tw");
         assertLocaleParity(english, "en_us", spanish, "es_es");
         assertSpanishIdentifiersArePreserved(english, spanish);

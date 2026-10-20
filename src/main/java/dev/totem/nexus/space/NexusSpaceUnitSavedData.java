@@ -101,6 +101,11 @@ public class NexusSpaceUnitSavedData extends SavedData {
         return Optional.of(unit);
     }
 
+    /** Server-thread traversal; the visitor must not mutate the registry. No full-list copy. */
+    void forEachRecord(java.util.function.Consumer<NexusSpaceUnitRecord> visitor) {
+        unitsById.values().forEach(visitor);
+    }
+
     public List<NexusSpaceUnitRecord> activeLodestones() {
         List<NexusSpaceUnitRecord> lodestones = new ArrayList<>();
         for (NexusSpaceUnitRecord unit : this.unitsById.values()) {

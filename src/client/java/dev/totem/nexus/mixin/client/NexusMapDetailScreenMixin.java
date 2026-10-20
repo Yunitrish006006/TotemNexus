@@ -110,6 +110,7 @@ public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualT
             return;
         }
 
+        clampMapPan();
         int currentPixelScale = baseMapScale() * totem$normalizeZoom(this.mapZoom);
         int currentRenderedSize = 128 * currentPixelScale;
         int currentLeft = mapX() + (mapWidth() - currentRenderedSize) / 2 + this.mapPanX;
@@ -121,9 +122,9 @@ public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualT
         if (!totem$isObserver()) {
             int viewX = current.centerX + Math.round((mapX() + mapWidth() / 2.0F - centerX) * (1 << current.scale) / currentPixelScale);
             int viewZ = current.centerZ + Math.round((mapY() + mapHeight() / 2.0F - centerY) * (1 << current.scale) / currentPixelScale);
-            int extent = 64 << current.scale;
-            NexusMapDetailClientState.viewport(this.payload.mapId(), Math.clamp(viewX, current.centerX - extent, current.centerX + extent),
-                    Math.clamp(viewZ, current.centerZ - extent, current.centerZ + extent),
+            long extent = 64L << ((NexusSpaceUnitMapScreen)(Object)this).effectiveMapScale();
+            NexusMapDetailClientState.viewport(this.payload.mapId(), (int)Math.clamp((long)viewX, Math.max(current.centerX - extent,-30000000L), Math.min(current.centerX + extent,29999999L)),
+                    (int)Math.clamp((long)viewZ, Math.max(current.centerZ - extent,-30000000L), Math.min(current.centerZ + extent,29999999L)),
                     Math.max(1, (int) Math.ceil(Math.max(mapWidth(), mapHeight()) * (double) (1 << current.scale) / (2 * currentPixelScale))),
                     dev.totem.nexus.map.MapResolution.selectedScale(current.scale,Math.min(1<<current.scale,totem$normalizeZoom(this.mapZoom))));
         }
@@ -168,7 +169,7 @@ public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualT
     @Override
     public NexusMapPlayerMarker.Marker totem$captureLocalPlayerMarker() {
         MapItemSavedData current = cachedMapData();
-        return current == null ? null : NexusMapPlayerMarker.current(current);
+        return current == null ? null : NexusMapPlayerMarker.currentForView(current,((NexusSpaceUnitMapScreen)(Object)this).effectiveMapScale());
     }
 
     @Override
@@ -199,8 +200,8 @@ public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualT
         int highest = Integer.highestOneBit(zoom);
         return highest == zoom ? zoom : highest;
     }
-    @Unique private static boolean totem$isCompatibleAncestor(MapItemSavedData current, MapItemSavedData ancestor) {
-        return ancestor != null && ancestor.scale >= 0 && ancestor.scale < current.scale && ancestor.dimension.equals(current.dimension);
+    @Unique private boolean totem$isCompatibleAncestor(MapItemSavedData current, MapItemSavedData ancestor) {
+        return ancestor != null && ancestor.scale >= 0 && (ancestor.scale < current.scale || (ancestor.scale == current.scale && ((NexusSpaceUnitMapScreen)(Object)this).effectiveMapScale()>current.scale)) && ancestor.dimension.equals(current.dimension);
     }
     @Unique private static void totem$drawDecoration(GuiGraphicsExtractor extractor,
             MapRenderState.MapDecorationRenderState decoration, int currentLeft, int currentTop, int currentPixelScale, int iconScale) {
@@ -218,16 +219,25 @@ public abstract class NexusMapDetailScreenMixin implements NexusMapDetailVisualT
             int currentLeft, int currentTop, int currentPixelScale, int iconScale) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player == null || minecraft.level == null || !minecraft.level.dimension().equals(current.dimension)) return;
-        MapRenderState.MapDecorationRenderState state = NexusMapPlayerMarker.extract(current);
-        if (state == null) return;
-        totem$drawDecoration(extractor, state, currentLeft, currentTop, currentPixelScale, iconScale);
+        var marker=NexusMapPlayerMarker.currentForView(current,((NexusSpaceUnitMapScreen)(Object)this).effectiveMapScale());
+        if (!totem$drawPlayer(extractor,marker,currentLeft,currentTop,currentPixelScale,iconScale)) return;
         this.totem$localPlayerMarkerRendered = true;
     }
     @Unique private void totem$drawObservedPlayer(GuiGraphicsExtractor extractor,
             int currentLeft, int currentTop, int currentPixelScale, int iconScale) {
-        MapRenderState.MapDecorationRenderState state = NexusMapPlayerMarker.extract(this.totem$observedPlayerMarker);
-        if (state == null) return;
-        totem$drawDecoration(extractor, state, currentLeft, currentTop, currentPixelScale, iconScale);
+        if (!totem$drawPlayer(extractor,this.totem$observedPlayerMarker,currentLeft,currentTop,currentPixelScale,iconScale)) return;
         this.totem$observedPlayerMarkerRendered = true;
     }
+    @Unique private static boolean totem$drawPlayer(GuiGraphicsExtractor extractor,NexusMapPlayerMarker.Marker marker,
+            int left,int top,int pixelScale,int iconScale) {
+        var state=NexusMapPlayerMarker.extract(marker);
+        if(state==null || state.atlasSprite==null) return false;
+        extractor.pose().pushMatrix();
+        extractor.pose().translate(left+(64.0F+marker.x()/2.0F)*pixelScale,top+(64.0F+marker.y()/2.0F)*pixelScale);
+        extractor.pose().rotate((marker.rotation()&15)*((float)Math.PI*2/16));
+        extractor.pose().scale(iconScale,iconScale);
+        extractor.blitSprite(RenderPipelines.GUI_TEXTURED,state.atlasSprite,-2,-2,4,4);
+        extractor.pose().popMatrix();return true;
+    }
+
 }

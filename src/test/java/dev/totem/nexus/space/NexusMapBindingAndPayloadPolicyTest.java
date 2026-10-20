@@ -12,6 +12,9 @@ import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Path;
 
 import java.util.List;
 import java.util.Set;
@@ -94,10 +97,12 @@ class NexusMapBindingAndPayloadPolicyTest {
         JsonObject legacy = encoded.getAsJsonObject();
         legacy.addProperty("data_version", 1);
         legacy.getAsJsonArray("maps").get(0).getAsJsonObject().remove("detail_ancestors");
+        legacy.getAsJsonArray("maps").get(0).getAsJsonObject().remove("effective_scale");
 
         NexusMapBindingSavedData restored = NexusMapBindingSavedData.CODEC.parse(JsonOps.INSTANCE, legacy)
                 .getOrThrow(IllegalArgumentException::new);
         assertTrue(restored.get(mapId).orElseThrow().detailAncestors().isEmpty());
+        assertEquals(mapData.scale, restored.resolve(mapId, mapData).orElseThrow().extent(mapData).scale());
     }
 
     @Test
@@ -115,6 +120,166 @@ class NexusMapBindingAndPayloadPolicyTest {
         MapItemSavedData skippedScale = exactMap((byte) 2);
         assertTrue(bindings.bind(sourceId, unitId, anchor, source));
         assertFalse(bindings.derive(sourceId, source, new MapId(42), skippedScale));
+    }
+
+    @Test
+    void newBindingsPersistTheirAuthoritativeScale() {
+        NexusMapBindingSavedData bindings = new NexusMapBindingSavedData();
+        MapId id = new MapId(50);
+        assertTrue(bindings.bind(id, UUID.randomUUID(),
+                GlobalPos.of(Level.OVERWORLD, BlockPos.ZERO), exactMap((byte) 4)));
+        JsonObject entry = NexusMapBindingSavedData.CODEC.encodeStart(JsonOps.INSTANCE, bindings)
+                .getOrThrow().getAsJsonObject().getAsJsonArray("maps").get(0).getAsJsonObject();
+        assertTrue(entry.has("effective_scale"), "New records must not infer extent from mutable vanilla data");
+        assertEquals(4, entry.get("effective_scale").getAsInt());
+    }
+
+    @Test
+    void persistedScaleRejectsMismatchedVanillaBackingData() {
+        NexusMapBindingSavedData bindings = new NexusMapBindingSavedData();
+        MapId id = new MapId(51);
+        assertTrue(bindings.bind(id, UUID.randomUUID(),
+                GlobalPos.of(Level.OVERWORLD, BlockPos.ZERO), exactMap((byte) 4)));
+        assertTrue(bindings.resolve(id, exactMap((byte) 3)).isEmpty());
+    }
+
+    @Test
+    void malformedPersistedScaleIsRejectedInsteadOfIgnored() {
+        NexusMapBindingSavedData bindings = new NexusMapBindingSavedData();
+        assertTrue(bindings.bind(new MapId(52), UUID.randomUUID(),
+                GlobalPos.of(Level.OVERWORLD, BlockPos.ZERO), exactMap((byte) 4)));
+        JsonObject data = NexusMapBindingSavedData.CODEC.encodeStart(JsonOps.INSTANCE, bindings)
+                .getOrThrow().getAsJsonObject();
+        for (int scale : new int[]{-1, 31, Integer.MAX_VALUE}) {
+            JsonObject invalid = data.deepCopy();
+            invalid.getAsJsonArray("maps").get(0).getAsJsonObject().addProperty("effective_scale", scale);
+            assertTrue(NexusMapBindingSavedData.CODEC.parse(JsonOps.INSTANCE, invalid).isError(),
+                    "Malformed explicit extent must fail closed: " + scale);
+        }
+    }
+
+    @Test
+    void extendedLineageRoundTripsBeyondTheVanillaCapAndStopsAtFullWorldCoverage() {
+        NexusMapBindingSavedData bindings = new NexusMapBindingSavedData();
+        UUID unit = UUID.randomUUID();
+        GlobalPos anchor = GlobalPos.of(Level.OVERWORLD, BlockPos.ZERO);
+        MapId current = new MapId(100);
+        MapItemSavedData backing = exactMap((byte) 4);
+        assertTrue(bindings.bind(current, unit, anchor, backing));
+        int scale = 4;
+        while (bindings.resolve(current, backing).orElseThrow().extent(backing).expanded().isPresent()) {
+            MapId next = new MapId(current.id() + 1);
+            assertTrue(bindings.derive(current, backing, next, exactMap((byte) 4), scale + 1));
+            scale++;
+            assertEquals(scale, bindings.get(next).orElseThrow().effectiveScale());
+            assertEquals(scale - 4, bindings.get(next).orElseThrow().detailAncestors().size());
+            assertEquals(unit, bindings.get(next).orElseThrow().unitId());
+            assertEquals(anchor, bindings.get(next).orElseThrow().anchor());
+            current = next;
+        }
+        assertTrue(scale > 4);
+        assertTrue(bindings.get(current).orElseThrow().extent(backing).coversSupportedWorld());
+        assertFalse(bindings.derive(current, backing, new MapId(200), backing, scale + 1));
+        assertTrue(bindings.get(new MapId(200)).isEmpty());
+
+        MapId lockedId = new MapId(201);
+        assertTrue(bindings.derive(current, backing, lockedId, backing.locked(), scale));
+        NexusMapBindingSavedData restored = NexusMapBindingSavedData.CODEC.parse(JsonOps.INSTANCE,
+                NexusMapBindingSavedData.CODEC.encodeStart(JsonOps.INSTANCE, bindings).getOrThrow()).getOrThrow();
+        assertEquals(bindings.get(current), restored.resolve(current, backing));
+        assertEquals(bindings.get(lockedId), restored.resolve(lockedId, backing.locked()));
+        assertEquals(scale, restored.get(lockedId).orElseThrow().extent(backing.locked()).scale());
+    }
+
+    @Test
+    void failedExtentTransitionsLeaveNoResultOrLineageMutation() {
+        NexusMapBindingSavedData bindings = new NexusMapBindingSavedData();
+        MapId source = new MapId(300);
+        MapItemSavedData backing = exactMap((byte) 4);
+        assertTrue(bindings.bind(source, UUID.randomUUID(), GlobalPos.of(Level.OVERWORLD, BlockPos.ZERO), backing));
+        var original = bindings.get(source).orElseThrow();
+        for (int scale : new int[]{-1, 3, 6, Integer.MAX_VALUE}) {
+            assertFalse(bindings.derive(source, backing, new MapId(301), backing, scale));
+            assertTrue(bindings.get(new MapId(301)).isEmpty());
+            assertEquals(original, bindings.get(source).orElseThrow());
+        }
+        assertFalse(bindings.derive(source, backing, new MapId(301), backing, 4)); // Not a lock.
+        assertFalse(bindings.derive(source, backing, new MapId(301), backing.locked(), 5));
+        assertTrue(bindings.derive(source, backing, new MapId(302), backing.locked(), 4));
+        assertFalse(bindings.derive(new MapId(302), backing.locked(), new MapId(303), backing, 5));
+        assertFalse(bindings.derive(new MapId(302), backing.locked(), new MapId(303), backing, 4));
+        assertTrue(bindings.get(new MapId(301)).isEmpty());
+        assertTrue(bindings.get(new MapId(303)).isEmpty());
+    }
+
+    @Test
+    void legacyScaleFourBindingCanAcquireExplicitExtendedExtentWithoutRebinding() {
+        NexusMapBindingSavedData bindings = new NexusMapBindingSavedData();
+        MapId source = new MapId(400);
+        UUID unit = UUID.randomUUID();
+        GlobalPos anchor = GlobalPos.of(Level.OVERWORLD, BlockPos.ZERO);
+        MapItemSavedData backing = exactMap((byte) 4);
+        assertTrue(bindings.bind(source, unit, anchor, backing));
+        JsonObject old = NexusMapBindingSavedData.CODEC.encodeStart(JsonOps.INSTANCE, bindings)
+                .getOrThrow().getAsJsonObject();
+        old.addProperty("data_version", 2);
+        old.getAsJsonArray("maps").get(0).getAsJsonObject().remove("effective_scale");
+        NexusMapBindingSavedData migrated = NexusMapBindingSavedData.CODEC.parse(JsonOps.INSTANCE, old).getOrThrow();
+        assertEquals(-1, migrated.get(source).orElseThrow().effectiveScale());
+        assertEquals(4, migrated.resolve(source, backing).orElseThrow().extent(backing).scale());
+        assertTrue(migrated.bind(source, unit, anchor, backing));
+        assertTrue(migrated.derive(source, backing, new MapId(401), backing, 5));
+        assertEquals(5, migrated.get(new MapId(401)).orElseThrow().effectiveScale());
+        assertFalse(migrated.validates(new MapId(401), UUID.randomUUID(), backing));
+        assertFalse(migrated.bind(new MapId(401), unit, anchor, backing));
+    }
+
+    @Test
+    void malformedLegacyLineageCannotPassPreflightThenFailDuringDerivation() {
+        var malformed = new NexusMapBindingSavedData.Entry(600, UUID.randomUUID(),
+                GlobalPos.of(Level.OVERWORLD, BlockPos.ZERO), 0, 0, List.of(599));
+        assertFalse(malformed.matchesMapData(exactMap((byte) 0)));
+        assertThrows(IllegalArgumentException.class, () -> malformed.extent(exactMap((byte) 0)));
+    }
+
+    @Test
+    void extendedLedgerSurvivesDiskSaveAndNonDestructiveCanonicalMigration(@TempDir Path directory) {
+        MapId source = new MapId(500);
+        MapId extended = new MapId(501);
+        UUID unit = UUID.randomUUID();
+        MapItemSavedData backing = exactMap((byte) 4);
+        NexusMapBindingSavedData original = new NexusMapBindingSavedData();
+        assertTrue(original.bind(source, unit, GlobalPos.of(Level.OVERWORLD, BlockPos.ZERO), backing));
+        JsonObject old = NexusMapBindingSavedData.CODEC.encodeStart(JsonOps.INSTANCE, original)
+                .getOrThrow().getAsJsonObject();
+        old.addProperty("data_version", 2);
+        old.getAsJsonArray("maps").get(0).getAsJsonObject().remove("effective_scale");
+        NexusMapBindingSavedData legacy = NexusMapBindingSavedData.CODEC.parse(JsonOps.INSTANCE, old).getOrThrow();
+        try (var storage = mapStorage(directory)) {
+            storage.set(NexusMapBindingSavedData.LEGACY_COMPATIBILITY_TYPE, legacy);
+            NexusMapBindingSavedData canonical = NexusMapBindingSavedData.loadCanonical(storage);
+            assertTrue(canonical.derive(source, backing, extended, backing, 5));
+            assertTrue(legacy.get(extended).isEmpty());
+            storage.saveAndJoin();
+        }
+        try (var storage = mapStorage(directory)) {
+            NexusMapBindingSavedData restored = NexusMapBindingSavedData.loadCanonical(storage);
+            var entry = restored.resolve(extended, backing).orElseThrow();
+            assertEquals(5, entry.extent(backing).scale());
+            assertEquals(0, entry.extent(backing).centerX());
+            assertEquals(0, entry.extent(backing).centerZ());
+            assertEquals(unit, entry.unitId());
+            assertEquals(List.of(source.id()), entry.detailAncestors());
+            assertTrue(restored.validates(extended, unit, backing));
+            assertFalse(restored.validates(extended, UUID.randomUUID(), backing));
+            assertTrue(storage.get(NexusMapBindingSavedData.LEGACY_COMPATIBILITY_TYPE).get(extended).isEmpty());
+        }
+    }
+
+    private static net.minecraft.world.level.storage.SavedDataStorage mapStorage(Path directory) {
+        return new net.minecraft.world.level.storage.SavedDataStorage(directory,
+                net.minecraft.util.datafix.DataFixers.getDataFixer(),
+                net.minecraft.core.HolderLookup.Provider.create(java.util.stream.Stream.empty()));
     }
 
     @Test

@@ -135,7 +135,7 @@
   "message.totem.space_unit.interface.registration_requires_compass": "請在磁石上使用普通羅盤、回生羅盤、蹲下手持普通書，或空白地圖",
   "message.totem.space_unit.interface.map_source_mismatch": "Nexus 地圖需要已登錄且有效的來源磁石",
   "message.totem.space_unit.interface.management_unavailable": "手持介面未綁定到你可管理的有效 Space Unit",
-  "message.totem.space_unit.interface_bonus.book.active": "路線典籍生效：準備時間降低 20%，石碑磨損降低 25%",
+  "message.totem.space_unit.interface_bonus.book.active": "路線典籍生效：準備時間降低百分之二十，石碑磨損降低百分之二十五",
   "message.totem.space_unit.interface_bonus.book.inactive": "路線典籍只適用於已知磁石目標",
   "message.totem.space_unit.interface_bonus.compass": "基準路線：無數值加成",
   "message.totem.space_unit.interface_bonus.filled_map.active": "地圖覆蓋加成生效：食物與偏差降低 20%",
@@ -225,7 +225,9 @@
   "message.totem.space_unit.map_need_lodestone_source": "此介面未綁定到有效的磁石 Space Unit",
   "message.totem.space_unit.map_nodes": "目的地：%s",
   "message.totem.space_unit.destination_selected": "已選擇目的地：%s",
-  "message.totem.space_unit.map_navigation_hint": "拖曳平移｜滾輪縮放 %s%%",
+  "message.totem.space_unit.map_navigation_hint": "拖曳平移｜滾輪縮放 %s%%｜方向鍵／點選切換",
+  "message.totem.space_unit.map_storage_full": "地圖儲存空間已滿。既有地形仍保留，新的地形目前無法記錄。",
+  "message.totem.space_unit.map_paging_hint": "PgDn：下一批目標｜Home：第一批目標",
   "message.totem.space_unit.map_zoom_narration": "地圖縮放：百分之 %s",
   "message.totem.space_unit.map_overflow": "還有 %s 個節點未顯示於聊天",
   "message.totem.space_unit.map_quote_footer": "%s｜飽和 %s、飢餓 %s、食物 %s/%s｜紫水晶 %s/%s｜%s 秒｜穩定 %s/100｜偏差 %s｜磨損 %s%%",
@@ -434,5 +436,8 @@
   "message.totem.space_unit.access_search_button": "搜尋",
   "message.totem.space_unit.access_online": "線上",
   "message.totem.space_unit.access_offline": "離線",
-  "message.totem.space_unit.access_no_players": "沒有符合的玩家"
+  "message.totem.space_unit.access_no_players": "沒有符合的玩家",
+  "message.totem.space_unit.map_destination_dimension": "%s・%s（其他維度，點選切換）",
+  "message.totem.space_unit.map_destination_edge": "%s・%s（畫面外，點選切換）",
+  "message.totem.space_unit.map_destination_marker": "%s・%s（點選切換）"
 }

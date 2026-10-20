@@ -54,6 +54,50 @@ public final class NexusMapRecordingGameTest {
             helper.fail("Failed payment rollback lost items, components or food data");
         player.discard(); helper.succeed();
     }
+    @GameTest(maxTicks = 100)
+    public void fullStoragePreservesPixelsDefersSamplesAndLimitsNotices(GameTestHelper helper) {
+        var level = helper.getLevel(); var store = new NexusMapDetailSavedData();
+        int owner = level.getFreeMapId().id();
+        store.record(level,owner,0,0,(byte)4);
+        var fork=level.getFreeMapId();
+        store.derive(level,new MapId(owner),NexusMapLifecycleAuthority.exactData(0,0,(byte)0,false,level.dimension()),null,fork);
+        for (int i=1;i<NexusMapDetailSavedData.MAX_WORLD_PAGES-1;i++) {
+            if (!store.record(level,owner,i*128,0,(byte)4)) helper.fail("Could not fill real terrain quota");
+        }
+        if (store.recordResult(level,owner,0,0,(byte)4) != NexusMapDetailSavedData.RecordResult.UNCHANGED
+                || store.recordResult(level,owner,128,0,(byte)8) != NexusMapDetailSavedData.RecordResult.RECORDED
+                || store.recordResult(level,owner,0,0,(byte)8) != NexusMapDetailSavedData.RecordResult.CAPACITY
+                || store.pages(owner).getFirst().color(0,0) != 4 || store.pages(fork.id()).getFirst().color(0,0) != 4
+                || store.recordResult(level,owner,-128,0,(byte)4) != NexusMapDetailSavedData.RecordResult.CAPACITY
+                || !store.known(owner,0,0) || store.known(owner,-128,0))
+            helper.fail("Capacity refusal changed coverage or prevented existing-page updates");
+        var anchor=helper.absolutePos(new net.minecraft.core.BlockPos(1,2,1));
+        int x=Math.floorDiv(anchor.getX(),8)*8,z=Math.floorDiv(anchor.getZ(),8)*8;
+        level.getChunk(x>>4,z>>4); level.getChunk(x>>4,(z-1)>>4);
+        for(int dx=0;dx<8;dx++) for(int dz=-1;dz<8;dz++)
+            level.setBlockAndUpdate(new net.minecraft.core.BlockPos(x+dx,anchor.getY(),z+dz),net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
+        var base=NexusMapLifecycleAuthority.exactData(x,z,(byte)4,false,level.dimension());
+        var queue=new dev.totem.nexus.map.MapRecordingQueue();queue.offer(Math.floorDiv(x,8),Math.floorDiv(z,8),true,0);
+        int[] refusals={0};
+        NexusMapDetailSampling.advance(level,owner,base,store,queue,0,64,new int[]{16384},Long.MAX_VALUE,
+                new NexusMapExtent(x,z,5),()->refusals[0]++);
+        if(refusals[0]!=1 || queue.deferredSize()!=1 || store.known(owner,x,z))
+            helper.fail("Full storage silently completed a sample instead of retaining a retry");
+        var player=helper.makeMockServerPlayerInLevel(); NexusTeleportTestMessages.watch(player.getUUID());
+        NexusMapDetailSampling.clear();
+        try {
+            NexusMapDetailSampling.notifyCapacity(player,0);
+            NexusMapDetailSampling.notifyCapacity(player,1);
+            NexusMapDetailSampling.notifyCapacity(player,599);
+            if(NexusTeleportTestMessages.messages(player.getUUID()).size()!=1)
+                helper.fail("Capacity notification spammed within cooldown");
+            NexusMapDetailSampling.notifyCapacity(player,600);
+            if(NexusTeleportTestMessages.messages(player.getUUID()).size()!=2
+                    || !NexusTeleportTestMessages.messages(player.getUUID()).getFirst().equals(NexusMapDetailSampling.CAPACITY_MESSAGE))
+                helper.fail("Capacity warning did not resume after cooldown");
+        } finally {NexusMapDetailSampling.clear();NexusTeleportTestMessages.clear(player.getUUID());player.discard();}
+        helper.succeed();
+    }
     @GameTest public void detailSamplingNeverLoadsAnUnknownChunk(GameTestHelper helper) {
         var level=helper.getLevel(); int x=24000000,z=-24000000;
         if(level.getChunkSource().getChunkNow(x>>4,z>>4)!=null) helper.fail("Fixture chunk must be unloaded");

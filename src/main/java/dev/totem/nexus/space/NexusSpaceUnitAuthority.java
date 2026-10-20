@@ -82,6 +82,7 @@ public final class NexusSpaceUnitAuthority {
     private static final Map<UUID, NexusEndpointLoad> endpointLoads = new HashMap<>();
     private static final TeleportRouteReservationStore routeReservations = new TeleportRouteReservationStore();
     private static final Map<UUID, TeleportInterfaceContext> teleportInterfaceContexts = new HashMap<>();
+    private static final Map<UUID, Long> mapPageRequestTicks = new HashMap<>();
     private static final Map<UUID, PendingLodestoneRegistration> pendingLodestoneRegistrations = new HashMap<>();
     private static int lodestoneValidationTicker = 0;
 
@@ -211,6 +212,7 @@ public final class NexusSpaceUnitAuthority {
             releaseRoute(playerId);
             closeLandingSearch(playerId);
             teleportInterfaceContexts.remove(playerId);
+            mapPageRequestTicks.remove(playerId);
             pendingLodestoneRegistrations.remove(playerId);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> clearTeleportSessions());
@@ -905,7 +907,8 @@ public final class NexusSpaceUnitAuthority {
                     source.get(),
                     target.get(),
                     session.interfaceType(),
-                    session.mapId()
+                    session.mapId(),
+                    session.interfaceType() == TeleportInterfaceType.FILLED_MAP ? session.filledMapBonusActiveAtStart() : null
             );
             if (filledMapSessionQuoteInvalid(session, quote)) {
                 iterator.remove();
@@ -943,6 +946,7 @@ public final class NexusSpaceUnitAuthority {
         long gameTime = server.overworld().getGameTime();
         pendingLodestoneRegistrations.entrySet().removeIf(entry -> entry.getValue().isExpired(gameTime));
         teleportInterfaceContexts.entrySet().removeIf(entry -> entry.getValue().isExpired(gameTime));
+        mapPageRequestTicks.keySet().removeIf(id -> !teleportInterfaceContexts.containsKey(id));
 
         NexusSpaceUnitSavedData units = units(server);
         for (NexusSpaceUnitRecord unit : units.activeLodestones()) {
@@ -1565,6 +1569,54 @@ public final class NexusSpaceUnitAuthority {
         ServerPlayNetworking.send(player, buildMapPayload(player, mapSource(source), visibleDiscoveredUnits(player)));
     }
 
+    /** Optional v1 endpoint; never opens or renews a held-interface session. */
+    public static void sendDestinationPage(ServerPlayer player,
+            dev.totem.nexus.network.RequestMapDestinationPagePayload request) {
+        if (!ServerPlayNetworking.canSend(player, dev.totem.nexus.network.MapDestinationPagePayload.TYPE)) return;
+        if (!acquireDestinationPageRequest(player)) return;
+        destinationPage(player, request).ifPresent(page -> ServerPlayNetworking.send(player, page));
+    }
+
+    static boolean acquireDestinationPageRequest(ServerPlayer player) {
+        if (currentInterfaceContext(player).isEmpty()) return false;
+        long now = player.level().getServer().overworld().getGameTime();
+        Long previous = mapPageRequestTicks.get(player.getUUID());
+        if (previous != null && now - previous < 4) return false;
+        mapPageRequestTicks.put(player.getUUID(), now);
+        return true;
+    }
+
+    static Optional<dev.totem.nexus.network.MapDestinationPagePayload> destinationPage(ServerPlayer player,
+            dev.totem.nexus.network.RequestMapDestinationPagePayload request) {
+        var context = requireInterfaceContext(player, request.sourceType(), request.sourceId(), false);
+        if (context.isEmpty() || context.get().interfaceType() != TeleportInterfaceType.FILLED_MAP
+                || context.get().mapId().id() != request.mapId()) return Optional.empty();
+        var source = resolveMapSource(player, request.sourceType(), request.sourceId(), false);
+        if (source.isEmpty()) return Optional.empty();
+        var registry = units(player.level().getServer());
+        var ids = new java.util.TreeSet<UUID>();
+        registry.forEachRecord(unit -> {
+            if (NexusInterfaceAccess.allows(player, context.get(), unit))
+                offerPageId(ids, unit.id(), request.after());
+        });
+        for (UUID friend : friends(player.level().getServer()).friendsOf(player.getUUID())) {
+            var target = resolveTeleportTarget(player, friend, false);
+            if (target.isPresent() && target.get().type() == SpaceUnitType.PLAYER)
+                offerPageId(ids, friend, request.after());
+        }
+        boolean more = ids.size() > SpaceUnitMapPayload.MAX_ENTRIES;
+        if (more) ids.pollLast();
+        var map = buildMapPayload(player, source.get(), ids.stream().map(registry::get).flatMap(Optional::stream).toList(), ids);
+        return Optional.of(new dev.totem.nexus.network.MapDestinationPagePayload(request.requestId(),
+                request.after(), more ? ids.last() : null, map));
+    }
+
+    private static void offerPageId(java.util.NavigableSet<UUID> ids, UUID id, UUID after) {
+        if (after != null && id.compareTo(after) <= 0) return;
+        ids.add(id);
+        if (ids.size() > SpaceUnitMapPayload.MAX_ENTRIES + 1) ids.pollLast();
+    }
+
     /** The same authoritative projection used by the portable map sender. */
     static Optional<SpaceUnitMapPayload> currentMapPayload(ServerPlayer player) {
         return currentInterfaceContext(player).flatMap(context ->
@@ -1621,7 +1673,8 @@ public final class NexusSpaceUnitAuthority {
                 finalSource.get(),
                 finalTarget.get(),
                 session.interfaceType(),
-                session.mapId()
+                session.mapId(),
+                session.interfaceType() == TeleportInterfaceType.FILLED_MAP ? session.filledMapBonusActiveAtStart() : null
         );
         if (filledMapSessionQuoteInvalid(session, finalQuote)) {
             releaseRoute(session.playerId());
@@ -1719,7 +1772,8 @@ public final class NexusSpaceUnitAuthority {
                     source.get(),
                     target.get(),
                     session.interfaceType(),
-                    session.mapId()
+                    session.mapId(),
+                    session.interfaceType() == TeleportInterfaceType.FILLED_MAP ? session.filledMapBonusActiveAtStart() : null
             );
             if (filledMapSessionQuoteInvalid(session, quote)) {
                 iterator.remove();
@@ -1825,7 +1879,8 @@ public final class NexusSpaceUnitAuthority {
                 finalSource.get(),
                 finalTarget.get(),
                 session.interfaceType(),
-                session.mapId()
+                session.mapId(),
+                session.interfaceType() == TeleportInterfaceType.FILLED_MAP ? session.filledMapBonusActiveAtStart() : null
         );
         if (filledMapSessionQuoteInvalid(session, finalQuote)) {
             releaseRoute(session.playerId());
@@ -2026,10 +2081,6 @@ public final class NexusSpaceUnitAuthority {
                         PlayerTeleportTargetPolicy.cancellationMessageKey(targetState)));
                 return Optional.empty();
             }
-            TeleportInterfaceContext context = currentInterfaceContext(player).orElseThrow();
-            if (context.interfaceType().hasMapVisualization()
-                    && !FilledMapCoverage.isDrawn(MapItem.getSavedData(context.mapId(), player.level()),
-                    targetPlayer.level().dimension(), targetPlayer.blockPosition())) return Optional.empty();
             return Optional.of(TeleportTarget.player(targetPlayer));
         }
 
@@ -2116,7 +2167,8 @@ public final class NexusSpaceUnitAuthority {
                 || !java.util.Objects.equals(resolved.get().mapId(), session.mapId())
                 || !java.util.Objects.equals(resolved.get().boundUnitId(), session.boundUnitId())
                 || session.boundUnitId() == null
-                || !validateBoundInterfaceSource(player, session.boundUnitId(), false)) {
+                || (session.interfaceType() != TeleportInterfaceType.FILLED_MAP
+                && !validateBoundInterfaceSource(player, session.boundUnitId(), false))) {
             return Component.translatable(
                     "message.totem.space_unit.teleport_cancelled.interface_item");
         }
@@ -2134,8 +2186,7 @@ public final class NexusSpaceUnitAuthority {
                 || accepted.damageChancePercent() != quote.damageChancePercent()
                 || accepted.structureWearChancePercent() != quote.structureWearChancePercent())) return true;
         return session.interfaceType() == TeleportInterfaceType.FILLED_MAP
-                && ((session.filledMapDataValidAtStart() && !quote.filledMapDataValid())
-                || (session.filledMapBonusActiveAtStart() && !quote.interfaceBonusActive()));
+                && session.filledMapDataValidAtStart() && !quote.filledMapDataValid();
     }
 
     private static boolean deductTeleportCost(ServerPlayer player, TeleportQuote quote) {
@@ -2344,6 +2395,11 @@ public final class NexusSpaceUnitAuthority {
     }
 
     private static SpaceUnitMapPayload buildMapPayload(ServerPlayer player, MapSource source, List<NexusSpaceUnitRecord> visibleUnits) {
+        return buildMapPayload(player, source, visibleUnits, null);
+    }
+
+    private static SpaceUnitMapPayload buildMapPayload(ServerPlayer player, MapSource source,
+            List<NexusSpaceUnitRecord> visibleUnits, java.util.Set<UUID> pageIds) {
         MinecraftServer server = player.level().getServer();
         UUID playerId = player.getUUID();
         TeleportInterfaceContext interfaceContext = currentInterfaceContext(player)
@@ -2354,8 +2410,9 @@ public final class NexusSpaceUnitAuthority {
         MapItemSavedData mapData = interfaceType.hasMapVisualization() && mapId != null
                 ? MapItem.getSavedData(mapId, player.level())
                 : null;
-        List<NexusSpaceUnitRecord> payloadUnits = NexusInterfacePayloadPolicy.selectAuthorizedUnits(
-                interfaceType, source.id(), visibleUnits, mapData).stream()
+        List<NexusSpaceUnitRecord> payloadUnits = NexusInterfacePayloadPolicy.selectWithMapAccess(
+                interfaceType, source.id(), visibleUnits,
+                unit -> NexusInterfaceAccess.allows(player, interfaceContext, unit)).stream()
                 .sorted(java.util.Comparator.comparingInt((NexusSpaceUnitRecord unit) ->
                         unit.dimension().equals(source.dimension()) ? distanceBlocks(source.pos(), unit.pos()) : Integer.MAX_VALUE)
                         .thenComparing(unit -> unit.id().toString())).toList();
@@ -2410,13 +2467,12 @@ public final class NexusSpaceUnitAuthority {
             ).withMaterial(materialSummaryFor(player, unit.id())));
         }
         if (interfaceType.canSelectTeleportDestination()) {
-            for (UUID friendId : friendData.friendsOf(playerId).stream().sorted().toList()) {
+            for (UUID friendId : (pageIds == null ? friendData.friendsOf(playerId) : pageIds).stream().sorted().toList()) {
+                if (pageIds != null && !pageIds.contains(friendId)) continue;
                 if (entries.size() >= SpaceUnitMapPayload.MAX_ENTRIES) break;
                 TeleportTarget target = resolveTeleportTarget(player, friendId, false).orElse(null);
                 if (target == null || target.type() != SpaceUnitType.PLAYER) continue;
                 BlockPos displayPos = approximatePlayerDisplayPos(target.pos());
-                if (interfaceType.hasMapVisualization()
-                        && !FilledMapCoverage.isDrawn(mapData, target.dimension(), displayPos)) continue;
                 TeleportQuote quote = calculateTeleportQuote(player, source, target, interfaceType, mapId);
                 entries.add(new SpaceUnitMapPayload.Entry(
                         target.id(), target.type().id(), target.name(), "friends", true,
@@ -2452,6 +2508,12 @@ public final class NexusSpaceUnitAuthority {
             TeleportTarget target,
             TeleportInterfaceType interfaceType,
             MapId mapId) {
+        return calculateTeleportQuote(player, source, target, interfaceType, mapId, null);
+    }
+
+    private static TeleportQuote calculateTeleportQuote(
+            ServerPlayer player, MapSource source, TeleportTarget target,
+            TeleportInterfaceType interfaceType, MapId mapId, Boolean acceptedMapCoverage) {
         boolean sameDimension = source.dimension().equals(target.dimension());
         boolean sameUnit = SOURCE_TYPE_LODESTONE.equals(source.type()) && source.id().equals(target.id());
         SpaceStructureSnapshot sourceMaterial = materialStructure(player, source.arrayId());
@@ -2486,11 +2548,14 @@ public final class NexusSpaceUnitAuthority {
                 60
         );
         FilledMapCoverageStatus mapCoverage = resolveFilledMapCoverage(player, interfaceType, mapId, target);
+        // Keep the accepted map price during a session. Access is rechecked independently before
+        // every countdown step and commit, so switching valid exploration proofs cannot raise cost.
+
         TeleportInterfaceQuotePolicy.Quote interfaceQuote = TeleportInterfaceQuotePolicy.specialize(
                 interfaceType,
                 target.type(),
                 player.getUUID().equals(target.ownerId()),
-                mapCoverage.targetCovered(),
+                acceptedMapCoverage == null ? mapCoverage.targetCovered() : acceptedMapCoverage,
                 baseFoodCost,
                 basePrepareTicks,
                 baseMaxHorizontalDeviation,
@@ -2542,7 +2607,7 @@ public final class NexusSpaceUnitAuthority {
         if (mapData == null) {
             return FilledMapCoverageStatus.UNAVAILABLE;
         }
-        boolean covered = FilledMapCoverage.isDrawn(mapData, target.dimension(), target.pos());
+        boolean covered = NexusMapRecordedCoverage.covers(player, mapId, target.dimension(), target.pos());
         return new FilledMapCoverageStatus(true, covered);
     }
 
@@ -2901,7 +2966,8 @@ public final class NexusSpaceUnitAuthority {
         boolean portable = SOURCE_TYPE_PLAYER.equals(sourceType)
                 && player.getUUID().equals(sourceId) && resolved.get().type().canSelectTeleportDestination();
         if (portable) {
-            if (!validateBoundInterfaceSource(player, resolved.get().boundUnitId(), false)) return Optional.empty();
+            if (resolved.get().type() != TeleportInterfaceType.FILLED_MAP
+                    && !validateBoundInterfaceSource(player, resolved.get().boundUnitId(), false)) return Optional.empty();
         } else if (!SOURCE_TYPE_LODESTONE.equals(sourceType)
                 || (!resolved.get().type().hasMapVisualization() && !sourceId.equals(resolved.get().boundUnitId()))
                 || !validateBoundInterfaceSource(player, sourceId, false)) return Optional.empty();
@@ -2943,6 +3009,7 @@ public final class NexusSpaceUnitAuthority {
 
     static void clearInterfaceContext(UUID playerId) {
         teleportInterfaceContexts.remove(playerId);
+            mapPageRequestTicks.remove(playerId);
     }
 
     private static Optional<TeleportInterfaceContext> requireInterfaceContext(
@@ -2958,7 +3025,8 @@ public final class NexusSpaceUnitAuthority {
                 || !context.isStillHeldBy(player)
                 || (SOURCE_TYPE_PLAYER.equals(context.sourceType())
                 && (!player.getUUID().equals(context.sourceId()) || !context.interfaceType().canSelectTeleportDestination()
-                || !validateBoundInterfaceSource(player, context.boundUnitId(), false)))
+                || (context.interfaceType() != TeleportInterfaceType.FILLED_MAP
+                && !validateBoundInterfaceSource(player, context.boundUnitId(), false))))
                 || (SOURCE_TYPE_LODESTONE.equals(context.sourceType())
                 && !validateBoundInterfaceSource(player, context.sourceId(), false))) {
             teleportInterfaceContexts.remove(player.getUUID());

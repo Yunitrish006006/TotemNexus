@@ -64,7 +64,9 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
             exerciseRecoveryList(context, "totem-nexus-recovery-teleport-list-en-us");
             exerciseFriendsAndPortablePreview(context, "en_us");
 
+            exerciseLiveDestinationPages(context, singleplayer);
             installMapDetailFixture(context);
+            exerciseMapDestinationNavigation(context);
             context.setScreen(() -> new NexusSpaceUnitMapScreen(filledMapPayload()));
             context.waitForScreen(NexusSpaceUnitMapScreen.class);
             context.waitFor(client -> ((NexusSpaceUnitMapScreen) client.gui.screen())
@@ -242,6 +244,220 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
         } catch (java.io.IOException error) { throw new AssertionError("Cannot inspect native screenshot", error); }
     }
 
+    private static void exerciseLiveDestinationPages(ClientGameTestContext context, TestSingleplayerContext world) {
+        world.getServer().runOnServer(server -> {
+            var player = server.getPlayerList().getPlayers().getFirst();
+            var level = player.level();
+            var anchor = new net.minecraft.core.BlockPos(64, 70, 64);
+            var units = dev.totem.nexus.space.NexusSpaceUnitSavedData.loadCanonical(server.overworld().getDataStorage());
+            var discovery = dev.totem.nexus.space.NexusSpaceDiscoverySavedData.loadCanonical(server.overworld().getDataStorage());
+            for (int i = 1; i <= 130; i++) {
+                UUID id = new UUID(0, i);
+                var pos = anchor.offset((i - 1) % 13, 0, (i - 1) / 13);
+                level.setBlockAndUpdate(pos, net.minecraft.world.level.block.Blocks.LODESTONE.defaultBlockState());
+                units.put(new dev.totem.nexus.space.NexusSpaceUnitRecord(id, dev.totem.nexus.space.SpaceUnitType.LODESTONE,
+                        level.dimension(), pos, player.getUUID(), "Destination " + i,
+                        dev.totem.nexus.space.SpaceUnitVisibility.PRIVATE, dev.totem.nexus.space.SpaceUnitStatus.ACTIVE,
+                        java.util.Set.of(), java.util.Set.of(), dev.totem.nexus.space.SpaceStructureSnapshot.EMPTY, 1, 1));
+                discovery.markDiscovered(player.getUUID(), id);
+            }
+            var mapId = level.getFreeMapId();
+            var data = NexusMapItemSavedDataInvoker.totem$createExact(64, 64, (byte)0, false, false, true, level.dimension());
+            level.setMapData(mapId, data);
+            dev.totem.nexus.space.NexusMapBindingSavedData.loadCanonical(server.overworld().getDataStorage())
+                    .bind(mapId, new UUID(0,1), net.minecraft.core.GlobalPos.of(level.dimension(), anchor), data);
+            var map = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.FILLED_MAP);
+            map.set(net.minecraft.core.component.DataComponents.MAP_ID, mapId);
+            dev.totem.nexus.space.NexusInterfaceBinding.write(map, level, anchor, new UUID(0,1));
+            java.util.Arrays.fill(data.colors, MapColor.GRASS.getPackedId(MapColor.Brightness.NORMAL));
+            player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, map);
+            player.getAbilities().instabuild = true;
+            dev.totem.nexus.space.NexusSpaceUnitAuthority.sendSpaceUnitMap(player);
+        });
+        context.waitForScreen(NexusSpaceUnitMapScreen.class);
+        context.waitFor(client -> ((NexusSpaceUnitMapScreen)client.gui.screen()).destinationPageReadyForTest(), 400);
+        var provider = new NexusObserverScreenProvider();
+        var firstMap = context.computeOnClient(client -> ((NexusSpaceUnitMapScreen)client.gui.screen()).observerPayload());
+        var first = context.computeOnClient(client -> {
+            var screen = (NexusSpaceUnitMapScreen)client.gui.screen();
+            if (screen.observerPayload().entries().size() != 128) throw new AssertionError("Initial live page not128");
+            return provider.capture(screen, 1).orElseThrow();
+        });
+        context.getInput().pressKey(InputConstants.KEY_PAGEDOWN);
+        context.waitFor(client -> {
+            var screen = (NexusSpaceUnitMapScreen)client.gui.screen();
+            return screen.destinationPageReadyForTest() && screen.observerPayload().entries().size() == 2
+                    && screen.observerPayload().entries().stream().anyMatch(e -> e.id().equals(new UUID(0,130)));
+        }, 400);
+        context.runOnClient(client -> ((NexusSpaceUnitMapScreen)client.gui.screen()).setFocused(null));
+        context.getInput().pressKey(InputConstants.KEY_DOWN);
+        var second = context.computeOnClient(client -> {
+            var screen = (NexusSpaceUnitMapScreen)client.gui.screen();
+            if (!screen.selectedUnitIdForVisualTest().equals(new UUID(0,130)) || !screen.mapOnlyTeleportPresentationForVisualTest())
+                throw new AssertionError("Could not select destination130 on map");
+            // A response for an unrelated request must not replace this page.
+            screen.applyDestinationPage(new dev.totem.nexus.network.MapDestinationPagePayload(UUID.randomUUID(), null, null, firstMap));
+            if (!screen.selectedUnitIdForVisualTest().equals(new UUID(0,130))) throw new AssertionError("Stale response changed selection");
+            return provider.capture(screen, 2).orElseThrow();
+        });
+        context.takeScreenshot("nexus-live-page-two-en");
+        selectLanguage(context, "zh_tw", "Nexus 羅盤");
+        context.takeScreenshot("nexus-live-page-two-zh");
+        selectLanguage(context, "en_us", "Nexus Compass");
+        context.getInput().pressKey(InputConstants.KEY_HOME);
+        context.waitFor(client -> ((NexusSpaceUnitMapScreen)client.gui.screen()).destinationPageReadyForTest()
+                && ((NexusSpaceUnitMapScreen)client.gui.screen()).observerPayload().entries().size() == 128, 400);
+        var handle = context.computeOnClient(client -> provider.create(
+                new dev.totem.core.api.v1.client.observer.ObserverScreenContext(UUID.randomUUID(), "Map owner", () -> {}), first));
+        context.runOnClient(client -> {
+            client.setScreenAndShow(handle.screen());
+            handle.applySnapshot(second); handle.applySnapshot(first);
+            ObserverPacketProbe.reset();
+        });
+        context.getInput().pressKey(InputConstants.KEY_PAGEDOWN);
+        context.getInput().pressKey(InputConstants.KEY_HOME);
+        context.runOnClient(client -> {
+            var screen = (NexusSpaceUnitMapScreen)client.gui.screen();
+            if (screen.observerPayload().entries().size() != 2 || !screen.selectedUnitIdForVisualTest().equals(new UUID(0,130))
+                    || ObserverPacketProbe.pageSends() != 0) throw new AssertionError("Observer page state: entries="
+                        + screen.observerPayload().entries().size() + ", selected=" + screen.selectedUnitIdForVisualTest()
+                        + ", page packets=" + ObserverPacketProbe.pageSends());
+            // Isolate input/tick effects from unrelated connection traffic between native input events.
+            ObserverPacketProbe.reset();
+            screen.keyPressed(new KeyEvent(InputConstants.KEY_PAGEDOWN, 0, 0));
+            screen.keyPressed(new KeyEvent(InputConstants.KEY_HOME, 0, 0));
+            screen.tick();
+            if (ObserverPacketProbe.sends() != 0) throw new AssertionError("Observer paging input/tick sent a packet");
+        });
+        context.takeScreenshot("nexus-observer-live-page-two");
+        context.runOnClient(client -> handle.screen().onClose());
+        context.setScreen(() -> null);
+        world.getServer().runOnServer(server -> server.getPlayerList().getPlayers().getFirst()
+                .setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.ItemStack.EMPTY));
+    }
+
+    private static void exerciseMapDestinationNavigation(ClientGameTestContext context) {
+        UUID bottom = new UUID(0, 900);
+        context.setScreen(() -> new NexusSpaceUnitMapScreen(new SpaceUnitMapPayload(SOURCE_ID, "lodestone", "Home Nexus",
+                "minecraft:overworld", 0,64,0,TeleportInterfaceType.FILLED_MAP,MAP_ID,
+                List.of(entry(bottom,"South Archive",0,10000,"message.totem.space_unit.interface_bonus.filled_map.inactive",true)))));
+        context.waitForScreen(NexusSpaceUnitMapScreen.class);
+        context.runOnClient(client -> {
+            var screen=(NexusSpaceUnitMapScreen)client.gui.screen();
+            var point=screen.mapEntryCenterForVisualTest(bottom);
+            if (point.length != 2 || point[1]+6 >= screen.navigationHintTop()-2)
+                throw new AssertionError("Bottom marker overlaps paging/navigation hints");
+        });
+        context.takeScreenshot("nexus-map-bottom-page-hint");
+        UUID outer = UUID.fromString("00000000-0000-0000-0000-000000000421");
+        UUID overlap = UUID.fromString("00000000-0000-0000-0000-000000000422");
+        UUID nether = UUID.fromString("00000000-0000-0000-0000-000000000423");
+        var entries = new ArrayList<>(filledMapPayload().entries());
+        entries.add(entry(outer,"Far Archive",5000,1000,"message.totem.space_unit.interface_bonus.filled_map.inactive",true));
+        entries.add(entry(overlap,"Far Quarry",10000,2000,"message.totem.space_unit.interface_bonus.filled_map.inactive",true));
+        entries.add(entry(nether,"Nether Archive",-10000,20000,"minecraft:the_nether",
+                "message.totem.space_unit.interface_bonus.filled_map.inactive",true));
+        var payload = new SpaceUnitMapPayload(SOURCE_ID,"lodestone","Home Nexus","minecraft:overworld",0,64,0,
+                TeleportInterfaceType.FILLED_MAP,MAP_ID,entries);
+        context.setScreen(() -> new NexusSpaceUnitMapScreen(payload));
+        context.waitForScreen(NexusSpaceUnitMapScreen.class);
+        context.runOnClient(client -> {
+            var screen=(NexusSpaceUnitMapScreen)client.gui.screen();
+            ObserverPacketProbe.reset();
+            var a=screen.mapEntryCenterForVisualTest(outer); var b=screen.mapEntryCenterForVisualTest(overlap);
+            if(a.length!=2 || b.length!=2 || Math.abs(a[0]-b[0])>3 || Math.abs(a[1]-b[1])>3)
+                throw new AssertionError("Off-map destinations were lost or not clustered at the edge");
+            for(UUID expected:List.of(outer,overlap,outer)) {
+                var click=new MouseButtonEvent(a[0],a[1],new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT,0));
+                screen.mouseClicked(click,false);screen.mouseReleased(click);
+                if(!expected.equals(screen.selectedUnitIdForVisualTest())) throw new AssertionError("Overlapping edge click did not cycle destinations");
+            }
+            screen.setFocused(null);
+            var reached=new java.util.HashSet<UUID>();
+            for(int i=0;i<entries.size();i++) {
+                screen.keyPressed(new KeyEvent(InputConstants.KEY_DOWN,0,0)); reached.add(screen.selectedUnitIdForVisualTest());
+            }
+            if(reached.size()!=entries.size() || !screen.mapOnlyTeleportPresentationForVisualTest())
+                throw new AssertionError("Map-only keyboard cycle could not reach every authorized destination");
+            var point=screen.mapEntryCenterForVisualTest(nether);
+            if(screen.children().stream().anyMatch(child -> child instanceof net.minecraft.client.gui.components.AbstractWidget widget
+                    && widget.visible && widget.active && widget.isMouseOver(point[0],point[1])))
+                throw new AssertionError("Dimension marker overlaps an interactive control");
+            var click=new MouseButtonEvent(point[0],point[1],new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT,0));
+            screen.mouseClicked(click,false);screen.mouseReleased(click);
+            if(!nether.equals(screen.selectedUnitIdForVisualTest()))
+                throw new AssertionError("Dimension marker could not select cross-dimension quote");
+            screen.applyPayload(payload);
+            if(!nether.equals(screen.selectedUnitIdForVisualTest()))
+                throw new AssertionError("Server refresh discarded cross-dimension selection");
+            screen.applyPayload(new SpaceUnitMapPayload(SOURCE_ID,"lodestone","Home Nexus","minecraft:overworld",0,64,0,
+                    TeleportInterfaceType.FILLED_MAP,MAP_ID,entries.stream().filter(value -> !value.id().equals(nether)).toList()));
+            if(!SOURCE_ID.equals(screen.selectedUnitIdForVisualTest())) throw new AssertionError("Removed destination did not fall back safely");
+            screen.applyPayload(payload);
+            screen.mouseClicked(click,false);screen.mouseReleased(click);
+
+        });
+        context.waitFor(client -> ((NexusSpaceUnitMapScreen)client.gui.screen()).teleportButtonActiveForVisualTest());
+        context.getInput().pressKey(InputConstants.KEY_DOWN);
+        context.runOnClient(client -> {
+            var screen=(NexusSpaceUnitMapScreen)client.gui.screen();
+            if(!SOURCE_ID.equals(screen.selectedUnitIdForVisualTest()))
+                throw new AssertionError("Real direction-key input did not cycle to source");
+        });
+        context.getInput().pressKey(InputConstants.KEY_EQUALS);
+        context.getInput().pressKey(InputConstants.KEY_EQUALS);
+        context.getInput().holdShift();
+        // Fabric 6.0.7 pressKey always supplies modifiers=0, even while holdShift is active.
+        // Send the native event through KeyboardHandler with the actual Shift modifier.
+        context.runOnClient(client -> {
+            var keyboard=(net.fabricmc.fabric.mixin.client.gametest.input.KeyboardHandlerAccessor)(Object)client.keyboardHandler;
+            var event=new KeyEvent(InputConstants.KEY_DOWN,0,InputConstants.MOD_SHIFT);
+            keyboard.invokeKeyPress(client.getWindow().handle(),InputConstants.PRESS,event);
+            keyboard.invokeKeyPress(client.getWindow().handle(),InputConstants.RELEASE,event);
+        });
+        context.getInput().releaseShift();
+        context.runOnClient(client -> {
+            var view=((NexusSpaceUnitMapScreen)client.gui.screen()).mapViewForVisualTest();
+            if(view[0]!=4 || view[2]>=0) throw new AssertionError("Real zoom/Shift-direction input did not pan map: view="+java.util.Arrays.toString(view)
+                    +" viewport="+java.util.Arrays.toString(((NexusSpaceUnitMapScreen)client.gui.screen()).mapViewportForVisualTest())
+                    +" ancestors="+NexusMapDetailClientState.ancestorMapIds(MAP_ID));
+        });
+        context.getInput().pressKey(InputConstants.KEY_UP);
+        context.runOnClient(client -> {
+            if(!nether.equals(((NexusSpaceUnitMapScreen)client.gui.screen()).selectedUnitIdForVisualTest())
+                    || ObserverPacketProbe.teleportSends()!=0) throw new AssertionError("Navigation sent teleport or lost dimension selection");
+        });
+        context.waitTicks(3);context.takeScreenshot("nexus-map-edge-and-dimension-navigation");
+        var provider=new NexusObserverScreenProvider();
+        var initial=context.computeOnClient(client -> provider.capture(client.gui.screen(),1).orElseThrow());
+        var update=context.computeOnClient(client -> {
+            ((NexusSpaceUnitMapScreen)client.gui.screen()).keyPressed(new KeyEvent(InputConstants.KEY_UP,0,0));
+            return provider.capture(client.gui.screen(),2).orElseThrow();
+        });
+        var handle=context.computeOnClient(client -> provider.create(
+                new dev.totem.core.api.v1.client.observer.ObserverScreenContext(UUID.randomUUID(),"Map owner",()->{}),initial));
+        context.runOnClient(client -> client.setScreenAndShow(handle.screen()));
+        context.waitTicks(3);
+        context.runOnClient(client -> {
+            var screen=(NexusSpaceUnitMapScreen)client.gui.screen();
+            var before=screen.mapViewForVisualTest();
+            ObserverPacketProbe.reset();
+            var point=screen.mapEntryCenterForVisualTest(outer);
+            var click=new MouseButtonEvent(point[0],point[1],new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT,0));
+            screen.mouseClicked(click,false);screen.mouseReleased(click);screen.keyPressed(new KeyEvent(InputConstants.KEY_DOWN,0,0));
+            screen.mouseScrolled(point[0],point[1],0,1);
+            if(!nether.equals(screen.selectedUnitIdForVisualTest()) || !java.util.Arrays.equals(before,screen.mapViewForVisualTest())
+                    || ObserverPacketProbe.sends()!=0)
+                throw new AssertionError("Observer navigation changed selection or map view");
+            handle.applySnapshot(update);handle.applySnapshot(initial);
+            if(!overlap.equals(screen.selectedUnitIdForVisualTest()))
+                throw new AssertionError("Observer update lost selection or accepted a stale snapshot");
+        });
+        context.takeScreenshot("nexus-observer-map-edge-and-dimension-navigation");
+        context.runOnClient(client -> handle.screen().onClose());
+        context.setScreen(() -> null);context.waitForScreen(null);
+    }
+
     private static void installMapDetailFixture(ClientGameTestContext context) {
         context.runOnClient(client -> {
             MapItemSavedData coarse = NexusMapItemSavedDataInvoker.totem$createExact(
@@ -267,7 +483,7 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
             screen.setFocused(null);
             for (int attempt = 0; attempt < 20
                     && !COMPASS_TARGET_ID.equals(screen.selectedUnitIdForVisualTest()); attempt++) {
-                if (!screen.keyPressed(new KeyEvent(264, 0, 0))) {
+                if (!screen.keyPressed(new KeyEvent(InputConstants.KEY_DOWN, 0, 0))) {
                     throw new AssertionError("Compass destination keyboard selection was not consumed");
                 }
             }
@@ -465,7 +681,7 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
                 var screen = (NexusSpaceUnitMapScreen) client.gui.screen();
                 screen.setFocused(null);
                 for (int i = 0; i < 4 && !SOURCE_ID.equals(screen.selectedUnitIdForVisualTest()); i++)
-                    screen.keyPressed(new KeyEvent(264, 0, 0));
+                    screen.keyPressed(new KeyEvent(InputConstants.KEY_DOWN, 0, 0));
                 screen.showMaterialDiagnosticsForVisualTest();
             });
             context.waitFor(client -> ((NexusSpaceUnitMapScreen) client.gui.screen()).arrayPreviewButtonsActiveForVisualTest());
@@ -546,8 +762,13 @@ public final class NexusSpaceUnitMapVisualGameTest implements FabricClientGameTe
 
     private static SpaceUnitMapPayload.Entry entry(
             UUID id, String name, int x, int z, String interfaceBonusMessageKey, boolean canTeleport) {
+        return entry(id,name,x,z,"minecraft:overworld",interfaceBonusMessageKey,canTeleport);
+    }
+
+    private static SpaceUnitMapPayload.Entry entry(UUID id, String name, int x, int z, String dimension,
+            String interfaceBonusMessageKey, boolean canTeleport) {
         return new SpaceUnitMapPayload.Entry(
-                id, "lodestone", name, "private", false, "minecraft:overworld", x, 64, z,
+                id, "lodestone", name, "private", false, dimension, x, 64, z,
                 0.92D, 2, Math.max(Math.abs(x), Math.abs(z)),
                 0, 0, 0, 0, 0, 20,
                 0, 0,

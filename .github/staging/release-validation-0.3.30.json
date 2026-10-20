@@ -1,0 +1,35 @@
+{
+  "version": "0.3.30",
+  "java": 25,
+  "minecraft": "26.3",
+  "fabric_loader": "0.19.5",
+  "fabric_api": "0.160.5+26.3",
+  "artifact": "totem-nexus-0.3.30.jar",
+  "artifact_bytes": 1099828,
+  "sha512": "4be04c1c6dae74205bd62c81f3f79702a2951316e136ec2e7a767ea9b518a15879c9454b7f0bc55c8c5f4d8a9666bc3781f3d60a87950781cd32a26a6f1bfcde",
+  "sha256": "38e6265c32322f0b3ecb146fa69245e60d41d07d158ac178b606ab5ef0f4d132",
+  "core_version": "0.7.23",
+  "core_source_commit": "424b90dc3929caa8c1afcfca7e63c50a64bde669",
+  "core_artifact_sha512": "c3d2f88252ee23500d91f7d49a742f47ae981f25acf1e3cdfcf76c81aa36319943ea92f7aa0a7caf1685d89cb765a1e83ac6a0ee1f1af00cec9ea071cdbe923d",
+  "source_base_commit": "9273dae328cb0d5fd7b2c1c06e5c210b0eaa8c93",
+  "validated_local_date": "2026-10-20",
+  "status": "local-validation-complete-awaiting-exact-source-ci",
+  "validation": {
+    "unit_tests": 318,
+    "native_tests": 83,
+    "development_client_classes": 6,
+    "packaged_client_classes": 6,
+    "e2e_result_artifacts": 265,
+    "e2e_failures": 0,
+    "pipeline_exit": 0
+  },
+  "evidence_reuse": "All source hashes matched the completed gameplay validation before release preparation. Release JAR differs from the validated JAR only in fabric.mod.json version and locale resources; all class bytes are identical. Source and artifact preflight validate release metadata/locales. CI Build must reproduce Nexus and Core hashes before publication.",
+  "independent_review": "Gameplay and screenshots accepted by safe_actions_review; release metadata review pending.",
+  "deferred": "Experimental immutable-store migration/activation and reclamation remain deferred.",
+  "pending_gates": [
+    "exact-source GitHub Build",
+    "release metadata review",
+    "Modrinth publisher and API verification"
+  ],
+  "published": false
+}

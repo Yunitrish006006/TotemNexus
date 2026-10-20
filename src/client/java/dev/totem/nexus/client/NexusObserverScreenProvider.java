@@ -35,7 +35,7 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
     private static final String PLAYER_MARKER_ROTATION = "player_marker_rotation";
 
     @Override public String familyId() { return "nexus"; }
-    @Override public int protocolVersion() { return 5; }
+    @Override public int protocolVersion() { return 6; }
     @Override public Set<String> variants() { return VARIANTS; }
 
     @Override public Optional<ObserverScreenSnapshot> capture(Screen screen, long sequence) {
@@ -56,14 +56,15 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
                 values.put("terrain_x", Integer.toString(view.centerX()));
                 values.put("terrain_z", Integer.toString(view.centerZ()));
                 values.put("terrain_radius", Integer.toString(view.radius()));
+                values.put("map_effective_scale",Integer.toString(owned.effectiveMapScale()));
                 values.put(MAP_ZOOM, Integer.toString(owned.observerMapZoom()));
                 values.put(MAP_PAN_X, Integer.toString(owned.observerMapPanX()));
                 values.put(MAP_PAN_Y, Integer.toString(owned.observerMapPanY()));
                 NexusMapPlayerMarker.Marker marker = ((NexusMapObserverStateAccess) owned).totem$captureLocalPlayerMarker();
                 if (marker != null) {
                     values.put(PLAYER_MARKER_OFF_MAP, marker.offMap() ? "1" : "0");
-                    values.put(PLAYER_MARKER_X, Byte.toString(marker.x()));
-                    values.put(PLAYER_MARKER_Y, Byte.toString(marker.y()));
+                    values.put(PLAYER_MARKER_X, Integer.toString(marker.x()));
+                    values.put(PLAYER_MARKER_Y, Integer.toString(marker.y()));
                     values.put(PLAYER_MARKER_ROTATION, Byte.toString(marker.rotation()));
                 }
             }
@@ -107,6 +108,7 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
         boolean showMaterials = boundedInt(snapshot.metadata(), SHOW_MATERIALS, 0, 0, 1) == 1;
         NexusSpaceUnitMapScreen screen = new NexusSpaceUnitMapScreen(payload, true, context.stopObserving());
         selectedUnitId.ifPresent(screen::applyObserverSelection);
+        screen.applyObserverMapExtent(mapView.effectiveScale());
         screen.applyObserverMapView(mapView.zoom(), mapView.panX(), mapView.panY());
         screen.applyObserverMaterialView(showMaterials);
         ((NexusMapObserverStateAccess) screen).totem$applyObservedPlayerMarker(marker);
@@ -127,8 +129,9 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
     private static MapViewState mapViewState(ObserverScreenSnapshot snapshot) {
         if (!"map".equals(snapshot.variant())) return MapViewState.DEFAULT;
         return new MapViewState(boundedMapZoom(snapshot.metadata()),
-                boundedInt(snapshot.metadata(), MAP_PAN_X, 0, -4096, 4096),
-                boundedInt(snapshot.metadata(), MAP_PAN_Y, 0, -4096, 4096));
+                boundedInt(snapshot.metadata(), MAP_PAN_X, 0, -dev.totem.nexus.map.MapPointerTransform.MAX_EXTENDED_PAN, dev.totem.nexus.map.MapPointerTransform.MAX_EXTENDED_PAN),
+                boundedInt(snapshot.metadata(), MAP_PAN_Y, 0, -dev.totem.nexus.map.MapPointerTransform.MAX_EXTENDED_PAN, dev.totem.nexus.map.MapPointerTransform.MAX_EXTENDED_PAN),
+                boundedInt(snapshot.metadata(),"map_effective_scale",-1,-1,dev.totem.nexus.space.NexusMapExtent.MAX_SCALE));
     }
 
     private static NexusMapPlayerMarker.Marker observedPlayerMarker(ObserverScreenSnapshot snapshot) {
@@ -141,8 +144,8 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
         if (!(off && x && y && rotation)) throw new IllegalArgumentException("Incomplete Nexus Observer player marker metadata");
         return new NexusMapPlayerMarker.Marker(
                 boundedInt(metadata, PLAYER_MARKER_OFF_MAP, 0, 0, 1) == 1,
-                (byte) boundedInt(metadata, PLAYER_MARKER_X, 0, -128, 127),
-                (byte) boundedInt(metadata, PLAYER_MARKER_Y, 0, -128, 127),
+                boundedInt(metadata, PLAYER_MARKER_X, 0, -8000000, 8000000),
+                boundedInt(metadata, PLAYER_MARKER_Y, 0, -8000000, 8000000),
                 (byte) boundedInt(metadata, PLAYER_MARKER_ROTATION, 0, 0, 15));
     }
 
@@ -195,6 +198,7 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
                 boolean showMaterials = boundedInt(snapshot.metadata(), SHOW_MATERIALS, 0, 0, 1) == 1;
                 modernMap.applyPayload(payload);
                 selectedUnitId.ifPresent(modernMap::applyObserverSelection);
+                modernMap.applyObserverMapExtent(mapView.effectiveScale());
                 modernMap.applyObserverMapView(mapView.zoom(), mapView.panX(), mapView.panY());
                 modernMap.applyObserverMaterialView(showMaterials);
                 ((NexusMapObserverStateAccess) modernMap).totem$applyObservedPlayerMarker(marker);
@@ -211,5 +215,5 @@ public final class NexusObserverScreenProvider implements ObserverScreenProvider
         }
     }
 
-    private record MapViewState(int zoom, int panX, int panY) { private static final MapViewState DEFAULT = new MapViewState(1, 0, 0); }
+    private record MapViewState(int zoom, int panX, int panY,int effectiveScale) { private static final MapViewState DEFAULT = new MapViewState(1, 0, 0,-1); }
 }

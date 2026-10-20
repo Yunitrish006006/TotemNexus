@@ -44,7 +44,8 @@ public final class NexusMapPayloadAuthority {
         SpaceUnitMapPayload payload = NexusMapPayloadFactory.build(player.getUUID(), source, context.interfaceType(), context.mapId(), mapData,
                 authorizedUnits(player, context, units, discovery, friends), List.of(), discovery, friends,
                 target -> quotes.quote(player, context, target.id()),
-                friend -> quotes.quote(player, context, friend.playerId()));
+                friend -> quotes.quote(player, context, friend.playerId()),
+                unit -> NexusInterfaceAccess.allows(player, context, unit));
         sender.accept(player, payload);
     }
 
@@ -58,8 +59,9 @@ public final class NexusMapPayloadAuthority {
         NexusFriendSavedData friends = storage.computeIfAbsent(NexusFriendSavedData.TYPE);
         MapItemSavedData mapData = context.mapId() == null ? null : MapItem.getSavedData(context.mapId(), player.level());
         SpaceUnitMapPayload payload = NexusMapPayloadFactory.build(player.getUUID(), source, context.interfaceType(), context.mapId(), mapData,
-                authorizedUnits(player, context, units, discovery, friends), discovery, friends,
-                target -> quotes.apply(player, target));
+                authorizedUnits(player, context, units, discovery, friends), List.of(), discovery, friends,
+                target -> quotes.apply(player, target), ignored -> NexusMapQuote.unavailable(context.interfaceType(), "pending_authority"),
+                unit -> NexusInterfaceAccess.allows(player, context, unit));
         sender.accept(player, payload);
     }
 

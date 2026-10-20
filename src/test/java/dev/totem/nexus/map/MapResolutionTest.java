@@ -31,4 +31,10 @@ class MapResolutionTest {
         byte[] pixels=new byte[16384]; pixels[0]=6;pixels[1]=5;pixels[128]=8;pixels[129]=9;
         assertEquals(5,MapResolution.reduce(pixels,0,0,1,new int[256]));
     }
+    @Test void scaleFourReductionRequiresEveryNativeSizedFootprintSample() {
+        byte[] colors=new byte[16384];java.util.Arrays.fill(colors,(byte)22);
+        assertEquals(22,MapResolution.reduce(colors,0,0,4,new int[256]));
+        colors[15+15*128]=0;assertEquals(0,MapResolution.reduce(colors,0,0,4,new int[256]));
+    }
+
 }

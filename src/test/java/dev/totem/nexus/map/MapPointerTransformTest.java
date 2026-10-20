@@ -30,4 +30,15 @@ class MapPointerTransformTest {
         assertEquals(-64, pan);
         assertEquals(-61, MapPointerTransform.clampPan(pan, 512, 391));
     }
+    @Test void extendedPanReachesNewTerrainWithoutStretchingNativeCoordinates() {
+        assertEquals(-1,MapPointerTransform.clampPan(-384,256,256));
+        assertEquals(-384,MapPointerTransform.clampExtendedPan(-384,256,256,64,4,7));
+        for(int logical=5;logical<=20;logical++) for(int pan:new int[]{Integer.MIN_VALUE,0,Integer.MAX_VALUE}) {
+            int result=MapPointerTransform.clampExtendedPan(pan,256,256,29999999,4,logical);
+            double center=29999999-result*8.0;
+            assertTrue(center+1016<=30000000 && center-1016>=-30000000);
+        }
+        assertThrows(IllegalArgumentException.class,()->MapPointerTransform.clampExtendedPan(0,256,256,0,4,21));
+    }
+
 }

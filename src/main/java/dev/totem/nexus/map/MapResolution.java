@@ -12,7 +12,7 @@ public final class MapResolution {
 
     /** Every level reduces original finest texels, never child winners. Zero means incomplete. */
     public static byte reduce(byte[] source, int x, int z, int scale, int[] counts) {
-        if (source.length != 16384 || scale < 1 || scale > 3 || counts.length < 256)
+        if (source.length != 16384 || scale < 1 || scale > 4 || counts.length < 256)
             throw new IllegalArgumentException("Invalid reduction");
         java.util.Arrays.fill(counts, 0);
         int size = 1 << scale;

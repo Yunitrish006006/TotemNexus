@@ -5,7 +5,8 @@
   "name": "TotemNexus GameTests",
   "environment": "*",
   "mixins": [
-    "totem-nexus-gametest.client.mixins.json"
+    "totem-nexus-gametest.client.mixins.json",
+    "totem-nexus-gametest.mixins.json"
   ],
   "entrypoints": {
     "fabric-gametest": [
@@ -15,13 +16,20 @@
       "dev.totem.nexus.space.NexusVanillaContainerGameTest",
       "dev.totem.nexus.space.NexusDistributedSpawnGameTest",
       "dev.totem.nexus.space.NexusInterfaceLifecycleGameTest",
+      "dev.totem.nexus.space.NexusMapCraftingTransactionGameTest",
+      "dev.totem.nexus.space.NexusMapBindingStorageGameTest",
+      "dev.totem.nexus.space.NexusMapMigrationOwnerGameTest",
+      "dev.totem.nexus.space.NexusLegacyTerrainSnapshotGameTest",
+      "dev.totem.nexus.space.NexusMapDetailStorageGameTest",
+      "dev.totem.nexus.space.NexusMapSourceCaptureGameTest",
       "dev.totem.nexus.space.NexusRecoveryRoutingGameTest",
       "dev.totem.nexus.space.NexusDeathNodeAdminAuthorizationGameTest",
       "dev.totem.nexus.space.NexusTeleportManualGameTest",
       "dev.totem.nexus.space.TeleportArrayMaterialScanGameTest",
       "dev.totem.nexus.space.TeleportArrayMaterialCombinationGameTest",
       "dev.totem.nexus.space.TeleportRouteReservationGameTest",
-      "dev.totem.nexus.space.NexusOfflineAccessGameTest"
+      "dev.totem.nexus.space.NexusOfflineAccessGameTest",
+      "dev.totem.nexus.space.NexusMapOverviewGameTest"
     ],
     "fabric-client-gametest": [
       "dev.totem.nexus.client.NexusMapNetworkResolutionClientGameTest",
@@ -34,7 +42,8 @@
       "dev.totem.nexus.client.TotemAdvancementsVisualGameTest",
       "dev.totem.nexus.client.NexusSpaceUnitMaterialVisualGameTest",
       "dev.totem.nexus.client.NexusSpaceUnitMapVisualGameTest",
-      "dev.totem.nexus.client.NexusArrayVisualizationClientGameTest"
+      "dev.totem.nexus.client.NexusArrayVisualizationClientGameTest",
+      "dev.totem.nexus.client.NexusMapOverviewClientGameTest"
     ]
   },
   "depends": {

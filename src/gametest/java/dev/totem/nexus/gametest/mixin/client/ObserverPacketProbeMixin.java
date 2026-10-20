@@ -13,5 +13,11 @@ public abstract class ObserverPacketProbeMixin {
     @Inject(method = "send(Lnet/minecraft/network/protocol/Packet;)V", at = @At("HEAD"))
     private void totem$recordObserverPacket(Packet<?> packet, CallbackInfo ci) {
         ObserverPacketProbe.record();
+        if (packet instanceof net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket custom
+                && custom.payload() instanceof dev.totem.nexus.network.StartSpaceUnitTeleportPayload)
+            ObserverPacketProbe.recordTeleport();
+        if (packet instanceof net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket custom
+                && custom.payload() instanceof dev.totem.nexus.network.RequestMapDestinationPagePayload)
+            ObserverPacketProbe.recordPage();
     }
 }

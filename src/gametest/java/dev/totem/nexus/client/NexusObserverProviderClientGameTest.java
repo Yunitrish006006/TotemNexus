@@ -44,14 +44,14 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                     "Nexus Death Admin Observer provider entrypoint is missing");
             NexusObserverScreenProvider nexus = new NexusObserverScreenProvider();
             NexusDeathAdminObserverScreenProvider death = new NexusDeathAdminObserverScreenProvider();
-            require(nexus.protocolVersion() == 5,
-                    "Detail-aware map zoom requires Nexus Observer semantic protocol 5");
+            require(nexus.protocolVersion() == 6,
+                    "Detail-aware map zoom requires Nexus Observer semantic protocol 6");
 
             exercise(context, nexus,
                     clientScreen(context, () -> new NexusSpaceUnitMapScreen(NexusSpaceUnitMapVisualGameTest.friendPayload())),
                     clientScreen(context, () -> {
                         var screen = new NexusSpaceUnitMapScreen(NexusSpaceUnitMapVisualGameTest.friendPayload());
-                        screen.keyPressed(new KeyEvent(264, 0, 0));
+                        screen.keyPressed(new KeyEvent(InputConstants.KEY_DOWN, 0, 0));
                         screen.showMaterialDiagnosticsForVisualTest();
                         return screen;
                     }), "nexus-observer-friend-and-portable-preview", screen -> {
@@ -268,7 +268,7 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
 
     private static NexusSpaceUnitMapScreen compassScreen(String name, boolean selectTarget) {
         NexusSpaceUnitMapScreen screen = new NexusSpaceUnitMapScreen(compass(name));
-        if (selectTarget && !screen.keyPressed(new KeyEvent(264, 0, 0))) {
+        if (selectTarget && !screen.keyPressed(new KeyEvent(InputConstants.KEY_DOWN, 0, 0))) {
             throw new AssertionError("Compass Observer fixture could not select a destination");
         }
         return screen;
@@ -276,7 +276,7 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
 
     private static NexusSpaceUnitMapScreen mapScreen(String name, int mapId, boolean selectTarget) {
         NexusSpaceUnitMapScreen screen = new NexusSpaceUnitMapScreen(filledMap(name, mapId));
-        if (selectTarget && !screen.keyPressed(new KeyEvent(262, 0, 0))) {
+        if (selectTarget && !screen.keyPressed(new KeyEvent(InputConstants.KEY_RIGHT, 0, 0))) {
             throw new AssertionError("Map Observer fixture could not select a destination");
         }
         return screen;
@@ -287,7 +287,7 @@ public final class NexusObserverProviderClientGameTest implements FabricClientGa
                 SOURCE, "player", name, "minecraft:overworld", 1, 64, 1,
                 TeleportInterfaceType.RECOVERY_COMPASS, SpaceUnitMapPayload.NO_MAP_ID,
                 List.of(entry(SOURCE, name, false), entry(TARGET, "Rescue Target", true))));
-        if (select && !screen.keyPressed(new KeyEvent(264, 0, 0))) throw new AssertionError("Recovery selection failed");
+        if (select && !screen.keyPressed(new KeyEvent(InputConstants.KEY_DOWN, 0, 0))) throw new AssertionError("Recovery selection failed");
         return screen;
     }
 

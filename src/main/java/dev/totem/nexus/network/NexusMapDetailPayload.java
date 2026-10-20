@@ -11,9 +11,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Bounded identities of server-validated finer vanilla maps; map pixels remain vanilla packets. */
-public record NexusMapDetailPayload(int mapId, List<Integer> ancestorMapIds, List<Layer> geometries) implements CustomPacketPayload {
+public record NexusMapDetailPayload(int mapId, List<Integer> ancestorMapIds, List<Layer> geometries, int effectiveScale) implements CustomPacketPayload {
     public static final int MAX_DETAIL_MAPS = 20;
-    public NexusMapDetailPayload(int mapId, List<Integer> ids) { this(mapId,ids,List.of()); }
+    public NexusMapDetailPayload(int mapId, List<Integer> ids) { this(mapId,ids,List.of(),-1); }
+    public NexusMapDetailPayload(int mapId,List<Integer> ids,List<Layer> layers) { this(mapId,ids,layers,-1); }
     public record Layer(int id, int centerX, int centerZ, int scale, String dimension, boolean locked) {
         public Layer {
             if(id<0 || Math.abs((long)centerX)>30000128L || Math.abs((long)centerZ)>30000128L
@@ -22,10 +23,11 @@ public record NexusMapDetailPayload(int mapId, List<Integer> ancestorMapIds, Lis
         }
     }
     public static final Type<NexusMapDetailPayload> TYPE =
-            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/map_detail_v2"));
+            new Type<>(Identifier.fromNamespaceAndPath("totem", "nexus/map_detail_v3"));
 
     public NexusMapDetailPayload {
-        if (mapId < 0 || ancestorMapIds == null
+        if (effectiveScale < -1 || effectiveScale > dev.totem.nexus.space.NexusMapExtent.MAX_SCALE
+                || mapId < 0 || ancestorMapIds == null
                 || ancestorMapIds.size() > MAX_DETAIL_MAPS) {
             throw new IllegalArgumentException("Invalid Nexus map detail payload");
         }
@@ -40,6 +42,8 @@ public record NexusMapDetailPayload(int mapId, List<Integer> ancestorMapIds, Lis
         var geometryIds = new java.util.HashSet<Integer>();
         for(var layer:geometries) if(!geometryIds.add(layer.id()) || (layer.id()!=mapId && !unique.contains(layer.id())))
             throw new IllegalArgumentException("Unlisted map geometry");
+        if(effectiveScale>=0 && geometries.stream().noneMatch(l->l.id()==mapId && l.scale()==Math.min(4,effectiveScale)))
+            throw new IllegalArgumentException("Extent requires matching native root geometry");
         geometries=List.copyOf(geometries);
     }
 
@@ -50,6 +54,7 @@ public record NexusMapDetailPayload(int mapId, List<Integer> ancestorMapIds, Lis
                 for (int ancestor : payload.ancestorMapIds()) buf.writeInt(ancestor);
                 buf.writeInt(payload.geometries().size());
                 for(var l:payload.geometries()) { buf.writeInt(l.id());buf.writeInt(l.centerX());buf.writeInt(l.centerZ());buf.writeByte(l.scale());buf.writeUtf(l.dimension(),128);buf.writeBoolean(l.locked()); }
+                buf.writeByte(payload.effectiveScale());
             },
             buf -> {
                 int mapId = buf.readInt();
@@ -63,7 +68,7 @@ public record NexusMapDetailPayload(int mapId, List<Integer> ancestorMapIds, Lis
                 if(geometryCount<0 || geometryCount>MAX_DETAIL_MAPS+1) throw new DecoderException("Invalid geometry count");
                 List<Layer> layers=new ArrayList<>(geometryCount);
                 for(int i=0;i<geometryCount;i++) layers.add(new Layer(buf.readInt(),buf.readInt(),buf.readInt(),buf.readUnsignedByte(),buf.readUtf(128),buf.readBoolean()));
-                return new NexusMapDetailPayload(mapId, ancestors,layers);
+                return new NexusMapDetailPayload(mapId, ancestors,layers,buf.readByte());
             }
     );
 

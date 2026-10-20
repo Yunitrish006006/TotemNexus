@@ -25,6 +25,9 @@ public abstract class NexusHeldMapMarkerMixin implements dev.totem.nexus.client.
     @Inject(method="extractMapRenderState",at=@At(value="INVOKE",target="Lnet/minecraft/client/renderer/MapRenderer;extractRenderState(Lnet/minecraft/world/level/saveddata/maps/MapId;Lnet/minecraft/world/level/saveddata/maps/MapItemSavedData;Lnet/minecraft/client/renderer/state/MapRenderState;)V",shift=At.Shift.AFTER))
     private void totem$heldMarker(LocalPlayer player, ItemStack stack, MapRenderState mapRenderState, CallbackInfoReturnable<Boolean> ci) {
         var id=stack.get(DataComponents.MAP_ID);
+        if(dev.totem.nexus.client.NexusMapOverviewClient.apply(stack,-1,mapRenderState)) {
+            totem$lastMap=id.id();totem$markers=1;return;
+        }
         if(id==null || !NexusMapDetailClientState.recognized(id.id())) return;
         var data=MapItem.getSavedData(stack,Minecraft.getInstance().level);
         if(data==null) return;

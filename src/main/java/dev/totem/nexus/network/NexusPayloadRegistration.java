@@ -22,8 +22,10 @@ public final class NexusPayloadRegistration {
         if (!REGISTERED.compareAndSet(false, true)) {
             return;
         }
+        PayloadTypeRegistry.serverboundPlay().register(RequestMapOverviewPayload.TYPE, RequestMapOverviewPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RequestAccessPlayersPayload.TYPE, RequestAccessPlayersPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RequestSpaceUnitMapPayload.TYPE, RequestSpaceUnitMapPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(RequestMapDestinationPagePayload.TYPE, RequestMapDestinationPagePayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RequestNexusMapDetailPayload.TYPE, RequestNexusMapDetailPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RequestSpaceUnitFriendsPayload.TYPE, RequestSpaceUnitFriendsPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RemoveSpaceUnitFriendPayload.TYPE, RemoveSpaceUnitFriendPayload.CODEC);
@@ -48,8 +50,10 @@ public final class NexusPayloadRegistration {
         if (!CLIENTBOUND_TYPES_REGISTERED.compareAndSet(false, true)) {
             return;
         }
+        PayloadTypeRegistry.clientboundPlay().register(MapOverviewPayload.TYPE, MapOverviewPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(AccessPlayersPayload.TYPE, AccessPlayersPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(SpaceUnitMapPayload.TYPE, SpaceUnitMapPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(MapDestinationPagePayload.TYPE, MapDestinationPagePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(NexusMapDetailPayload.TYPE, NexusMapDetailPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(SpaceUnitFriendsPayload.TYPE, SpaceUnitFriendsPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(
@@ -72,9 +76,15 @@ public final class NexusPayloadRegistration {
         Objects.requireNonNull(handler, "handler");
         if (!RECEIVERS_REGISTERED.compareAndSet(false, true)) return;
         dev.totem.nexus.space.NexusAccessQueries.register();
+        dev.totem.nexus.space.NexusMapOverviewAuthority.register();
+        ServerPlayNetworking.registerGlobalReceiver(RequestMapOverviewPayload.TYPE,
+                (payload, context) -> context.server().execute(() -> dev.totem.nexus.space.NexusMapOverviewAuthority.request(context.player(),payload)));
         ServerPlayNetworking.registerGlobalReceiver(RequestAccessPlayersPayload.TYPE,
                 (payload, context) -> context.server().execute(() ->
                         dev.totem.nexus.space.NexusAccessQueries.enqueue(context.player(), payload)));
+        ServerPlayNetworking.registerGlobalReceiver(RequestMapDestinationPagePayload.TYPE,
+                (payload, context) -> context.server().execute(() ->
+                        dev.totem.nexus.space.NexusSpaceUnitAuthority.sendDestinationPage(context.player(), payload)));
         ServerPlayNetworking.registerGlobalReceiver(RequestSpaceUnitMapPayload.TYPE,
                 (payload, context) -> context.server().execute(() -> handler.requestMap(context.player(), payload)));
         ServerPlayNetworking.registerGlobalReceiver(RequestSpaceUnitFriendsPayload.TYPE,

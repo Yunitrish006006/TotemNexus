@@ -37,6 +37,11 @@ public final class NexusMapLifecycleAuthority {
                 .orElse(null);
         if (unit == null) return Optional.empty();
 
+        NexusMapBindingSavedData bindings = NexusMapBindingSavedData.loadCanonical(storage);
+        if (!bindings.acceptsMutation()) return Optional.empty();
+        var terrain = NexusMapDetailSavedData.available(level).orElse(null);
+        if (terrain == null || !terrain.acceptsMutation()) return Optional.empty();
+
         MapItemSavedData mapData = exactData(
                 anchorPos.getX(), anchorPos.getZ(), (byte) 0, false, level.dimension());
         MapId mapId = level.getFreeMapId();
@@ -46,7 +51,6 @@ public final class NexusMapLifecycleAuthority {
         result.remove(DataComponents.MAP_DECORATIONS);
         if (!NexusInterfaceBinding.write(result, level, anchorPos, unitId)) return Optional.empty();
 
-        NexusMapBindingSavedData bindings = NexusMapBindingSavedData.loadCanonical(storage);
         if (!bindings.bind(mapId, unitId, GlobalPos.of(level.dimension(), anchorPos.immutable()), mapData)) {
             return Optional.empty();
         }
@@ -67,14 +71,19 @@ public final class NexusMapLifecycleAuthority {
         RegistryResolution resolution = resolveRegistryBinding(stack, level);
         if (!resolution.registered()) return ScaleEligibility.NOT_NEXUS;
         ValidatedMap validated = resolution.validated();
-        if (validated == null || processing == null) return ScaleEligibility.DENIED;
+        if (validated == null || processing == null || !NexusMapBindingSavedData.loadCanonical(
+                level.getServer().overworld().getDataStorage()).acceptsMutation()) return ScaleEligibility.DENIED;
+        var terrain = NexusMapDetailSavedData.available(level).orElse(null);
+        if (terrain == null || !terrain.acceptsMutation()) return ScaleEligibility.DENIED;
         if (processing == MapPostProcessing.SCALE) {
-            return validated.data().locked || validated.data().scale >= MapItemSavedData.MAX_SCALE
+            return validated.data().locked || validated.entry().extent(validated.data()).expanded().isEmpty()
+                    || !terrain.canDerive(validated.mapId().id(), validated.entry())
                     || !anchorAvailable(level, validated.entry(), validated.unit())
                     ? ScaleEligibility.DENIED : ScaleEligibility.ALLOWED;
         }
         if (processing == MapPostProcessing.LOCK) {
-            return validated.data().locked ? ScaleEligibility.DENIED : ScaleEligibility.ALLOWED;
+            return validated.data().locked || !terrain.canDerive(validated.mapId().id(), validated.entry())
+                    ? ScaleEligibility.DENIED : ScaleEligibility.ALLOWED;
         }
         return ScaleEligibility.DENIED;
     }
@@ -93,41 +102,61 @@ public final class NexusMapLifecycleAuthority {
         if (!resolution.registered()) return PostProcessResult.NOT_NEXUS;
         ValidatedMap validated = resolution.validated();
         if (validated == null) return PostProcessResult.DENIED;
+        NexusMapBindingSavedData bindings = NexusMapBindingSavedData.loadCanonical(level.getServer().overworld().getDataStorage());
+        if (!bindings.acceptsMutation()) return PostProcessResult.DENIED;
+        var terrain = NexusMapDetailSavedData.available(level).orElse(null);
+        if (terrain == null || !terrain.acceptsMutation()) return PostProcessResult.DENIED;
 
         MapItemSavedData resultData;
         if (processing == MapPostProcessing.SCALE) {
-            if (validated.data().locked || validated.data().scale >= MapItemSavedData.MAX_SCALE
+            if (validated.data().locked || validated.entry().extent(validated.data()).expanded().isEmpty()
+                    || !terrain.canDerive(validated.mapId().id(), validated.entry())
                     || !anchorAvailable(level, validated.entry(), validated.unit())) {
                 return PostProcessResult.DENIED;
             }
             resultData = exactData(
                     validated.entry().centerX(),
                     validated.entry().centerZ(),
-                    (byte) (validated.data().scale + 1),
+                    validated.entry().extent(validated.data()).expanded().orElseThrow().vanillaScale(),
                     false,
                     validated.entry().anchor().dimension());
-            // Preserve the source's known footprint in the central quarter of the expanded map.
-            for (int z=0;z<64;z++) for(int x=0;x<64;x++) {
-                int[] counts=new int[256]; int selected=0;
-                for(int dz=0;dz<2;dz++) for(int dx=0;dx<2;dx++) {
-                    int color=validated.data().colors[x*2+dx+(z*2+dz)*128]&255;
-                    if(color/4!=0 && ++counts[color]>counts[selected]) selected=color;
+            // Native pixels retain their true scale-four coordinates beyond vanilla's limit.
+            // Extended exploration lives in map-owned detail pages, never a stretched authorization pixel.
+            if (validated.data().scale == MapItemSavedData.MAX_SCALE) {
+                System.arraycopy(validated.data().colors, 0, resultData.colors, 0, 16384);
+            } else {
+                // Preserve the source's known footprint in the central quarter of the expanded map.
+                for (int z=0;z<64;z++) for(int x=0;x<64;x++) {
+                    int[] counts=new int[256]; int selected=0;
+                    for(int dz=0;dz<2;dz++) for(int dx=0;dx<2;dx++) {
+                        int color=validated.data().colors[x*2+dx+(z*2+dz)*128]&255;
+                        if(color/4!=0 && ++counts[color]>counts[selected]) selected=color;
+                    }
+                    if(selected!=0) resultData.setColor(32+x,32+z,(byte)selected);
                 }
-                if(selected!=0) resultData.setColor(32+x,32+z,(byte)selected);
             }
         } else if (processing == MapPostProcessing.LOCK) {
+            if (!terrain.canDerive(validated.mapId().id(), validated.entry())) return PostProcessResult.DENIED;
             if (validated.data().locked) return PostProcessResult.DENIED;
             resultData = validated.data().locked();
         } else {
             return PostProcessResult.NOT_NEXUS;
         }
 
-        MapId resultMapId = level.getFreeMapId();
-        NexusMapBindingSavedData bindings = NexusMapBindingSavedData.loadCanonical(level.getServer().overworld().getDataStorage());
-        if (!bindings.derive(validated.mapId(), validated.data(), resultMapId, resultData)) {
+        var index = level.getServer().getDataStorage()
+                .computeIfAbsent(net.minecraft.world.level.saveddata.maps.MapIndex.TYPE);
+        int last = ((dev.totem.nexus.mixin.NexusMapIndexAccessor) index).totem$lastMapId();
+        if (last > Integer.MAX_VALUE - (validated.entry().detailAncestors().size() + 2))
             return PostProcessResult.DENIED;
-        }
-        NexusMapDetailSavedData.get(level).derive(level, validated.mapId(), validated.data(),
+        MapId candidate = new MapId(last + 1);
+        int nextScale = validated.entry().extent(validated.data()).scale() + (processing == MapPostProcessing.SCALE ? 1 : 0);
+        var prepared = bindings.prepareDerivation(validated.mapId(), validated.data(), candidate, resultData, nextScale);
+        if (prepared.isEmpty() || level.getMapData(candidate) != null) return PostProcessResult.DENIED;
+        // No expected refusal remains beyond allocation. Server-thread execution prevents interleaving.
+        MapId resultMapId = level.getFreeMapId();
+        if (!candidate.equals(resultMapId)) throw new IllegalStateException("Map allocator changed during commit");
+        bindings.commitDerivation(prepared.get());
+        terrain.derive(level, validated.mapId(), validated.data(),
                 validated.entry(), resultMapId);
         level.setMapData(resultMapId, resultData);
         stack.set(DataComponents.MAP_ID, resultMapId);
@@ -152,14 +181,13 @@ public final class NexusMapLifecycleAuthority {
         var storage = level.getServer().overworld().getDataStorage();
         NexusMapBindingSavedData.Entry entry = NexusMapBindingSavedData.loadCanonical(storage)
                 .get(mapId).orElse(null);
-        if (entry == null) return RegistryResolution.NOT_NEXUS;
+        if (entry == null) return NexusInterfaceBinding.read(stack) == null
+                ? RegistryResolution.NOT_NEXUS : RegistryResolution.INVALID_NEXUS;
         UUID claimedUnitId = NexusInterfaceBinding.read(stack);
         MapItemSavedData mapData = level.getMapData(mapId);
         if (claimedUnitId == null || mapData == null
                 || !entry.unitId().equals(claimedUnitId)
-                || !entry.anchor().dimension().equals(mapData.dimension)
-                || entry.centerX() != mapData.centerX
-                || entry.centerZ() != mapData.centerZ) return RegistryResolution.INVALID_NEXUS;
+                || !entry.matchesMapData(mapData)) return RegistryResolution.INVALID_NEXUS;
         NexusSpaceUnitRecord unit = NexusSpaceUnitSavedData.loadCanonical(storage)
                 .get(entry.unitId()).filter(entry::matchesUnit).orElse(null);
         return unit == null

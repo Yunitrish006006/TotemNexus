@@ -33,4 +33,10 @@ class MapDetailTransformTest {
             assertEquals(100 - 64 * 3.0F / (1 << base), layer.top() + 64 * expected);
         }
     }
+    @Test void equalNativeScalePagesUseTrueWorldOffsetsAndAdjacentEdges() {
+        var left=MapDetailTransform.project(4,4,2,100,100,2048,0);
+        var right=MapDetailTransform.project(4,4,2,100,100,4096,0);
+        assertEquals(2,left.pixelScale());assertEquals(left.left()+256,right.left());
+    }
+
 }

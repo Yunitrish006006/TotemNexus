@@ -28,6 +28,65 @@ import java.util.UUID;
 
 /** Real SavedData/items/events around the production authority, with no client-supplied map proof. */
 public final class NexusRecoveryRoutingGameTest {
+    @GameTest(maxTicks = 30)
+    public void extendedDestinationsUseExactTerrainOrCurrentHolderDiscovery(GameTestHelper h) {
+        var p = h.makeMockServerPlayerInLevel();
+        var receiver = h.makeMockServerPlayerInLevel();
+        var level = h.getLevel();
+        var anchor = lodestone(h, p, h.absolutePos(new BlockPos(2, 2, 2)));
+        ItemStack map = NexusMapLifecycleAuthority.createBoundMap(level, anchor.pos(), anchor.id(), new ItemStack(Items.MAP)).orElseThrow();
+        for (int i = 0; i < 5; i++) require(h,
+                NexusMapLifecycleAuthority.postProcess(map, level, net.minecraft.world.item.component.MapPostProcessing.SCALE)
+                        == NexusMapLifecycleAuthority.PostProcessResult.PROCESSED, "Extended fixture failed");
+        var id = map.get(DataComponents.MAP_ID);
+        var data = MapItem.getSavedData(map, level);
+        Arrays.fill(data.colors, (byte) 4);
+        var exact = publicMarker(p, level.dimension(), anchor.pos().offset(1300, 0, 0));
+        var hole = publicMarker(p, level.dimension(), exact.pos().offset(1, 0, 0));
+        var offMap = publicMarker(p, net.minecraft.world.level.Level.NETHER, new BlockPos(9000, 65, 9000));
+        var beyondExtent = publicMarker(p, level.dimension(), anchor.pos().offset(5000, 0, 0));
+        var detail = NexusMapDetailSavedData.get(level);
+        require(h, detail.record(level, id.id(), exact.pos().getX(), exact.pos().getZ(), (byte) 22), "Fine sample missing");
+        detail.record(level, id.id(), beyondExtent.pos().getX(), beyondExtent.pos().getZ(), (byte) 22);
+        discovery(p).markDiscovered(p.getUUID(), offMap.id());
+        p.setItemInHand(InteractionHand.MAIN_HAND, map);
+        p.setPos(Vec3.atCenterOf(anchor.pos().above()));
+        var context = NexusSpaceUnitAuthority.establishInterfaceContext(p, InteractionHand.MAIN_HAND, "player", p.getUUID()).orElseThrow();
+        require(h, NexusInterfaceAccess.allows(p, context, exact), "Exact extended terrain was rejected");
+        require(h, !NexusInterfaceAccess.allows(p, context, hole), "Overview color authorized an unrecorded neighboring block");
+        require(h, !NexusInterfaceAccess.allows(p, context, beyondExtent), "Terrain outside logical extent authorized target");
+        require(h, NexusInterfaceAccess.allows(p, context, offMap), "Map required a separate compass for discovered cross-dimension destination");
+        var payload = NexusSpaceUnitAuthority.currentMapPayload(p).orElseThrow();
+        require(h, payload.entries().stream().anyMatch(e -> e.id().equals(exact.id()))
+                && payload.entries().stream().anyMatch(e -> e.id().equals(offMap.id()))
+                && payload.entries().stream().noneMatch(e -> e.id().equals(hole.id()) || e.id().equals(beyondExtent.id())),
+                "Live payload reapplied native-only coverage or leaked unknown terrain");
+        var quote = new NexusMapQuoteAuthority().quote(p, context, exact.id());
+        require(h, quote.interfaceBonusActive(), "Exact recorded terrain lost map benefit in quote");
+        var crossQuote = new NexusMapQuoteAuthority().quote(p, context, offMap.id());
+        require(h, crossQuote.amethystCost() > 0 && !crossQuote.interfaceBonusActive(), "Discovery fallback changed cross-dimension costs or invented terrain benefit");
+        receiver.setItemInHand(InteractionHand.MAIN_HAND, map.copy());
+        var received = NexusSpaceUnitAuthority.establishInterfaceContext(receiver, InteractionHand.MAIN_HAND, "player", receiver.getUUID()).orElseThrow();
+        require(h, NexusInterfaceAccess.allows(receiver, received, exact), "Transfer lost recorded terrain");
+        require(h, !NexusInterfaceAccess.allows(receiver, received, offMap), "Transfer inherited former holder discoveries");
+        discovery(receiver).markDiscovered(receiver.getUUID(), offMap.id());
+        require(h, NexusInterfaceAccess.allows(receiver, received, offMap), "Receiver discovery was ignored");
+        units(p).disableLodestone(offMap.id(), level.getGameTime());
+        require(h, !NexusInterfaceAccess.allows(receiver, received, units(p).get(offMap.id()).orElseThrow()), "Discovery revived disabled target");
+        require(h, !level.isLoaded(exact.pos()), "Authorization force-loaded remote terrain");
+        NexusSpaceUnitAuthority.clearInterfaceContext(p.getUUID());
+        NexusSpaceUnitAuthority.clearInterfaceContext(receiver.getUUID());
+        p.discard(); receiver.discard(); h.succeed();
+    }
+
+    private static NexusSpaceUnitRecord publicMarker(ServerPlayer player,
+            net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension, BlockPos pos) {
+        var unit = new NexusSpaceUnitRecord(UUID.randomUUID(), SpaceUnitType.LODESTONE, dimension, pos,
+                player.getUUID(), "Extended marker", SpaceUnitVisibility.PUBLIC, SpaceUnitStatus.ACTIVE,
+                Set.of(), Set.of(), SpaceStructureSnapshot.EMPTY, 1, 1);
+        units(player).put(unit); return unit;
+    }
+
     @GameTest(maxTicks = 20)
     public void mapUsesPaintedUndiscoveredSourceWithoutChangingAnchorAndRejectsForgedInputs(GameTestHelper h) {
         var p = h.makeMockServerPlayerInLevel();

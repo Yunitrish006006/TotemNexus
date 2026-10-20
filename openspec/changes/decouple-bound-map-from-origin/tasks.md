@@ -1,0 +1,4 @@
+- [x] Add destruction-before-open and destruction-during-teleport server regressions.
+- [x] Decouple registered map identity and portable validation from live origin.
+- [x] Verify forged maps, destination permissions/coverage, and non-map behavior remain restricted.
+- [x] Run focused validation and independent review.

@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "dev.totem.nexus.gametest.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "TeleportMessageProbeMixin",
+    "MapPostProcessFailureProbeMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

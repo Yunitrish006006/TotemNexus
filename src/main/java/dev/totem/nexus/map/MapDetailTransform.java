@@ -4,7 +4,7 @@ package dev.totem.nexus.map;
 public record MapDetailTransform(float pixelScale, float left, float top) {
     public static MapDetailTransform project(int baseScale, int detailScale, int basePixelScale,
                                             float centerX, float centerY, int offsetX, int offsetZ) {
-        if (baseScale < 0 || baseScale > 4 || detailScale < 0 || detailScale >= baseScale
+        if (baseScale < 0 || baseScale > 4 || detailScale < 0 || detailScale > baseScale
                 || basePixelScale < 1) throw new IllegalArgumentException("Invalid map detail transform");
         float pixelsPerBlock = basePixelScale / (float) (1 << baseScale);
         float pixelScale = pixelsPerBlock * (1 << detailScale);

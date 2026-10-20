@@ -63,6 +63,8 @@ public final class NexusTeleportInterfaceAuthority {
     }
 
     private static boolean validBoundAnchor(ServerPlayer player, TeleportInterfaceContext context) {
+        if (context.interfaceType() == TeleportInterfaceType.FILLED_MAP)
+            return context.isStillHeldBy(player);
         var storage = player.level().getServer().overworld().getDataStorage();
         var friends = storage.computeIfAbsent(NexusFriendSavedData.TYPE);
         return NexusSpaceUnitSavedData.loadCanonical(storage).get(context.boundUnitId())

@@ -135,7 +135,7 @@
   "message.totem.space_unit.interface.registration_requires_compass": "このロードストーンにコンパス、リカバリーコンパス、しゃがんだ状態の普通の本、または白紙の地図を使ってください",
   "message.totem.space_unit.interface.map_source_mismatch": "このネクサス地図は別の空間ユニットに登録されています",
   "message.totem.space_unit.interface.management_unavailable": "持っているインターフェースは、管理可能な有効な空間ユニットに紐付けられていません",
-  "message.totem.space_unit.interface_bonus.book.active": "経路の書が有効: 準備時間 -20%、構造摩耗 -25%",
+  "message.totem.space_unit.interface_bonus.book.active": "経路の書が有効: 準備時間を20パーセント、構造摩耗を25パーセント軽減",
   "message.totem.space_unit.interface_bonus.book.inactive": "経路の書には既知のロードストーン目標が必要です",
   "message.totem.space_unit.interface_bonus.compass": "基本経路: 数値ボーナスなし",
   "message.totem.space_unit.interface_bonus.filled_map.active": "地図範囲が有効: 食料消費とずれ -20%",
@@ -431,5 +431,13 @@
   "message.totem.space_unit.access_search_button": "検索",
   "message.totem.space_unit.access_online": "オンライン",
   "message.totem.space_unit.access_offline": "オフライン",
-  "message.totem.space_unit.access_no_players": "該当するプレイヤーはいません"
+  "message.totem.space_unit.access_no_players": "該当するプレイヤーはいません",
+  "message.totem.space_unit.map_storage_full": "地図の保存容量がいっぱいです。記録済みの地形は保持されますが、新しい地形は記録できません。",
+  "message.totem.space_unit.map_paging_hint": "PgDn: 次の目的地 | Home: 最初の目的地",
+  "container.totem.space_unit.recovery_compass": "Nexus リカバリーコンパス",
+  "message.totem.space_unit.map_destination_dimension": "%s · %s — 別のディメンション：クリックで選択",
+  "message.totem.space_unit.map_destination_edge": "%s · %s — 画面外：クリックで選択",
+  "message.totem.space_unit.map_destination_marker": "%s · %s — クリックで選択",
+  "book.totem.nexus_teleport_manual.page.25": "§l携帯テレポート§r\nコンパスとNexus地図は、転送陣の外でも現在地から転送できます。構築した転送陣内では安定性と素材ボーナスが加わります。地図の目的地には記録済みの地形が必要です。",
+  "book.totem.nexus_teleport_manual.page.26": "§lバックパック回収§r\n到着地点はバックパックの近く（通常2〜4ブロック、最大6ブロック）です。自分の回収では弱体化、暗視、透明化、耐性を伴うフェージングが付与され、回収の3秒後に終了します。戦闘、別の転送、無効化、死亡、ログアウトで解除されます。"
 }

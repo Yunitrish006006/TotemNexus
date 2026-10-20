@@ -17,6 +17,11 @@ public final class NexusClientBootstrap {
     }
 
     public static void registerNetworking() {
+        ClientPlayNetworking.registerGlobalReceiver(dev.totem.nexus.network.MapDestinationPagePayload.TYPE,
+                (payload, context) -> context.client().execute(() -> {
+                    if (context.client().gui.screen() instanceof NexusSpaceUnitMapScreen screen)
+                        screen.applyDestinationPage(payload);
+                }));
         ClientPlayNetworking.registerGlobalReceiver(SpaceUnitMapPayload.TYPE,
                 (payload, context) -> {
                     Minecraft mc = context.client();

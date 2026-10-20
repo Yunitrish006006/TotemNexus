@@ -135,7 +135,7 @@
   "message.totem.space_unit.interface.registration_requires_compass": "Use a compass, recovery compass, crouching plain book, or empty map on this lodestone",
   "message.totem.space_unit.interface.map_source_mismatch": "A Nexus map requires an already registered, active source lodestone",
   "message.totem.space_unit.interface.management_unavailable": "The held interface is not bound to an active Space Unit you may manage",
-  "message.totem.space_unit.interface_bonus.book.active": "Route Codex active: preparation -20%, structure wear -25%",
+  "message.totem.space_unit.interface_bonus.book.active": "Route Codex active: preparation reduced by 20 percent, structure wear reduced by 25 percent",
   "message.totem.space_unit.interface_bonus.book.inactive": "Route Codex requires a known lodestone target",
   "message.totem.space_unit.interface_bonus.compass": "Baseline route: no numeric bonus",
   "message.totem.space_unit.interface_bonus.filled_map.active": "Map coverage active: food and deviation -20%",
@@ -225,7 +225,9 @@
   "message.totem.space_unit.map_need_lodestone_source": "This interface is not bound to an active lodestone Space Unit",
   "message.totem.space_unit.map_nodes": "Destinations: %s",
   "message.totem.space_unit.destination_selected": "Selected destination: %s",
-  "message.totem.space_unit.map_navigation_hint": "Drag to pan | Scroll to zoom %s%%",
+  "message.totem.space_unit.map_navigation_hint": "Drag: pan | Scroll: zoom %s%% | Arrows / click: select",
+  "message.totem.space_unit.map_storage_full": "Map storage is full. Existing terrain is preserved; new terrain could not be recorded.",
+  "message.totem.space_unit.map_paging_hint": "PgDn: next targets | Home: first targets",
   "message.totem.space_unit.map_zoom_narration": "Map zoom: %s percent",
   "message.totem.space_unit.map_overflow": "%s more map entries hidden from chat",
   "message.totem.space_unit.map_quote_footer": "%s | sat %s, hunger %s, food %s/%s | amethyst %s/%s | %ss | stability %s/100 | drift %s | wear %s%%",
@@ -434,5 +436,8 @@
   "message.totem.space_unit.access_search_button": "Search",
   "message.totem.space_unit.access_online": "Online",
   "message.totem.space_unit.access_offline": "Offline",
-  "message.totem.space_unit.access_no_players": "No matching players"
+  "message.totem.space_unit.access_no_players": "No matching players",
+  "message.totem.space_unit.map_destination_dimension": "%s · %s — other dimension; click to select",
+  "message.totem.space_unit.map_destination_edge": "%s · %s — off screen; click to select",
+  "message.totem.space_unit.map_destination_marker": "%s · %s — click to select"
 }

@@ -28,8 +28,10 @@ public final class NexusMapDetailNetworking {
         if(!REGISTERED.compareAndSet(false,true)) return;
         ServerPlayNetworking.registerGlobalReceiver(RequestNexusMapDetailPayload.TYPE,(p,c)->c.server().execute(()->send(c.player(),p)));
         ServerTickEvents.END_SERVER_TICK.register(server->{
+            var terrain = NexusMapDetailSavedData.available(server.overworld()).orElse(null);
+            if (terrain == null) { NexusMapDetailSampling.clear(); PENDING.clear(); return; }
             NexusMapDetailSampling.tick(server);
-            NexusMapDetailSavedData.get(server.overworld()).buildResolutions();
+            terrain.buildResolutions();
             for(var player:server.getPlayerList().getPlayers()) flush(player);
         });
         ServerPlayConnectionEvents.DISCONNECT.register((handler,server)->clear(handler.player.getUUID()));
@@ -61,10 +63,12 @@ public final class NexusMapDetailNetworking {
         var bindings=NexusMapBindingSavedData.loadCanonical(player.level().getServer().overworld().getDataStorage());
         var binding=bindings.resolve(mapId,base).orElse(null);
         if(base==null || binding==null) return;
-        var store=NexusMapDetailSavedData.get(player.level()); store.initialize(player.level(),mapId,base,binding);
+        var store=NexusMapDetailSavedData.available(player.level()).orElse(null);
+        if(store==null) return;
+        store.initialize(player.level(),mapId,base,binding);
         int x=request.radius()==0?base.centerX:request.centerX(), z=request.radius()==0?base.centerZ:request.centerZ();
         int radius=request.radius()==0?64<<base.scale:request.radius();
-        int extent=64<<base.scale;
+        long extent=64L<<binding.extent(base).scale();
         if(Math.abs((long)x-base.centerX)>extent || Math.abs((long)z-base.centerZ)>extent) return;
         if(request.scale()>base.scale) return;
         if(player==recipient) OWNER_VIEWS.put(player.getUUID(),request);
@@ -80,7 +84,7 @@ public final class NexusMapDetailNetworking {
         var geometry=new ArrayList<NexusMapDetailPayload.Layer>();
         geometry.add(new NexusMapDetailPayload.Layer(mapId.id(),base.centerX,base.centerZ,base.scale,base.dimension.identifier().toString(),base.locked));
         for(var p:selected) geometry.add(new NexusMapDetailPayload.Layer(p.id,p.x,p.z,p.scale,base.dimension.identifier().toString(),true));
-        var detail=new NexusMapDetailPayload(mapId.id(),selected.stream().map(p->p.id).toList(),geometry);
+        var detail=new NexusMapDetailPayload(mapId.id(),selected.stream().map(p->p.id).toList(),geometry,binding.extent(base).scale());
         boolean geometryChanged=!detail.equals(GEOMETRY_SENT.get(recipient.getUUID()));
         if(geometryChanged) { ServerPlayNetworking.send(recipient,detail);GEOMETRY_SENT.put(recipient.getUUID(),detail); }
         var sent=SENT.computeIfAbsent(recipient.getUUID(),ignored->new HashMap<>());

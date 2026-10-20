@@ -15,6 +15,8 @@ public final class NexusMapDetailClientState {
     private static final AtomicBoolean REGISTERED = new AtomicBoolean();
     private static final Map<Integer, List<Integer>> BY_MAP_ID = new HashMap<>();
     private static final Map<Integer, RequestNexusMapDetailPayload> VIEWS = new HashMap<>();
+    private static final Map<Integer,Integer> EXTENTS = new HashMap<>();
+    public static int effectiveScale(int id,int nativeScale) { return Math.max(nativeScale,EXTENTS.getOrDefault(id,nativeScale)); }
     private static int ticks;
     private static long revision;
     private static final java.util.LinkedHashMap<Integer,Boolean> DETAIL_CACHE=new java.util.LinkedHashMap<>(64,0.75f,true);
@@ -65,10 +67,11 @@ public final class NexusMapDetailClientState {
         revision++;
         OWNERS.put(payload.mapId(),true);
         while(OWNERS.size()>16) {
-            int oldest=OWNERS.keySet().iterator().next();OWNERS.remove(oldest);BY_MAP_ID.remove(oldest);VIEWS.remove(oldest);
+            int oldest=OWNERS.keySet().iterator().next();OWNERS.remove(oldest);BY_MAP_ID.remove(oldest);VIEWS.remove(oldest);EXTENTS.remove(oldest);
         }
         for(int id:payload.ancestorMapIds()) DETAIL_CACHE.put(id,true);
         BY_MAP_ID.put(payload.mapId(), payload.ancestorMapIds());
+        if (payload.effectiveScale() >= 0) EXTENTS.put(payload.mapId(),payload.effectiveScale()); else EXTENTS.remove(payload.mapId());
         var mc=net.minecraft.client.Minecraft.getInstance();
         while(DETAIL_CACHE.size()>64) {
             int oldest=DETAIL_CACHE.keySet().iterator().next();DETAIL_CACHE.remove(oldest);
@@ -96,7 +99,7 @@ public final class NexusMapDetailClientState {
     }
 
     public static void clear() {
-        BY_MAP_ID.clear(); VIEWS.clear(); DETAIL_CACHE.clear(); OWNERS.clear();ticks=0;
+        BY_MAP_ID.clear(); EXTENTS.clear(); VIEWS.clear(); DETAIL_CACHE.clear(); OWNERS.clear();ticks=0;
     }
 
     /** Deterministic client GameTest hook; production values still arrive only from the validated server payload. */

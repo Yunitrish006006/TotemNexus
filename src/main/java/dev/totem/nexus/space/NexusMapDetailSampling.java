@@ -17,15 +17,20 @@ import java.util.*;
 /** Vanilla scale-zero colors with explicitly loaded-only, bounded sampling. */
 public final class NexusMapDetailSampling {
     private static final Map<Integer,Work> WORK = new HashMap<>();
+    private static final Map<UUID,Long> CAPACITY_NOTICES = new HashMap<>();
+    static final String CAPACITY_MESSAGE = "message.totem.space_unit.map_storage_full";
     private static int rotation;
     private NexusMapDetailSampling() { }
-    public static void clear() { WORK.clear(); rotation=0; }
+    public static void clear() { WORK.clear(); CAPACITY_NOTICES.clear(); rotation=0; }
     public static void tick(MinecraftServer server) {
         tick(server,server.getPlayerList().getPlayers(),server.overworld().getGameTime());
     }
     // Testable input boundary only: production authorization, admission and real deadlines stay here.
     static TickUsage tick(MinecraftServer server,List<ServerPlayer> players,long tick) {
         if (players.isEmpty()) { clear(); return new TickUsage(0,0,0,0); }
+        Set<UUID> online = new HashSet<>();
+        for (ServerPlayer player : players) online.add(player.getUUID());
+        CAPACITY_NOTICES.keySet().retainAll(online);
         Set<Integer> visited = new HashSet<>();
         int budget=2048;
         int[] blockReads={16384};
@@ -38,7 +43,8 @@ public final class NexusMapDetailSampling {
                 if (held==null || held.mapId()==null) continue;
                 var base=MapItem.getSavedData(held.mapId(),player.level());
                 if (base==null || base.locked || !base.dimension.equals(player.level().dimension())) continue;
-                var store=NexusMapDetailSavedData.get(player.level());
+                var store=NexusMapDetailSavedData.available(player.level()).orElse(null);
+                if(store==null || !store.acceptsMutation()) continue;
                 var binding=NexusMapBindingSavedData.loadCanonical(server.overworld().getDataStorage()).resolve(held.mapId(),base).orElse(null);
                 if (binding==null) continue;
                 boolean first=visited.add(held.mapId().id());
@@ -53,7 +59,7 @@ public final class NexusMapDetailSampling {
                     if(dx*dx+dz*dz<(radius/8)*(radius/8)) work.queue.offer(tx+dx,tz+dz,false,tick);
                 }
                 if(!first) continue; // Other holders still add their own legitimate nearby work.
-                budget-=advance(player.level(),held.mapId().id(),base,store,work.queue,tick,Math.min(512,budget),blockReads,deadline);
+                budget-=advance(player.level(),held.mapId().id(),base,store,work.queue,tick,Math.min(512,budget),blockReads,deadline,binding.extent(base), () -> notifyCapacity(player,tick));
             }
         }
         WORK.keySet().retainAll(visited); rotation=(rotation+1)%players.size();
@@ -65,6 +71,17 @@ public final class NexusMapDetailSampling {
     static int advance(ServerLevel level,int owner,net.minecraft.world.level.saveddata.maps.MapItemSavedData base,
                        NexusMapDetailSavedData store,dev.totem.nexus.map.MapRecordingQueue queue,
                        long tick,int attempts,int[] blockReads,long deadline) {
+        return advance(level,owner,base,store,queue,tick,attempts,blockReads,deadline,
+                new NexusMapExtent(base.centerX,base.centerZ,base.scale));
+    }
+    static int advance(ServerLevel level,int owner,net.minecraft.world.level.saveddata.maps.MapItemSavedData base,
+                       NexusMapDetailSavedData store,dev.totem.nexus.map.MapRecordingQueue queue,
+                       long tick,int attempts,int[] blockReads,long deadline,NexusMapExtent extent) {
+        return advance(level,owner,base,store,queue,tick,attempts,blockReads,deadline,extent, () -> {});
+    }
+    static int advance(ServerLevel level,int owner,net.minecraft.world.level.saveddata.maps.MapItemSavedData base,
+                       NexusMapDetailSavedData store,dev.totem.nexus.map.MapRecordingQueue queue,
+                       long tick,int attempts,int[] blockReads,long deadline,NexusMapExtent extent,Runnable capacity) {
         int used=0;
         Map<Long,Surface> surfaces=new HashMap<>(); // At most two columns per attempted sample; tick-local only.
         while(used<attempts && blockReads[0]>=2 && System.nanoTime()<deadline) {
@@ -73,16 +90,29 @@ public final class NexusMapDetailSampling {
             int x=candidate.x(),z=candidate.z();
             if(!candidate.refresh() && store.known(owner,x,z)) continue;
             var position=new BlockPos(x,0,z);
-            if(!FilledMapCoverage.isDrawn(base,base.dimension,position)) {
+            if (!NexusMapExtent.isSupportedCoordinate(x) || !NexusMapExtent.isSupportedCoordinate(z)
+                    || !extent.bounds().contains(x,z)) continue;
+            if(extent.scale() <= net.minecraft.world.level.saveddata.maps.MapItemSavedData.MAX_SCALE
+                    && !FilledMapCoverage.isDrawn(base,base.dimension,position)) {
                 if(FilledMapCoverage.covers(base.dimension,base.centerX,base.centerZ,base.scale,base.dimension,position))
                     queue.defer(candidate,tick);
                 continue;
             }
             Byte color=sample(level,x,z,blockReads,surfaces);
             if(color==null) queue.defer(candidate,tick,blockReads[0]==0);
-            else if((color&255)/4!=0) store.record(level,owner,x,z,color);
+            else if((color&255)/4!=0 && store.recordResult(level,owner,x,z,color) == NexusMapDetailSavedData.RecordResult.CAPACITY) {
+                queue.defer(candidate,tick);
+                capacity.run();
+                break;
+            }
         }
         return used;
+    }
+    static void notifyCapacity(ServerPlayer player,long tick) {
+        Long previous = CAPACITY_NOTICES.get(player.getUUID());
+        if (previous != null && tick >= previous && tick - previous < 600) return;
+        CAPACITY_NOTICES.put(player.getUUID(),tick);
+        player.sendSystemMessage(net.minecraft.network.chat.Component.translatable(CAPACITY_MESSAGE));
     }
     private static final class Work {
         final dev.totem.nexus.map.MapRecordingQueue queue=new dev.totem.nexus.map.MapRecordingQueue();
