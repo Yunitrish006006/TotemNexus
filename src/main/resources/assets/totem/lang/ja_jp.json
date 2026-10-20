@@ -438,6 +438,6 @@
   "message.totem.space_unit.map_destination_dimension": "%s · %s — 別のディメンション：クリックで選択",
   "message.totem.space_unit.map_destination_edge": "%s · %s — 画面外：クリックで選択",
   "message.totem.space_unit.map_destination_marker": "%s · %s — クリックで選択",
-  "book.totem.nexus_teleport_manual.page.25": "§l携帯テレポート§r\nコンパスとNexus地図は、転送陣の外でも現在地から転送できます。構築した転送陣内では安定性と素材ボーナスが加わります。地図の目的地には記録済みの地形が必要です。",
+  "book.totem.nexus_teleport_manual.page.25": "§l携帯テレポート§r\nコンパスとNexus地図は、転送陣の外でも現在地から転送できます。構築した転送陣内では安定性と素材ボーナスが加わります。地図では、記録済みの地形にある目的地、または現在の所持者が探索済みの目的地を選べます。利用権限も必要です。",
   "book.totem.nexus_teleport_manual.page.26": "§lバックパック回収§r\n到着地点はバックパックの近く（通常2〜4ブロック、最大6ブロック）です。自分の回収では弱体化、暗視、透明化、耐性を伴うフェージングが付与され、回収の3秒後に終了します。戦闘、別の転送、無効化、死亡、ログアウトで解除されます。"
 }
