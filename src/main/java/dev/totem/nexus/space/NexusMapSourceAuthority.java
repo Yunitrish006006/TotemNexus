@@ -29,14 +29,18 @@ public final class NexusMapSourceAuthority {
         if (mapId == null) return validateLodestone(player, sourceId);
         var storage = player.level().getServer().overworld().getDataStorage();
         var data = net.minecraft.world.item.MapItem.getSavedData(mapId, player.level());
-        var binding = NexusMapBindingSavedData.loadCanonical(storage).resolve(mapId, data).orElse(null);
-        if (binding == null) return Optional.empty();
-        var anchor = NexusSpaceUnitSavedData.loadCanonical(storage).get(binding.unitId()).orElse(null);
+        var records = storage.get(NexusMapRecordSavedData.TYPE);
+        var record = data == null || records == null ? null : records.resolve(mapId, data).orElse(null);
+        if (record == null) return Optional.empty();
         var friends = storage.computeIfAbsent(NexusFriendSavedData.TYPE);
-        if (!binding.matchesUnit(anchor) || !anchor.canView(player.getUUID(),
-                friends.areFriends(player.getUUID(), anchor.owner()))) return Optional.empty();
+        var discovery = NexusSpaceDiscoverySavedData.loadCanonical(storage);
         return validateLodestone(player, sourceId,
-                source -> FilledMapCoverage.isDrawn(data, source.dimension(), source.pos()));
+                source -> !NexusMapNodeProjection.select(
+                        player.getUUID(), record, data, java.util.List.of(source),
+                        (viewer, owner) -> friends.areFriends(viewer, owner),
+                        id -> discovery.hasDiscovered(player.getUUID(), id),
+                        candidate -> NexusMapRecordedCoverage.covers(
+                                player, mapId, candidate.dimension(), candidate.pos())).isEmpty());
     }
 
     private Optional<NexusSpaceUnitRecord> validateLodestone(

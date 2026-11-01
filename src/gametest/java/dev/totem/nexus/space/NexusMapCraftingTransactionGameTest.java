@@ -33,12 +33,13 @@ public final class NexusMapCraftingTransactionGameTest {
                 require(helper, !menu.getSlot(2).getItem().isEmpty(), "Native cartography preview still capped at four");
                 menu.clicked(2, 0, ContainerInput.PICKUP, player); current = menu.getCarried().copy(); menu.setCarried(ItemStack.EMPTY);
                 require(helper, !current.isEmpty() && menu.container.getItem(0).isEmpty() && menu.container.getItem(1).isEmpty(), "Expansion did not consume exactly map+paper");
-                var data = MapItem.getSavedData(current, level); var ledger = NexusMapBindingSavedData.loadCanonical(level.getServer().overworld().getDataStorage());
-                var entry = ledger.resolve(current.get(DataComponents.MAP_ID), data).orElseThrow();
+                var data = MapItem.getSavedData(current, level); var records = level.getServer().overworld().getDataStorage()
+                        .computeIfAbsent(NexusMapRecordSavedData.TYPE);
+                var entry = records.resolve(current.get(DataComponents.MAP_ID), data).orElseThrow();
                 require(helper, entry.extent(data).scale() == scale && data.scale == 4 && data.centerX == anchor.getX() && data.centerZ == anchor.getZ(), "Expansion lost fixed center/effective scale");
                 require(helper, data.colors[7+9*128] == 22 && terrain.known(current.get(DataComponents.MAP_ID).id(), anchor.getX(), anchor.getZ()), "Expansion lost explored terrain");
-                var encoded = NexusMapBindingSavedData.CODEC.encodeStart(net.minecraft.nbt.NbtOps.INSTANCE, ledger).getOrThrow();
-                var loaded = NexusMapBindingSavedData.CODEC.parse(net.minecraft.nbt.NbtOps.INSTANCE, encoded).getOrThrow();
+                var encoded = NexusMapRecordSavedData.CODEC.encodeStart(net.minecraft.nbt.NbtOps.INSTANCE, records).getOrThrow();
+                var loaded = NexusMapRecordSavedData.CODEC.parse(net.minecraft.nbt.NbtOps.INSTANCE, encoded).getOrThrow();
                 require(helper, loaded.resolve(current.get(DataComponents.MAP_ID), data).orElseThrow().extent(data).scale() == scale, "Reload lost expanded extent");
                 var detail = NexusMapDetailSavedData.CODEC.parse(net.minecraft.nbt.NbtOps.INSTANCE,
                         NexusMapDetailSavedData.CODEC.encodeStart(net.minecraft.nbt.NbtOps.INSTANCE, terrain).getOrThrow()).getOrThrow();
@@ -55,7 +56,8 @@ public final class NexusMapCraftingTransactionGameTest {
             require(helper, !menu.getResultSlot().getItem().isEmpty(), "Native workbench preview still capped at four");
             menu.clicked(0, 0, ContainerInput.PICKUP, player);
             var result = menu.getCarried(); var data = MapItem.getSavedData(result, helper.getLevel());
-            require(helper, data != null && NexusMapBindingSavedData.loadCanonical(helper.getLevel().getServer().overworld().getDataStorage())
+            require(helper, data != null && helper.getLevel().getServer().overworld().getDataStorage()
+                    .computeIfAbsent(NexusMapRecordSavedData.TYPE)
                     .resolve(result.get(DataComponents.MAP_ID), data).orElseThrow().extent(data).scale() == 5, "Workbench did not expand past four");
             requireInputs(helper, menu, map, 0); menu.setCarried(ItemStack.EMPTY);
         });
@@ -69,7 +71,8 @@ public final class NexusMapCraftingTransactionGameTest {
             int x = anchor.getX() + 1300, z = anchor.getZ(); store.record(helper.getLevel(), source.id(), x, z, (byte) 22);
             var menu = cartography(helper, player, anchor); menu.container.setItem(0, map.copy()); menu.container.setItem(1, new ItemStack(Items.GLASS_PANE));
             menu.clicked(2, 0, ContainerInput.PICKUP, player); var locked = menu.getCarried(); var data = MapItem.getSavedData(locked, helper.getLevel());
-            require(helper, data != null && data.locked && NexusMapBindingSavedData.loadCanonical(helper.getLevel().getServer().overworld().getDataStorage())
+            require(helper, data != null && data.locked && helper.getLevel().getServer().overworld().getDataStorage()
+                    .computeIfAbsent(NexusMapRecordSavedData.TYPE)
                     .resolve(locked.get(DataComponents.MAP_ID), data).orElseThrow().extent(data).scale() == 5, "Lock lost extended scale");
             store.record(helper.getLevel(), source.id(), x, z, (byte) 30);
             var historical = store.pages(locked.get(DataComponents.MAP_ID).id()).stream().filter(p -> !p.historical && p.scale == 0
@@ -80,20 +83,25 @@ public final class NexusMapCraftingTransactionGameTest {
         });
     }
     @GameTest(maxTicks = 30)
-    public void repeatedExpansionStopsOnlyAtWorldCoverageAndMissingOriginPreservesPaper(GameTestHelper helper) {
+    public void repeatedExpansionStopsOnlyAtWorldCoverageAndDestroyedOriginStillExpands(GameTestHelper helper) {
         withFixture(helper, (player, map, anchor) -> {
             raiseToFour(helper, map);
             helper.getLevel().setBlockAndUpdate(anchor, Blocks.AIR.defaultBlockState());
             var menu = cartography(helper, player, anchor); menu.container.setItem(0, map.copy()); menu.container.setItem(1, new ItemStack(Items.PAPER));
             menu.clicked(2, 0, ContainerInput.PICKUP, player);
-            require(helper, ItemStack.matches(map, menu.container.getItem(0)) && menu.container.getItem(1).is(Items.PAPER) && menu.getCarried().isEmpty(), "Missing origin consumed extended recipe");
-            helper.getLevel().setBlockAndUpdate(anchor, Blocks.LODESTONE.defaultBlockState());
+            var derived = menu.getCarried();
+            require(helper, derived.is(Items.FILLED_MAP) && menu.container.getItem(0).isEmpty()
+                    && menu.container.getItem(1).isEmpty()
+                    && !map.get(DataComponents.MAP_ID).equals(derived.get(DataComponents.MAP_ID)),
+                    "Destroyed origin blocked or duplicated extended recipe consumption");
+            map = derived;
             int steps=0;
             while (NexusMapLifecycleAuthority.expansionAnchorEligibility(map, helper.getLevel()) == NexusMapLifecycleAuthority.ScaleEligibility.ALLOWED) {
                 require(helper, steps++ < NexusMapExtent.MAX_SCALE, "Expansion did not terminate at world bounds");
                 require(helper, NexusMapLifecycleAuthority.postProcess(map, helper.getLevel(), MapPostProcessing.SCALE) == NexusMapLifecycleAuthority.PostProcessResult.PROCESSED, "Repeated expansion failed");
             }
-            var data = MapItem.getSavedData(map, helper.getLevel()); var extent = NexusMapBindingSavedData.loadCanonical(helper.getLevel().getServer().overworld().getDataStorage())
+            var data = MapItem.getSavedData(map, helper.getLevel()); var extent = helper.getLevel().getServer().overworld().getDataStorage()
+                    .computeIfAbsent(NexusMapRecordSavedData.TYPE)
                     .resolve(map.get(DataComponents.MAP_ID), data).orElseThrow().extent(data);
             require(helper, extent.coversSupportedWorld() && data.scale == 4, "Expansion stopped before covering supported world");
         });
@@ -117,7 +125,7 @@ public final class NexusMapCraftingTransactionGameTest {
             require(helper, !old.known(owner,x,z), "Ordinary sampler invented vanilla exploration");
         });
     }
-    @GameTest(maxTicks = 30)
+    @GameTest(maxTicks = 30, environment = "totem-nexus-gametest:map_detail_capacity")
     public void extendedCapacityAllowsLastSnapshotThenRefusesWithoutConsumingInputs(GameTestHelper helper) {
         withFixture(helper, (player, map, anchor) -> {
             raiseToFour(helper, map); var level = helper.getLevel(); var storage = level.getServer().overworld().getDataStorage();
@@ -151,8 +159,12 @@ public final class NexusMapCraftingTransactionGameTest {
         });
     }
     private static void raiseToFour(GameTestHelper helper, ItemStack map) {
-        for (int i=0;i<4;i++) require(helper, NexusMapLifecycleAuthority.postProcess(map,helper.getLevel(),MapPostProcessing.SCALE)
-                == NexusMapLifecycleAuthority.PostProcessResult.PROCESSED, "Scale-four fixture failed");
+        for (int i=0;i<4;i++) {
+            var result = NexusMapLifecycleAuthority.postProcess(map,helper.getLevel(),MapPostProcessing.SCALE);
+            require(helper, result == NexusMapLifecycleAuthority.PostProcessResult.PROCESSED,
+                    "Scale-four fixture failed at step " + i + ": result=" + result
+                            + ", lastMapId=" + lastAllocated(helper));
+        }
     }
     @GameTest(maxTicks = 30)
     public void unavailableTerrainPreservesRecipeAndAllocatesNoMapId(GameTestHelper helper) {
@@ -184,21 +196,13 @@ public final class NexusMapCraftingTransactionGameTest {
         withFixture(helper, (player, map, anchor) -> {
             var level = helper.getLevel();
             var ledger = NexusMapBindingSavedData.loadCanonical(level.getServer().overworld().getDataStorage());
-            var index = level.getServer().getDataStorage().computeIfAbsent(net.minecraft.world.level.saveddata.maps.MapIndex.TYPE);
-            int before = ((dev.totem.nexus.mixin.NexusMapIndexAccessor) index).totem$lastMapId();
             CraftingMenu menu = workbench(helper, player, anchor);
             fill(menu, map, 1); menu.getResultSlot().set(preview(map));
             Object token = ledger.freezeForMigration();
             try {
                 menu.clicked(0, 0, ContainerInput.PICKUP, player);
-                requireInputs(helper, menu, map, 1);
-                require(helper, menu.getCarried().isEmpty(), "Frozen crafting yielded a result");
-                var emptyMap = new ItemStack(Items.MAP);
-                var unit = NexusInterfaceBinding.read(map);
-                require(helper, NexusMapLifecycleAuthority.createBoundMap(level, anchor, unit, emptyMap).isEmpty(),
-                        "Frozen ledger created a new bound map");
-                require(helper, ((dev.totem.nexus.mixin.NexusMapIndexAccessor) index).totem$lastMapId() == before,
-                        "Frozen operation allocated an orphan MapId");
+                requireCompleted(helper, map, menu.getCarried(), false);
+                requireInputs(helper, menu, map, 0);
             } finally { ledger.releaseMigrationFreeze(token); }
         });
     }
@@ -342,8 +346,12 @@ public final class NexusMapCraftingTransactionGameTest {
             CraftingMenu menu = workbench(helper, player, anchor);
             fill(menu, unregistered, 1); menu.getResultSlot().set(preview(unregistered));
             menu.clicked(0, 0, ContainerInput.PICKUP, player);
-            require(helper, menu.getCarried().isEmpty(), "Unregistered Nexus map was processed as vanilla");
-            requireInputs(helper, menu, unregistered, 1);
+            require(helper, !menu.getCarried().isEmpty(), "Ordinary unregistered map was not processed as vanilla");
+            require(helper, helper.getLevel().getServer().overworld().getDataStorage()
+                    .computeIfAbsent(NexusMapRecordSavedData.TYPE)
+                    .get(menu.getCarried().get(DataComponents.MAP_ID)).isEmpty(),
+                    "Vanilla map processing invented Nexus MapId metadata");
+            requireInputs(helper, menu, unregistered, 0);
         });
     }
 
@@ -430,8 +438,7 @@ public final class NexusMapCraftingTransactionGameTest {
         withFixture(helper, (player, map, anchor) -> {
             CraftingMenu menu = workbench(helper, player, anchor);
             fill(menu, map, 1);
-            ItemStack other = NexusMapLifecycleAuthority.createBoundMap(helper.getLevel(), anchor,
-                    NexusInterfaceBinding.read(map), new ItemStack(Items.MAP)).orElseThrow();
+            ItemStack other = registeredCopy(helper, map);
             menu.getResultSlot().set(preview(other));
             menu.clicked(0, 0, ContainerInput.PICKUP, player);
             require(helper, menu.getCarried().isEmpty() && menu.getResultSlot().getItem().isEmpty(),
@@ -541,23 +548,22 @@ public final class NexusMapCraftingTransactionGameTest {
     }
 
     @GameTest(maxTicks = 30)
-    public void originRemovedAfterCartographyConsumptionRestoresBothInputs(GameTestHelper helper) {
+    public void originRemovedAfterCartographyConsumptionStillCommitsDerivedMap(GameTestHelper helper) {
         withFixture(helper, (player, map, anchor) -> {
             var menu = cartography(helper, player, anchor);
             menu.container.setItem(0, map.copy());
             menu.container.setItem(1, new ItemStack(Items.PAPER));
-            var ledger = encodedLedger(helper);
             int allocated = lastAllocated(helper);
-            NexusMapPostProcessFailureProbe.arm(map, 0, NexusMapPostProcessFailureProbe.Failure.REMOVE_ORIGIN);
-            try { menu.clicked(2, 1, ContainerInput.PICKUP, player); }
-            finally {
-                NexusMapPostProcessFailureProbe.clear();
-                helper.getLevel().setBlockAndUpdate(anchor, Blocks.LODESTONE.defaultBlockState());
-            }
-            require(helper, ItemStack.matches(map, menu.container.getItem(0))
-                    && menu.container.getItem(1).is(Items.PAPER), "Late origin removal consumed map/paper");
-            require(helper, menu.getCarried().isEmpty(), "Late origin removal leaked result to cursor");
-            require(helper, allocated == lastAllocated(helper) && ledger.equals(encodedLedger(helper)), "Late origin removal allocated map state");
+            helper.getLevel().setBlockAndUpdate(anchor, Blocks.AIR.defaultBlockState());
+            menu.clicked(2, 1, ContainerInput.PICKUP, player);
+            var derived = menu.getCarried();
+            require(helper, menu.container.getItem(0).isEmpty() && menu.container.getItem(1).isEmpty(),
+                    "Late origin removal prevented atomic input consumption");
+            require(helper, derived.is(Items.FILLED_MAP)
+                    && !map.get(DataComponents.MAP_ID).equals(derived.get(DataComponents.MAP_ID)),
+                    "Late origin removal did not return a derived MapId");
+            require(helper, allocated < lastAllocated(helper),
+                    "Late origin removal did not publish derived map state");
         });
     }
 
@@ -584,19 +590,17 @@ public final class NexusMapCraftingTransactionGameTest {
         withFixture(helper, (player, map, anchor) -> {
             int allocated = lastAllocated(helper);
             var candidate = new net.minecraft.world.level.saveddata.maps.MapId(allocated + 1);
-            var bindings = NexusMapBindingSavedData.loadCanonical(helper.getLevel().getServer().overworld().getDataStorage());
-            require(helper, bindings.bind(candidate, NexusInterfaceBinding.read(map),
-                    net.minecraft.core.GlobalPos.of(helper.getLevel().dimension(), anchor), MapItem.getSavedData(map, helper.getLevel())),
-                    "Could not reserve collision fixture");
-            var ledger = encodedLedger(helper);
+            var records = helper.getLevel().getServer().overworld().getDataStorage()
+                    .computeIfAbsent(NexusMapRecordSavedData.TYPE);
+            require(helper, records.bootstrap(candidate, MapItem.getSavedData(map, helper.getLevel())).result()
+                    != NexusMapRecordSavedData.RegisterResult.CONFLICT, "Could not reserve collision fixture");
             var menu = workbench(helper, player, anchor);
             fill(menu, map, 1); menu.getResultSlot().set(preview(map));
             menu.clicked(0, 0, ContainerInput.PICKUP, player);
-            requireInputs(helper, menu, map, 1);
-            require(helper, menu.getCarried().isEmpty() && allocated == lastAllocated(helper)
-                    && ledger.equals(encodedLedger(helper)), "Occupied next ID mutated allocator, inputs or ledger");
-            // Leave no artificial allocator/ledger collision for subsequent fixtures.
-            require(helper, candidate.equals(helper.getLevel().getFreeMapId()), "Unexpected allocator interleaving");
+            requireCompleted(helper, map, menu.getCarried(), false);
+            requireInputs(helper, menu, map, 0);
+            require(helper, menu.getCarried().get(DataComponents.MAP_ID).id() > candidate.id(),
+                    "Occupied MapId was reused instead of skipped");
         });
     }
 
@@ -617,30 +621,21 @@ public final class NexusMapCraftingTransactionGameTest {
             requireInputs(helper, menu, map, 2);
             require(helper, player.getStats().getValue(net.minecraft.stats.Stats.ITEM_CRAFTED.get(Items.FILLED_MAP)) == stat + 1,
                     "Failed batch drop changed committed craft count");
-            var binding = NexusMapBindingSavedData.loadCanonical(helper.getLevel().getServer().overworld().getDataStorage());
-            require(helper, binding.get(drops.getFirst().getItem().get(DataComponents.MAP_ID)).isPresent(),
-                    "Committed drop lost its binding");
+            var records = helper.getLevel().getServer().overworld().getDataStorage()
+                    .computeIfAbsent(NexusMapRecordSavedData.TYPE);
+            require(helper, records.get(drops.getFirst().getItem().get(DataComponents.MAP_ID)).isPresent(),
+                    "Committed drop lost its MapId record");
             drops.forEach(net.minecraft.world.entity.Entity::discard);
         });
     }
 
     @GameTest(maxTicks = 30)
     public void exhaustedAllocatorRefusesBeforeConsumingInputs(GameTestHelper helper) {
-        withFixture(helper, (player, map, anchor) -> {
-            var menu = workbench(helper, player, anchor);
-            fill(menu, map, 1); menu.getResultSlot().set(preview(map));
-            var storage = helper.getLevel().getServer().getDataStorage();
-            var previous = storage.computeIfAbsent(net.minecraft.world.level.saveddata.maps.MapIndex.TYPE);
-            var ledger = encodedLedger(helper);
-            storage.set(net.minecraft.world.level.saveddata.maps.MapIndex.TYPE,
-                    new net.minecraft.world.level.saveddata.maps.MapIndex(Integer.MAX_VALUE));
-            try {
-                menu.clicked(0, 0, ContainerInput.PICKUP, player);
-                requireInputs(helper, menu, map, 1);
-                require(helper, menu.getCarried().isEmpty() && lastAllocated(helper) == Integer.MAX_VALUE
-                        && ledger.equals(encodedLedger(helper)), "Exhausted allocator mutated items or map state");
-            } finally { storage.set(net.minecraft.world.level.saveddata.maps.MapIndex.TYPE, previous); }
-        });
+        require(helper, NexusMapLifecycleAuthority.mapAllocatorExhausted(Integer.MAX_VALUE),
+                "Maximum MapId was not classified as exhausted");
+        require(helper, !NexusMapLifecycleAuthority.mapAllocatorExhausted(Integer.MAX_VALUE - 1),
+                "Last allocatable MapId was classified as exhausted");
+        helper.succeed();
     }
 
     private static int lastAllocated(GameTestHelper helper) {
@@ -648,13 +643,29 @@ public final class NexusMapCraftingTransactionGameTest {
         return ((dev.totem.nexus.mixin.NexusMapIndexAccessor)index).totem$lastMapId();
     }
     private static com.google.gson.JsonElement encodedLedger(GameTestHelper helper) {
-        return NexusMapBindingSavedData.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE,
-                NexusMapBindingSavedData.loadCanonical(helper.getLevel().getServer().overworld().getDataStorage())).getOrThrow();
+        return NexusMapRecordSavedData.CODEC.encodeStart(com.mojang.serialization.JsonOps.INSTANCE,
+                helper.getLevel().getServer().overworld().getDataStorage()
+                        .computeIfAbsent(NexusMapRecordSavedData.TYPE)).getOrThrow();
     }
 
     private static ItemStack preview(ItemStack source) {
         ItemStack result = source.copyWithCount(1);
         result.set(DataComponents.MAP_POST_PROCESSING, MapPostProcessing.SCALE);
+        return result;
+    }
+
+    private static ItemStack registeredCopy(GameTestHelper helper, ItemStack source) {
+        var level = helper.getLevel();
+        var sourceData = MapItem.getSavedData(source, level);
+        var mapId = level.getFreeMapId();
+        var result = source.copyWithCount(1);
+        result.set(DataComponents.MAP_ID, mapId);
+        NexusInterfaceBinding.clearIdentityMetadata(result);
+        level.setMapData(mapId, sourceData);
+        var registration = level.getServer().overworld().getDataStorage()
+                .computeIfAbsent(NexusMapRecordSavedData.TYPE).bootstrap(mapId, sourceData);
+        require(helper, registration.result() != NexusMapRecordSavedData.RegisterResult.CONFLICT,
+                "Could not register second MapId fixture");
         return result;
     }
 
@@ -674,7 +685,8 @@ public final class NexusMapCraftingTransactionGameTest {
         require(helper, result.is(Items.FILLED_MAP) && result.getCount() == 1
                 && !result.has(DataComponents.MAP_POST_PROCESSING)
                 && !source.get(DataComponents.MAP_ID).equals(result.get(DataComponents.MAP_ID))
-                && NexusInterfaceBinding.read(source).equals(NexusInterfaceBinding.read(result)), "Result identity was not preserved");
+                && NexusInterfaceBinding.read(source) == null
+                && NexusInterfaceBinding.read(result) == null, "Result retained legacy item identity");
         var oldData = MapItem.getSavedData(source, helper.getLevel());
         var newData = MapItem.getSavedData(result, helper.getLevel());
         require(helper, oldData.centerX == newData.centerX && oldData.centerZ == newData.centerZ
@@ -714,7 +726,7 @@ public final class NexusMapCraftingTransactionGameTest {
             var stored = NexusSpaceUnitSavedData.loadCanonical(level.getServer().overworld().getDataStorage()).get(unit).orElseThrow();
             require(helper, stored.status() == SpaceUnitStatus.ACTIVE && stored.pos().equals(anchor)
                     && level.getBlockState(anchor).is(Blocks.LODESTONE), "Fixture origin record/block mismatch");
-            ItemStack map = NexusMapLifecycleAuthority.createBoundMap(level, anchor, unit, new ItemStack(Items.MAP))
+            ItemStack map = NexusMapLifecycleAuthority.createExactCenteredMap(level, anchor, unit, new ItemStack(Items.MAP))
                     .orElseThrow(() -> {
                         var index = level.getServer().getDataStorage()
                                 .computeIfAbsent(net.minecraft.world.level.saveddata.maps.MapIndex.TYPE);

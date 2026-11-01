@@ -54,7 +54,7 @@ public final class NexusMapOverviewAuthority {
             stack=ItemStack.EMPTY;
             for(var hand:net.minecraft.world.InteractionHand.values()) {
                 var candidate=player.getItemInHand(hand);
-                if(id.equals(candidate.get(DataComponents.MAP_ID)) && held.boundUnitId().equals(NexusInterfaceBinding.read(candidate))) {stack=candidate;break;}
+                if(id.equals(candidate.get(DataComponents.MAP_ID))) {stack=candidate;break;}
             }
         }else{
             var entity=player.level().getEntity(request.frameId());
@@ -63,9 +63,10 @@ public final class NexusMapOverviewAuthority {
             if(!id.equals(stack.get(DataComponents.MAP_ID)))return null;
         }
         var base=MapItem.getSavedData(id,player.level());if(base==null)return null;
-        var binding=NexusMapBindingSavedData.loadCanonical(player.level().getServer().overworld().getDataStorage()).resolve(id,base).orElse(null);
-        if(binding==null||!binding.unitId().equals(NexusInterfaceBinding.read(stack)))return null;
-        return new Access(base,binding,binding.extent(base));
+        var records=player.level().getServer().overworld().getDataStorage().get(NexusMapRecordSavedData.TYPE);
+        var record=records==null?null:records.resolve(id,base).orElse(null);
+        if(record==null)return null;
+        return new Access(base,record,record.extent(base));
     }
     private static void tick(MinecraftServer server){
         if(JOBS.isEmpty())return;
@@ -82,14 +83,14 @@ public final class NexusMapOverviewAuthority {
             if(job.valid(player)&&ServerPlayNetworking.canSend(player,MapOverviewPayload.TYPE))ServerPlayNetworking.send(player,job.payload());
         }else JOBS.put(entry.getKey(),job);
     }
-    private record Access(MapItemSavedData base,NexusMapBindingSavedData.Entry binding,NexusMapExtent extent){}
+    private record Access(MapItemSavedData base,NexusMapRecordSavedData.Entry record,NexusMapExtent extent){}
     static final class Job {
         final RequestMapOverviewPayload request;final Access source;final List<NexusMapDetailSavedData.Page> pages;
         final MapOverviewBuilder builder;int next;boolean baseStarted;
         Job(RequestMapOverviewPayload request,Access source,List<NexusMapDetailSavedData.Page> pages){
             this.request=request;this.source=source;this.pages=pages;builder=new MapOverviewBuilder(source.extent);
         }
-        boolean valid(ServerPlayer player){var current=access(player,request);return current!=null&&current.base==source.base&&current.binding.equals(source.binding);}
+        boolean valid(ServerPlayer player){var current=access(player,request);return current!=null&&current.base==source.base&&current.record.equals(source.record);}
         int advance(int budget){
             if(builder.layerComplete()){
                 if(next<pages.size()){

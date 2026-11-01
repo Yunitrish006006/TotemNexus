@@ -26,6 +26,61 @@ import java.util.stream.Stream;
 public final class NexusMapSourceCaptureGameTest {
     private static final HolderLookup.Provider REGISTRIES = HolderLookup.Provider.create(Stream.empty());
 
+    @GameTest(maxTicks = 300, environment = "totem-nexus-gametest:full_inventory_freeze")
+    public void fullInventoryHoldPrecedesSaveBlocksEveryNativeMapAndResumesAfterLease(GameTestHelper helper) {
+        try {
+            var f = new Fixture(helper, true, true, true, false, true);
+            helper.runBeforeTestEnd(() -> guarded(f, f::close));
+            check(!f.map.updateColor(0, 0, (byte) 8)
+                            && !f.unrelatedMap.updateColor(0, 0, (byte) 9),
+                    "Full inventory hold did not precede migration readiness");
+            helper.onEachTick(() -> guarded(f, () -> {
+                if (f.closed || !f.response.isDone()) return;
+                if (!f.ready) {
+                    f.lease = f.response.join(); f.ready = true;
+                    var capture = f.lease.captureFrozenInventorySource(f.id);
+                    f.tick = () -> {
+                        if (!capture.step(8)) return;
+                        check(capture.frozenSnapshot().base().colors().get(0) == 4,
+                                "Full-inventory T0 changed during capture");
+                        capture.close();
+                        check(!f.map.updateColor(0, 0, (byte) 10)
+                                        && !f.unrelatedMap.updateColor(0, 0, (byte) 11),
+                                "Child close released the full inventory hold");
+                        f.lease.close();
+                        check(f.map.updateColor(0, 0, (byte) 12)
+                                        && f.unrelatedMap.updateColor(0, 0, (byte) 13),
+                                "Lease close did not resume full inventory recording");
+                        done(helper, f);
+                    };
+                    return;
+                }
+                if (f.tick != null) f.tick.run();
+            }));
+        } catch (Exception failure) {
+            throw new IllegalStateException("Full-inventory freeze fixture failed", failure);
+        }
+    }
+
+    @GameTest(maxTicks = 300, environment = "totem-nexus-gametest:full_inventory_freeze_shutdown")
+    public void fullInventoryHoldIsReleasedWhenStorageClosesBeforeReadiness(GameTestHelper helper) {
+        try {
+            var f = new Fixture(helper, true, true, true, false, true);
+            helper.runBeforeTestEnd(() -> guarded(f, f::close));
+            check(!f.map.updateColor(0, 0, (byte) 8)
+                            && !f.unrelatedMap.updateColor(0, 0, (byte) 9),
+                    "Pre-readiness full inventory hold was absent");
+            f.storage.close(); f.storageClosed = true;
+            check(f.map.updateColor(0, 0, (byte) 10)
+                            && f.unrelatedMap.updateColor(0, 0, (byte) 11),
+                    "Storage close leaked the full inventory hold");
+            check(f.response.isCompletedExceptionally(), "Storage close delivered a full-inventory lease");
+            done(helper, f);
+        } catch (Exception failure) {
+            throw new IllegalStateException("Full-inventory shutdown fixture failed", failure);
+        }
+    }
+
     @GameTest(maxTicks = 300)
     public void frozenCaptureBlocksNativeAndDetailRecordingThenResumes(GameTestHelper helper) {
         run(helper, true, f -> {
@@ -48,6 +103,7 @@ public final class NexusMapSourceCaptureGameTest {
     @GameTest(maxTicks = 300)
     public void normalCaptureCannotClaimFrozenTerrain(GameTestHelper helper) {
         run(helper, true, f -> {
+            refuses(() -> f.lease.captureFrozenInventorySource(f.id));
             var capture = complete(f); refuses(capture::frozenSnapshot);
             check(f.map.updateColor(0, 0, (byte) 8), "Normal capture blocked native recording");
             check(capture.result().base().colors().get(0) == 4, "Normal base was not isolated"); done(helper, f);
@@ -1071,6 +1127,7 @@ public final class NexusMapSourceCaptureGameTest {
         final NexusMapBindingSavedData ledger = new NexusMapBindingSavedData();
         final NexusMapDetailSavedData detail = new NexusMapDetailSavedData();
         final MapItemSavedData map = MapItemSavedData.createFresh(0, 0, (byte) 0, false, false, Level.OVERWORLD);
+        final MapItemSavedData unrelatedMap;
         final MapId id;
         final MapId extraId;
         final NexusMapBindingSavedData.SparseImportIntent intent;
@@ -1081,10 +1138,19 @@ public final class NexusMapSourceCaptureGameTest {
         Action tick;
         boolean ready, storageClosed, closed;
         Fixture(GameTestHelper helper, boolean ticket, boolean cacheNative, boolean cacheDetail, boolean extraBinding) throws Exception {
+            this(helper, ticket, cacheNative, cacheDetail, extraBinding, false);
+        }
+        Fixture(GameTestHelper helper, boolean ticket, boolean cacheNative, boolean cacheDetail,
+                boolean extraBinding, boolean fullInventory) throws Exception {
             directory = Files.createTempDirectory("nexus-source-capture-");
             storage = new SavedDataStorage(directory, DataFixers.getDataFixer(), REGISTRIES);
             var level = helper.getLevel(); id = level.getFreeMapId(); map.setColor(0, 0, (byte) 4);
             if (cacheNative) level.getServer().getDataStorage().set(MapItemSavedData.type(id), map);
+            if (fullInventory) {
+                var unrelatedId = level.getFreeMapId();
+                unrelatedMap = MapItemSavedData.createFresh(64, 64, (byte) 0, false, false, Level.OVERWORLD);
+                level.getServer().getDataStorage().set(MapItemSavedData.type(unrelatedId), unrelatedMap);
+            } else unrelatedMap = null;
             var unit = UUID.randomUUID();
             check(ledger.bind(id, unit, GlobalPos.of(Level.OVERWORLD, BlockPos.ZERO), map), "Fixture binding failed");
             intent = ticket ? ledger.prepareSparseImport(id, unit, map).orElseThrow() : null;
@@ -1096,7 +1162,8 @@ public final class NexusMapSourceCaptureGameTest {
             }
             storage.set(NexusMapBindingSavedData.TYPE, ledger);
             if (cacheDetail) storage.set(NexusMapDetailSavedData.TYPE, detail);
-            owner = NexusMapMigrationOwner.forStorage(storage, level.getServer()); response = owner.begin();
+            owner = NexusMapMigrationOwner.forStorage(storage, level.getServer());
+            response = fullInventory ? owner.beginFullInventory() : owner.begin();
         }
         @Override public void close() throws Exception {
             if (closed) return;

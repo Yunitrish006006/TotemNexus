@@ -40,8 +40,9 @@ public final class NexusTeleportResolver {
         NexusFriendSavedData friends = server.overworld().getDataStorage().computeIfAbsent(NexusFriendSavedData.TYPE);
         Optional<NexusSpaceUnitRecord> unit = units.get(targetId);
         if (unit.isPresent()) return unit.filter(value -> value.status() == SpaceUnitStatus.ACTIVE
-                        && value.canView(player.getUUID(), friends.areFriends(player.getUUID(), value.owner())) && (context == null ? discovery.hasDiscovered(player.getUUID(), value.id())
-                        : NexusInterfaceAccess.allows(player, context, value)))
+                        && value.canView(player.getUUID(), friends.areFriends(player.getUUID(), value.owner()))
+                        && (context == null ? discovery.hasDiscovered(player.getUUID(), value.id())
+                        : NexusMapTeleportCommitAuthority.allowsDestination(player, context, value)))
                 .map(value -> value.type() == SpaceUnitType.DEATH ? NexusDeathTarget.latest(server, value) : value)
                 .map(value -> new NexusTeleportQuoteCalculator.Target(value.id(), value.type(), value.dimension(), value.pos(), value.structure().resonance(), value.structure().tier(), value.structure().wear(), value.isLodestoneAnchor(), value.owner(), value.structure().amethystCatalystBlocks(), value.structure().materialAttributes()));
         ServerPlayer friend = server.getPlayerList().getPlayer(targetId);

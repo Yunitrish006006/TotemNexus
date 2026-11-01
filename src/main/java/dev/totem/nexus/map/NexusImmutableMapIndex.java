@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
@@ -161,6 +162,45 @@ public final class NexusImmutableMapIndex implements AutoCloseable {
         byte[] colors = new byte[PIXELS], coverage = new byte[COVERAGE_BYTES];
         data.get(colors); data.get(coverage);
         return new Page(revision, colors, coverage);
+    }
+    /** Canonical leaf identity used by durable import manifests. */
+    static String manifestPageHash(Tile tile, Page page) {
+        return contentHash(encodePage(java.util.Objects.requireNonNull(tile), java.util.Objects.requireNonNull(page)));
+    }
+    /** Pure final-root derivation; this neither writes blocks nor authorizes publication. */
+    static Root manifestRoot(Map<Tile, String> pages) {
+        java.util.Objects.requireNonNull(pages);
+        if (pages.isEmpty()) return Root.empty();
+        var trie = new ManifestNode();
+        for (var entry : pages.entrySet()) {
+            Tile tile = java.util.Objects.requireNonNull(entry.getKey());
+            String hash = java.util.Objects.requireNonNull(entry.getValue());
+            if (!hash.matches("[0-9a-f]{64}") || hash.equals(EMPTY_HASH))
+                throw new IllegalArgumentException("Invalid manifest page hash");
+            ManifestNode node = trie;
+            for (int depth = 0; depth < DEPTH; depth++) {
+                int quadrant = tile.quadrant(depth);
+                if (node.children[quadrant] == null) node.children[quadrant] = new ManifestNode();
+                node = node.children[quadrant];
+            }
+            if (node.leaf != null) throw new IllegalArgumentException("Duplicate manifest tile");
+            node.leaf = hash;
+        }
+        return new Root(manifestNodeHash(trie, 0));
+    }
+    private static String manifestNodeHash(ManifestNode node, int depth) {
+        if (depth == DEPTH) {
+            if (node.leaf == null) throw new IllegalArgumentException("Incomplete manifest trie");
+            return node.leaf;
+        }
+        String[] children = new String[4];
+        for (int i = 0; i < children.length; i++) children[i] = node.children[i] == null
+                ? EMPTY_HASH : manifestNodeHash(node.children[i], depth + 1);
+        return contentHash(encodeNode(depth, children));
+    }
+    private static final class ManifestNode {
+        final ManifestNode[] children = new ManifestNode[4];
+        String leaf;
     }
     private static CompletableFuture<UpdateResult> updateFailure(Status status) {
         return CompletableFuture.completedFuture(new UpdateResult(status, Optional.empty()));

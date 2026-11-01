@@ -210,3 +210,30 @@ publication marker was created during this preparation.
   `b0b57bc98a98140a1c12a660a33952ea61167278` records the matching SHA-512.
   Nexus build and publish workflows now assert Core 0.7.16, its new dependency
   range and that exact verified Core release-marker commit.
+
+### 2026-10-30 dedicated three-JVM and Production Runtime validation
+
+Executed locally with Minecraft 26.3, Java 25, Fabric Loader 0.19.5, Fabric
+API 0.160.5+26.3, TotemCore 0.7.23, TotemObserver 0.1.4 and TotemNexus 0.3.30.
+This section records validation-only working-tree evidence; no commit, push or
+release was performed.
+
+- Extended the existing Nexus access E2E fixture rather than introducing a
+  simulated transport: one dedicated server JVM, the target client JVM and the
+  Observer client JVM run concurrently over Fabric networking.
+- `.github/scripts/run-access-e2e.sh` passed with markers proving the target's
+  real enable request, server-authorized visualization session and response,
+  target render activation, absent Observer overlay, explicit disable cleanup,
+  successful re-enable and server cleanup after target disconnect. The harness
+  now uses a fresh generated world and explicitly disables stale whitelist
+  state so interrupted prior runs cannot contaminate the proof.
+- Manually inspected `nexus-array-visualization-target.png`: the cyan merged
+  outline is visible around the loaded lodestone from the target's real world
+  renderer, without another player obstructing the view. SHA-256:
+  `a198b0b47d0ac7ccf30e1fdd1dd88e12e73a657fc97b58a946c16ff2aa5143a1`.
+- `../TotemCore/gradlew -PtotemCoreJar=../TotemCore/build/libs/totem-core-0.7.23.jar
+  -PnexusTestFocus=array-visualization runProductionClientGameTest --no-daemon
+  --console=plain` passed against packaged Nexus/Core/Fabric JARs. The focused
+  production fixture exercised cached render activation, semantic styles,
+  status invalidation and cleanup, then rendered both counted-array and
+  build-site production scenes.

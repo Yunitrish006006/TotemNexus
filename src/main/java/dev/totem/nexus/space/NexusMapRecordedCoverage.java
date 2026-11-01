@@ -14,10 +14,12 @@ final class NexusMapRecordedCoverage {
     static boolean covers(ServerPlayer player, MapId mapId, ResourceKey<Level> dimension, BlockPos pos) {
         if (player == null || mapId == null || dimension == null || pos == null) return false;
         var data = MapItem.getSavedData(mapId, player.level());
+        if (data == null) return false;
         var storage = player.level().getServer().overworld().getDataStorage();
-        var binding = NexusMapBindingSavedData.loadCanonical(storage).resolve(mapId, data).orElse(null);
-        if (binding == null || !data.dimension.equals(dimension)
-                || !binding.extent(data).samplingBounds().contains(pos.getX(), pos.getZ())) return false;
+        NexusMapRecordSavedData records = storage.get(NexusMapRecordSavedData.TYPE);
+        NexusMapRecordSavedData.Entry record = records == null ? null : records.resolve(mapId, data).orElse(null);
+        if (record == null || !record.dimension().equals(dimension)
+                || !record.extent(data).samplingBounds().contains(pos.getX(), pos.getZ())) return false;
         // Keep the existing painted vanilla footprint; extended terrain needs the exact fine sample.
         if (FilledMapCoverage.isDrawn(data, dimension, pos)) return true;
         return NexusMapDetailSavedData.available(storage)

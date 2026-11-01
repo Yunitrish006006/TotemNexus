@@ -578,7 +578,8 @@ public final class NexusDistributedSpawnGameTest {
     public void teleportExecutionSessionCancelsMovementAndCompletesOnlyAfterPreparation(GameTestHelper helper) {
         UUID player = UUID.fromString("00000000-0000-0000-0000-000000000121");
         var session = new NexusTeleportExecutionSession(player, "lodestone", UUID.randomUUID(), UUID.randomUUID(), SpaceUnitType.LODESTONE,
-                helper.getLevel().dimension(), new BlockPos(0, 64, 0), TeleportInterfaceType.COMPASS, false, false, 2);
+                helper.getLevel().dimension(), new BlockPos(0, 64, 0), TeleportInterfaceType.COMPASS,
+                net.minecraft.world.InteractionHand.MAIN_HAND, null, false, false, 2);
         var moved = new NexusTeleportExecutionSession.PlayerState(true, false, helper.getLevel().dimension(), new BlockPos(5, 64, 0));
         NexusTeleportSessionStore store = new NexusTeleportSessionStore(); store.start(session);
         if (!session.cancellationReason(moved).equals("message.totem.space_unit.teleport_cancelled.moved")

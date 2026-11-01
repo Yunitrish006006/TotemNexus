@@ -37,6 +37,29 @@ public final class NexusInterfaceBinding {
         return binding == null ? -1 : binding.dataVersion();
     }
 
+    /** Returns whether the item carries any canonical or legacy Nexus identity fields. */
+    static boolean hasIdentityMetadata(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        return tag.contains(UNIT_ID_KEY) || tag.contains(DATA_VERSION_KEY)
+                || tag.contains(LEGACY_DEADRECALL_UNIT_ID_KEY) || tag.contains(LEGACY_DEADRECALL_DATA_VERSION_KEY)
+                || tag.contains(LEGACY_UNIT_ID_KEY) || tag.contains(LEGACY_DATA_VERSION_KEY);
+    }
+
+    /** Removes only Nexus identity fields while preserving unrelated custom item data. */
+    static void clearIdentityMetadata(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return;
+        CompoundTag tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        tag.remove(UNIT_ID_KEY);
+        tag.remove(DATA_VERSION_KEY);
+        tag.remove(LEGACY_DEADRECALL_UNIT_ID_KEY);
+        tag.remove(LEGACY_DEADRECALL_DATA_VERSION_KEY);
+        tag.remove(LEGACY_UNIT_ID_KEY);
+        tag.remove(LEGACY_DATA_VERSION_KEY);
+        if (tag.isEmpty()) stack.remove(DataComponents.CUSTOM_DATA);
+        else stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+    }
+
     public static boolean write(ItemStack stack, ServerLevel level, net.minecraft.core.BlockPos pos, UUID unitId) {
         if (!isSupportedInterface(stack) || level == null || pos == null || unitId == null) return false;
         if (stack.is(Items.COMPASS)) {

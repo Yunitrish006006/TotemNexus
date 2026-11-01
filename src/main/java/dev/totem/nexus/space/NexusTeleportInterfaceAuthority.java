@@ -52,7 +52,21 @@ public final class NexusTeleportInterfaceAuthority {
 
     /** Opens a player-anchor session using the server player's own identity only. */
     public Optional<TeleportInterfaceContext> establishPlayerAnchor(ServerPlayer player, InteractionHand hand) {
-        return player == null ? Optional.empty() : establish(player, hand, "player", player.getUUID());
+        if (player == null || hand == null) return Optional.empty();
+        Optional<NexusHeldMapResolver.ResolvedMap> heldMap = NexusHeldMapResolver.resolve(player, hand);
+        if (heldMap.isPresent()) {
+            long gameTime = player.level().getServer().overworld().getGameTime();
+            var storage = player.level().getServer().overworld().getDataStorage();
+            return NexusMapOpenPreflight.establish(
+                    player.getUUID(),
+                    hand,
+                    gameTime,
+                    heldMap.get(),
+                    () -> storage.computeIfAbsent(NexusMapRecordSavedData.TYPE),
+                    sessions,
+                    CONTEXT_TICKS);
+        }
+        return establish(player, hand, "player", player.getUUID());
     }
 
     public Optional<TeleportInterfaceContext> require(ServerPlayer player, String sourceType, UUID sourceId) {

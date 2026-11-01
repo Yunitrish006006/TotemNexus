@@ -57,7 +57,8 @@ public final class NexusInterfaceLifecycleGameTest {
             putLodestone(level, id, player.getUUID(), destination, SpaceUnitVisibility.PRIVATE, Set.of());
             discovery.markDiscovered(player.getUUID(), id);
         }
-        var map = NexusMapLifecycleAuthority.createBoundMap(level, anchor, sourceId, new ItemStack(Items.MAP)).orElseThrow();
+        var map = NexusMapLifecycleAuthority.createExactCenteredMap(
+                level, anchor, sourceId, new ItemStack(Items.MAP)).orElseThrow();
         player.setItemInHand(InteractionHand.MAIN_HAND, map);
         player.setPos(Vec3.atCenterOf(anchor.above()));
         try {
@@ -121,7 +122,8 @@ public final class NexusInterfaceLifecycleGameTest {
         player.getAbilities().instabuild = true;
         ItemStack stack;
         if (useMap) {
-            stack = NexusMapLifecycleAuthority.createBoundMap(level, source, id, new ItemStack(Items.MAP)).orElseThrow();
+            stack = NexusMapLifecycleAuthority.createExactCenteredMap(
+                    level, source, id, new ItemStack(Items.MAP)).orElseThrow();
             for (int x = target.getX() - 48; x <= target.getX() + 48; x++)
                 for (int z = target.getZ() - 48; z <= target.getZ() + 48; z++) {
                     var floor = new BlockPos(x, target.getY(), z);
@@ -139,10 +141,13 @@ public final class NexusInterfaceLifecycleGameTest {
         }
         player.setItemInHand(InteractionHand.MAIN_HAND, stack);
         Vec3 original = player.position();
-        NexusSpaceUnitAuthority.establishInterfaceContext(player, InteractionHand.MAIN_HAND, "player", player.getUUID()).orElseThrow();
+        NexusSpaceUnitAuthority.establishInterfaceContext(player, InteractionHand.MAIN_HAND, "player", player.getUUID())
+                .orElseThrow(() -> helper.assertionException("Friend fixture could not establish held interface context"));
         if (useMap) {
-            var entry = NexusSpaceUnitAuthority.currentMapPayload(player).orElseThrow().entries().stream()
-                    .filter(value -> value.id().equals(friend.getUUID())).findFirst().orElseThrow();
+            var payload = NexusSpaceUnitAuthority.currentMapPayload(player)
+                    .orElseThrow(() -> helper.assertionException("Friend fixture could not project current MapId payload"));
+            var entry = payload.entries().stream().filter(value -> value.id().equals(friend.getUUID())).findFirst()
+                    .orElseThrow(() -> helper.assertionException("Current MapId payload omitted an authorized online friend"));
             if (Math.floorMod(entry.x(), 64) != 32 || Math.floorMod(entry.y(), 16) != 8
                     || Math.floorMod(entry.z(), 64) != 32)
                 throw helper.assertionException("Map friend payload exposed precise coordinates");
@@ -249,14 +254,16 @@ public final class NexusInterfaceLifecycleGameTest {
                 throw helper.assertionException("Registered map failed independent portable validation");
             ItemStack forged = map.copy(); NexusInterfaceBinding.writeIdentity(forged, UUID.randomUUID());
             player.setItemInHand(InteractionHand.MAIN_HAND, forged);
-            if (TeleportInterfaceItemResolver.resolve(player, InteractionHand.MAIN_HAND).isPresent()
-                    || NexusSpaceUnitAuthority.currentInterfaceContext(player).isPresent())
-                throw helper.assertionException("Forged map binding survived held-interface validation");
+            var forgedContext = NexusSpaceUnitAuthority.establishInterfaceContext(player, InteractionHand.MAIN_HAND,
+                    "player", player.getUUID()).orElse(null);
+            if (forgedContext == null || forgedContext.boundUnitId() != null
+                    || !forgedContext.mapId().equals(map.get(DataComponents.MAP_ID)))
+                throw helper.assertionException("Item-carried map identity affected MapId authority");
             ItemStack unregistered = map.copy();
-            unregistered.set(DataComponents.MAP_ID, level.getFreeMapId());
+            unregistered.set(DataComponents.MAP_ID, unusedMapId(level));
             player.setItemInHand(InteractionHand.MAIN_HAND, unregistered);
             if (TeleportInterfaceItemResolver.resolve(player, InteractionHand.MAIN_HAND).isPresent())
-                throw helper.assertionException("Unregistered map accepted independent-map privileges");
+                throw helper.assertionException("MapId without native map data was accepted");
             ItemStack compass = new ItemStack(Items.COMPASS);
             NexusInterfaceBinding.write(compass, level, anchor, origin);
             player.setItemInHand(InteractionHand.MAIN_HAND, compass);
@@ -377,11 +384,15 @@ public final class NexusInterfaceLifecycleGameTest {
         for (ItemStack bound : interfaces) {
             owner.setItemInHand(InteractionHand.MAIN_HAND, bound.copy());
             var resolved = TeleportInterfaceItemResolver.resolve(owner, InteractionHand.MAIN_HAND).orElse(null);
-            if (resolved == null || !sourceId.equals(resolved.boundUnitId())
+            boolean map = bound.is(Items.FILLED_MAP);
+            String contextSourceType = map ? NexusSpaceUnitAuthority.SOURCE_TYPE_PLAYER
+                    : NexusSpaceUnitAuthority.SOURCE_TYPE_LODESTONE;
+            UUID contextSourceId = map ? owner.getUUID() : sourceId;
+            if (resolved == null || (map ? resolved.boundUnitId() != null : !sourceId.equals(resolved.boundUnitId()))
                     || NexusSpaceUnitAuthority.establishInterfaceContext(
-                    owner, InteractionHand.MAIN_HAND, NexusSpaceUnitAuthority.SOURCE_TYPE_LODESTONE, sourceId).isEmpty()
+                    owner, InteractionHand.MAIN_HAND, contextSourceType, contextSourceId).isEmpty()
                     || !NexusSpaceUnitAuthority.requireManagementCapability(
-                    owner, NexusSpaceUnitAuthority.SOURCE_TYPE_LODESTONE, sourceId)
+                    owner, contextSourceType, contextSourceId)
                     || !NexusSpaceUnitAuthority.requireManagementCapability(owner)) {
                 helper.fail("A supported bound interface could not establish its management/friend context");
                 return;
@@ -397,7 +408,7 @@ public final class NexusInterfaceLifecycleGameTest {
 
             String managedName = "Managed " + resolved.type().id();
             NexusSpaceUnitAuthority.setLodestoneName(
-                    owner, NexusSpaceUnitAuthority.SOURCE_TYPE_LODESTONE, sourceId, sourceId, managedName);
+                    owner, contextSourceType, contextSourceId, sourceId, managedName);
             if (!units.get(sourceId).map(NexusSpaceUnitRecord::name).filter(managedName::equals).isPresent()) {
                 helper.fail("A supported bound interface could not perform a management action");
                 return;
@@ -598,7 +609,7 @@ public final class NexusInterfaceLifecycleGameTest {
         ItemStack map = bindSingle(helper, owner, level, anchor, sourceId, new ItemStack(Items.MAP));
         NexusFriendSavedData friends = level.getServer().overworld().getDataStorage()
                 .computeIfAbsent(NexusFriendSavedData.TYPE);
-        for (ItemStack copied : java.util.List.of(compass, recovery, book, map)) {
+        for (ItemStack copied : java.util.List.of(compass, recovery, book)) {
             viewer.setItemInHand(InteractionHand.MAIN_HAND, copied.copy());
             var resolved = TeleportInterfaceItemResolver.resolve(viewer, InteractionHand.MAIN_HAND).orElse(null);
             if (resolved == null || NexusSpaceUnitAuthority.validateBoundInterfaceSource(viewer, sourceId, false)
@@ -614,6 +625,15 @@ public final class NexusInterfaceLifecycleGameTest {
                 helper.fail("Copied private binding granted a friend action");
                 return;
             }
+        }
+        viewer.setItemInHand(InteractionHand.MAIN_HAND, map.copy());
+        var mapContext = NexusSpaceUnitAuthority.establishInterfaceContext(
+                viewer, InteractionHand.MAIN_HAND, NexusSpaceUnitAuthority.SOURCE_TYPE_PLAYER,
+                viewer.getUUID()).orElse(null);
+        if (mapContext == null || mapContext.boundUnitId() != null
+                || NexusSpaceUnitAuthority.validateBoundInterfaceSource(viewer, sourceId, false)) {
+            helper.fail("Transferred map did not discard its former private binding identity");
+            return;
         }
 
         ItemStack forged = new ItemStack(Items.COMPASS);
@@ -661,15 +681,15 @@ public final class NexusInterfaceLifecycleGameTest {
         try {
             ItemStack emptyMap = new ItemStack(Items.MAP);
             emptyMap.set(DataComponents.CUSTOM_NAME, Component.literal("Preserved Map Name"));
-            ItemStack nexusMap = NexusMapLifecycleAuthority.createBoundMap(level, anchor, unitId, emptyMap)
+            ItemStack nexusMap = NexusMapLifecycleAuthority.createExactCenteredMap(level, anchor, unitId, emptyMap)
                     .orElseThrow(() -> helper.assertionException("Could not create Nexus map"));
             MapId originalId = nexusMap.get(DataComponents.MAP_ID);
             MapItemSavedData originalData = MapItem.getSavedData(originalId, level);
             if (originalId == null || originalData == null
                     || originalData.centerX != 24 || originalData.centerZ != -40 || originalData.scale != 0
-                    || !unitId.equals(NexusInterfaceBinding.read(nexusMap))
+                    || NexusInterfaceBinding.read(nexusMap) != null
                     || !"Preserved Map Name".equals(nexusMap.getHoverName().getString())) {
-                helper.fail("Created Nexus map did not preserve exact center, binding, or components");
+                helper.fail("Created Nexus map did not preserve exact center/components or retained item identity");
                 return;
             }
 
@@ -677,7 +697,7 @@ public final class NexusInterfaceLifecycleGameTest {
             player.setItemInHand(InteractionHand.MAIN_HAND, clone);
             if (!originalId.equals(clone.get(DataComponents.MAP_ID))
                     || TeleportInterfaceItemResolver.resolve(player, InteractionHand.MAIN_HAND)
-                    .filter(value -> value.mapId().equals(originalId) && value.boundUnitId().equals(unitId)).isEmpty()) {
+                    .filter(value -> value.mapId().equals(originalId) && value.boundUnitId() == null).isEmpty()) {
                 helper.fail("A same-MapId clone stopped being a valid Nexus map");
                 return;
             }
@@ -693,25 +713,32 @@ public final class NexusInterfaceLifecycleGameTest {
             MapItemSavedData scaledData = MapItem.getSavedData(scaledId, level);
             if (scaledId == null || scaledId.equals(originalId) || scaledData == null
                     || scaledData.centerX != 24 || scaledData.centerZ != -40 || scaledData.scale != 1
-                    || !mapBindings(level).validates(scaledId, unitId, scaledData)) {
-                helper.fail("Scaled Nexus map lost its exact anchor or registry proof");
+                    || level.getServer().overworld().getDataStorage().computeIfAbsent(NexusMapRecordSavedData.TYPE)
+                    .resolve(scaledId, scaledData).isEmpty()) {
+                helper.fail("Scaled Nexus map lost its exact center or MapId record");
                 return;
             }
 
-            originalData.colors[0] = 42;
-            ItemStack locked = nexusMap.copy();
+            ItemStack lockSource = NexusMapLifecycleAuthority.createExactCenteredMap(
+                    level, anchor, unitId, emptyMap).orElseThrow();
+            MapItem.getSavedData(lockSource, level).colors[0] = 42;
+            ItemStack locked = lockSource.copy();
             locked.set(DataComponents.MAP_POST_PROCESSING, MapPostProcessing.LOCK);
-            if (NexusMapLifecycleAuthority.postProcess(locked, level, MapPostProcessing.LOCK)
-                    != NexusMapLifecycleAuthority.PostProcessResult.PROCESSED) {
-                helper.fail("Nexus LOCK was not processed");
+            var lockEligibility = NexusMapLifecycleAuthority.postProcessEligibility(
+                    locked, level, MapPostProcessing.LOCK);
+            var lockResult = NexusMapLifecycleAuthority.postProcess(locked, level, MapPostProcessing.LOCK);
+            if (lockResult != NexusMapLifecycleAuthority.PostProcessResult.PROCESSED) {
+                helper.fail("Nexus LOCK was not processed: eligibility=" + lockEligibility
+                        + ", result=" + lockResult + ", mapId=" + lockSource.get(DataComponents.MAP_ID));
                 return;
             }
             MapId lockedId = locked.get(DataComponents.MAP_ID);
             MapItemSavedData lockedData = MapItem.getSavedData(lockedId, level);
             if (lockedId == null || lockedId.equals(originalId) || lockedData == null || !lockedData.locked
                     || lockedData.centerX != 24 || lockedData.centerZ != -40 || lockedData.colors[0] != 42
-                    || !mapBindings(level).validates(lockedId, unitId, lockedData)) {
-                helper.fail("Locked Nexus map lost pixels, center, or registry proof");
+                    || level.getServer().overworld().getDataStorage().computeIfAbsent(NexusMapRecordSavedData.TYPE)
+                    .resolve(lockedId, lockedData).isEmpty()) {
+                helper.fail("Locked Nexus map lost pixels, center, or MapId record");
                 return;
             }
             helper.succeed();
@@ -724,6 +751,81 @@ public final class NexusInterfaceLifecycleGameTest {
     }
 
     @GameTest(maxTicks = 20)
+    public void filledMapDoesNotEnterLodestoneRegistration(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos anchor = helper.absolutePos(new BlockPos(4, 2, 4));
+        level.setBlockAndUpdate(anchor, Blocks.LODESTONE.defaultBlockState());
+        var player = helper.makeMockServerPlayerInLevel();
+        player.getAbilities().instabuild = false;
+        player.setPos(Vec3.atCenterOf(anchor.above()));
+
+        MapId mapId = unusedMapId(level);
+        MapItemSavedData originalData = MapItemSavedData.createFresh(
+                anchor.getX() + 320, anchor.getZ() - 192, (byte) 2, false, false, level.dimension());
+        originalData.colors[17] = 42;
+        level.setMapData(mapId, originalData);
+        ItemStack existingMap = new ItemStack(Items.FILLED_MAP);
+        existingMap.set(DataComponents.MAP_ID, mapId);
+        existingMap.set(DataComponents.CUSTOM_NAME, Component.literal("Existing Survey"));
+        player.setItemInHand(InteractionHand.MAIN_HAND, existingMap);
+
+        ItemStack before = existingMap.copy();
+        var units = level.getServer().overworld().getDataStorage().computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
+        try {
+            if (TeleportInterfaceItemResolver.resolveRegistrationInput(
+                    player, InteractionHand.MAIN_HAND).isPresent()
+                    || activateLodestone(player, level, InteractionHand.MAIN_HAND, anchor)
+                    != net.minecraft.world.InteractionResult.PASS
+                    || units.getLodestone(level.dimension(), anchor).isPresent()
+                    || !ItemStack.isSameItemSameComponents(before, player.getMainHandItem())
+                    || player.getMainHandItem().getCount() != 1
+                    || level.getMapData(mapId) != originalData
+                    || originalData.colors[17] != 42) {
+                helper.fail("Filled map entered lodestone registration or was mutated");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            player.discard();
+        }
+    }
+
+    @GameTest(maxTicks = 20)
+    public void filledMapStackIsNotConsumedByLodestoneUse(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos anchor = helper.absolutePos(new BlockPos(4, 2, 4));
+        level.setBlockAndUpdate(anchor, Blocks.LODESTONE.defaultBlockState());
+        var player = helper.makeMockServerPlayerInLevel();
+        player.getAbilities().instabuild = false;
+        player.setPos(Vec3.atCenterOf(anchor.above()));
+
+        MapId mapId = unusedMapId(level);
+        MapItemSavedData mapData = MapItemSavedData.createFresh(
+                anchor.getX() + 256, anchor.getZ() - 128, (byte) 1, false, false, level.dimension());
+        level.setMapData(mapId, mapData);
+        ItemStack stacked = new ItemStack(Items.FILLED_MAP, 3);
+        stacked.set(DataComponents.MAP_ID, mapId);
+        player.setItemInHand(InteractionHand.MAIN_HAND, stacked);
+
+        ItemStack before = stacked.copy();
+        var units = level.getServer().overworld().getDataStorage().computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
+        try {
+            if (activateLodestone(player, level, InteractionHand.MAIN_HAND, anchor)
+                    != net.minecraft.world.InteractionResult.PASS
+                    || units.getLodestone(level.dimension(), anchor).isPresent()
+                    || !ItemStack.isSameItemSameComponents(before, player.getMainHandItem())
+                    || player.getMainHandItem().getCount() != 3
+                    || level.getMapData(mapId) != mapData) {
+                helper.fail("Lodestone use consumed or registered a filled-map stack");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            player.discard();
+        }
+    }
+
+    @GameTest(maxTicks = 20)
     public void nexusScaleRefusesMissingOrUnloadedAnchorWithoutChangingMapId(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         BlockPos anchor = helper.absolutePos(new BlockPos(3, 2, 3));
@@ -731,29 +833,18 @@ public final class NexusInterfaceLifecycleGameTest {
         var player = helper.makeMockServerPlayerInLevel();
         UUID unitId = UUID.randomUUID();
         putLodestone(level, unitId, player.getUUID(), anchor, SpaceUnitVisibility.PRIVATE, Set.of());
-        ItemStack nexusMap = NexusMapLifecycleAuthority.createBoundMap(
+        ItemStack nexusMap = NexusMapLifecycleAuthority.createExactCenteredMap(
                 level, anchor, unitId, new ItemStack(Items.MAP)).orElseThrow();
         MapId originalId = nexusMap.get(DataComponents.MAP_ID);
         level.setBlockAndUpdate(anchor, Blocks.AIR.defaultBlockState());
         ItemStack missingResult = nexusMap.copy();
         missingResult.set(DataComponents.MAP_POST_PROCESSING, MapPostProcessing.SCALE);
         if (NexusMapLifecycleAuthority.expansionAnchorEligibility(missingResult, level)
-                != NexusMapLifecycleAuthority.ScaleEligibility.DENIED
+                != NexusMapLifecycleAuthority.ScaleEligibility.ALLOWED
                 || NexusMapLifecycleAuthority.postProcess(missingResult, level, MapPostProcessing.SCALE)
-                != NexusMapLifecycleAuthority.PostProcessResult.DENIED
-                || !originalId.equals(missingResult.get(DataComponents.MAP_ID))) {
-            helper.fail("Missing-anchor SCALE changed the existing Nexus map");
-            return;
-        }
-
-        // A stale result must still be denied before vanilla consumes crafting inputs.
-        player.inventoryMenu.getSlot(1).set(new ItemStack(Items.PAPER, 8));
-        player.inventoryMenu.getSlot(0).set(missingResult.copy());
-        player.inventoryMenu.clicked(0, 0, ContainerInput.PICKUP, player);
-        if (!player.inventoryMenu.getSlot(0).getItem().isEmpty()
-                || !player.inventoryMenu.getCarried().isEmpty()
-                || player.inventoryMenu.getSlot(1).getItem().getCount() != 8) {
-            helper.fail("Denied map result escaped the container gate or consumed inputs");
+                != NexusMapLifecycleAuthority.PostProcessResult.PROCESSED
+                || originalId.equals(missingResult.get(DataComponents.MAP_ID))) {
+            helper.fail("Origin-independent SCALE did not derive a new MapId");
             return;
         }
 
@@ -766,46 +857,45 @@ public final class NexusInterfaceLifecycleGameTest {
         putLodestone(level, remoteUnitId, player.getUUID(), remote, SpaceUnitVisibility.PRIVATE, Set.of());
         MapItemSavedData remoteData = MapItemSavedData.createFresh(
                 remote.getX(), remote.getZ(), (byte) 0, false, false, level.dimension());
-        MapId remoteMapId = level.getFreeMapId();
+        MapId remoteMapId = unusedMapId(level);
         level.setMapData(remoteMapId, remoteData);
         ItemStack remoteMap = new ItemStack(Items.FILLED_MAP);
         remoteMap.set(DataComponents.MAP_ID, remoteMapId);
-        NexusInterfaceBinding.writeIdentity(remoteMap, remoteUnitId);
-        mapBindings(level).bind(remoteMapId, remoteUnitId, GlobalPos.of(level.dimension(), remote), remoteData);
+        level.getServer().overworld().getDataStorage().computeIfAbsent(NexusMapRecordSavedData.TYPE)
+                .bootstrap(remoteMapId, remoteData);
         if (NexusMapLifecycleAuthority.expansionAnchorEligibility(remoteMap, level)
-                != NexusMapLifecycleAuthority.ScaleEligibility.DENIED || level.isLoaded(remote)) {
-            helper.fail("Expansion validation force-loaded or accepted an unloaded anchor");
+                != NexusMapLifecycleAuthority.ScaleEligibility.ALLOWED || level.isLoaded(remote)) {
+            helper.fail("MapId expansion force-loaded or rejected an unrelated remote origin");
             return;
         }
 
         var units = level.getServer().overworld().getDataStorage().computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
         units.put(units.get(remoteUnitId).orElseThrow().withStatus(SpaceUnitStatus.DISABLED, level.getGameTime()));
         if (NexusMapLifecycleAuthority.expansionAnchorEligibility(remoteMap, level)
-                != NexusMapLifecycleAuthority.ScaleEligibility.DENIED) {
-            helper.fail("Registry-owned map fell through to vanilla SCALE after its unit was disabled");
+                != NexusMapLifecycleAuthority.ScaleEligibility.ALLOWED) {
+            helper.fail("Disabled former origin invalidated MapId expansion");
             return;
         }
 
         UUID missingUnitId = UUID.randomUUID();
-        MapId missingUnitMapId = level.getFreeMapId();
+        MapId missingUnitMapId = unusedMapId(level);
         MapItemSavedData missingUnitData = MapItemSavedData.createFresh(24, -40, (byte) 0, false, false, level.dimension());
         level.setMapData(missingUnitMapId, missingUnitData);
         ItemStack missingUnitMap = new ItemStack(Items.FILLED_MAP);
         missingUnitMap.set(DataComponents.MAP_ID, missingUnitMapId);
-        NexusInterfaceBinding.writeIdentity(missingUnitMap, missingUnitId);
-        mapBindings(level).bind(missingUnitMapId, missingUnitId,
-                GlobalPos.of(level.dimension(), new BlockPos(24, 70, -40)), missingUnitData);
+        level.getServer().overworld().getDataStorage().computeIfAbsent(NexusMapRecordSavedData.TYPE)
+                .bootstrap(missingUnitMapId, missingUnitData);
         if (NexusMapLifecycleAuthority.expansionAnchorEligibility(missingUnitMap, level)
-                != NexusMapLifecycleAuthority.ScaleEligibility.DENIED) {
-            helper.fail("Registry-owned map fell through to vanilla SCALE after its unit disappeared");
+                != NexusMapLifecycleAuthority.ScaleEligibility.ALLOWED) {
+            helper.fail("Missing former origin invalidated MapId expansion");
             return;
         }
 
         ItemStack strippedBinding = nexusMap.copy();
         strippedBinding.remove(DataComponents.CUSTOM_DATA);
         if (NexusMapLifecycleAuthority.expansionAnchorEligibility(strippedBinding, level)
-                != NexusMapLifecycleAuthority.ScaleEligibility.DENIED) {
-            helper.fail("Registry-owned MapId with stripped binding fell through to vanilla SCALE");
+                != NexusMapLifecycleAuthority.ScaleEligibility.ALLOWED) {
+            helper.fail("Item metadata changed MapId-owned expansion eligibility");
             return;
         }
         player.discard();
@@ -813,23 +903,92 @@ public final class NexusInterfaceLifecycleGameTest {
     }
 
     @GameTest(maxTicks = 20)
-    public void arbitraryOrForgedFilledMapCannotResolveAsNexusMap(GameTestHelper helper) {
+    public void ordinaryOrItemForgedFilledMapUsesOnlyItsServerMapId(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         var player = helper.makeMockServerPlayerInLevel();
-        MapId mapId = level.getFreeMapId();
+        MapId mapId = unusedMapId(level);
         MapItemSavedData data = MapItemSavedData.createFresh(24, -40, (byte) 0, false, false, level.dimension());
         level.setMapData(mapId, data);
         ItemStack forged = new ItemStack(Items.FILLED_MAP);
         forged.set(DataComponents.MAP_ID, mapId);
         NexusInterfaceBinding.writeIdentity(forged, UUID.randomUUID());
         player.setItemInHand(InteractionHand.MAIN_HAND, forged);
-        if (TeleportInterfaceItemResolver.resolve(player, InteractionHand.MAIN_HAND).isPresent()
+        var resolved = TeleportInterfaceItemResolver.resolve(player, InteractionHand.MAIN_HAND).orElse(null);
+        var context = NexusSpaceUnitAuthority.establishInterfaceContext(
+                player, InteractionHand.MAIN_HAND, NexusSpaceUnitAuthority.SOURCE_TYPE_PLAYER,
+                player.getUUID()).orElse(null);
+        if (resolved == null || resolved.type() != TeleportInterfaceType.FILLED_MAP
+                || !mapId.equals(resolved.mapId()) || resolved.boundUnitId() != null
+                || context == null || context.boundUnitId() != null
                 || TeleportInterfaceItemResolver.resolveRegistrationInput(player, InteractionHand.MAIN_HAND).isPresent()) {
-            helper.fail("Arbitrary filled map or forged item binding resolved as a Nexus map");
+            helper.fail("Ordinary map did not bootstrap solely from its server MapId");
             return;
         }
         player.discard();
         helper.succeed();
+    }
+
+    @GameTest(maxTicks = 20)
+    public void unsafeExistingFilledMapsCannotEnterRegistration(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        var player = helper.makeMockServerPlayerInLevel();
+        BlockPos originalAnchor = helper.absolutePos(new BlockPos(2, 2, 2));
+        BlockPos targetAnchor = helper.absolutePos(new BlockPos(6, 2, 6));
+        level.setBlockAndUpdate(originalAnchor, Blocks.LODESTONE.defaultBlockState());
+        level.setBlockAndUpdate(targetAnchor, Blocks.LODESTONE.defaultBlockState());
+        player.setPos(Vec3.atCenterOf(targetAnchor.above()));
+
+        UUID originalUnitId = UUID.randomUUID();
+        putLodestone(level, originalUnitId, player.getUUID(), originalAnchor, SpaceUnitVisibility.PRIVATE, Set.of());
+        ItemStack conflicting = NexusMapLifecycleAuthority.createBoundMap(
+                level, originalAnchor, originalUnitId, new ItemStack(Items.MAP)).orElseThrow();
+        conflicting.remove(DataComponents.CUSTOM_DATA);
+
+        MapId crossDimensionId = unusedMapId(level);
+        level.setMapData(crossDimensionId, MapItemSavedData.createFresh(
+                targetAnchor.getX(), targetAnchor.getZ(), (byte) 0, false, false, Level.NETHER));
+        ItemStack crossDimension = new ItemStack(Items.FILLED_MAP);
+        crossDimension.set(DataComponents.MAP_ID, crossDimensionId);
+
+        ItemStack missing = new ItemStack(Items.FILLED_MAP);
+        missing.set(DataComponents.MAP_ID, unusedMapId(level));
+
+        MapId malformedId = unusedMapId(level);
+        level.setMapData(malformedId, MapItemSavedData.createFresh(
+                targetAnchor.getX(), targetAnchor.getZ(), (byte) 0, false, false, level.dimension()));
+        ItemStack malformed = new ItemStack(Items.FILLED_MAP);
+        malformed.set(DataComponents.MAP_ID, malformedId);
+        var malformedTag = net.minecraft.world.item.component.CustomData.EMPTY.copyTag();
+        malformedTag.putInt(NexusInterfaceBinding.DATA_VERSION_KEY, Integer.MAX_VALUE);
+        malformed.set(DataComponents.CUSTOM_DATA,
+                net.minecraft.world.item.component.CustomData.of(malformedTag));
+
+        var units = level.getServer().overworld().getDataStorage().computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
+        try {
+            for (ItemStack rejected : List.of(conflicting, crossDimension, missing)) {
+                player.setItemInHand(InteractionHand.MAIN_HAND, rejected);
+                if (TeleportInterfaceItemResolver.resolveRegistrationInput(
+                        player, InteractionHand.MAIN_HAND).isPresent()
+                        || activateLodestone(player, level, InteractionHand.MAIN_HAND, targetAnchor)
+                        != net.minecraft.world.InteractionResult.PASS
+                        || units.getLodestone(level.dimension(), targetAnchor).isPresent()
+                        || NexusInterfaceBinding.read(rejected) != null) {
+                    helper.fail("Unsafe existing map entered or mutated Nexus registration");
+                    return;
+                }
+            }
+            player.setItemInHand(InteractionHand.MAIN_HAND, malformed);
+            if (TeleportInterfaceItemResolver.resolveRegistrationInput(player, InteractionHand.MAIN_HAND).isPresent()
+                    || activateLodestone(player, level, InteractionHand.MAIN_HAND, targetAnchor)
+                    != net.minecraft.world.InteractionResult.PASS
+                    || !NexusInterfaceBinding.hasIdentityMetadata(malformed)) {
+                helper.fail("Malformed existing-map identity was accepted or rewritten");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            player.discard();
+        }
     }
 
     @GameTest(maxTicks = 20)
@@ -844,7 +1003,8 @@ public final class NexusInterfaceLifecycleGameTest {
         putLodestone(level,sourceId,owner.getUUID(),anchor,SpaceUnitVisibility.PUBLIC,Set.of());
         putLodestone(level,publicId,owner.getUUID(),anchor.offset(20,0,0),SpaceUnitVisibility.PUBLIC,Set.of());
         putLodestone(level,privateId,owner.getUUID(),anchor.offset(22,0,0),SpaceUnitVisibility.PRIVATE,Set.of());
-        var map=NexusMapLifecycleAuthority.createBoundMap(level,anchor,sourceId,new ItemStack(Items.MAP)).orElseThrow();
+        var map=NexusMapLifecycleAuthority.createExactCenteredMap(
+                level,anchor,sourceId,new ItemStack(Items.MAP)).orElseThrow();
         MapId id=map.get(DataComponents.MAP_ID);
         var terrain=level.getMapData(id);
         java.util.Arrays.fill(terrain.colors,(byte)22);
@@ -853,12 +1013,13 @@ public final class NexusInterfaceLifecycleGameTest {
         recipient.setItemInHand(InteractionHand.MAIN_HAND,map);
         var discovery=NexusSpaceDiscoverySavedData.loadCanonical(level.getServer().overworld().getDataStorage());
         if(discovery.hasDiscovered(recipient.getUUID(),publicId)) helper.fail("Recipient must start without personal discovery");
-        var context=new TeleportInterfaceContext(recipient.getUUID(),TeleportInterfaceType.FILLED_MAP,
-                "lodestone",sourceId,InteractionHand.MAIN_HAND,id,sourceId,0,Long.MAX_VALUE);
-        var source=NexusSpaceUnitSavedData.loadCanonical(level.getServer().overworld().getDataStorage()).get(sourceId).orElseThrow();
+        var context=NexusSpaceUnitAuthority.establishInterfaceContext(recipient,InteractionHand.MAIN_HAND,
+                NexusSpaceUnitAuthority.SOURCE_TYPE_PLAYER,recipient.getUUID()).orElseThrow();
+        var source=NexusPortableSource.playerRecord(recipient,context);
         final SpaceUnitMapPayload[] captured={null};
         new NexusMapPayloadAuthority((player,payload)->captured[0]=payload,
-                (player,node)->NexusMapQuote.unavailable(TeleportInterfaceType.FILLED_MAP,"test")).send(recipient,context,source);
+                (player,node)->NexusMapQuote.unavailable(TeleportInterfaceType.FILLED_MAP,"test"))
+                .sendCalculated(recipient,context,source,new NexusMapQuoteAuthority());
         if(captured[0]==null || captured[0].entries().stream().noneMatch(e->e.id().equals(publicId))
                 || captured[0].entries().stream().anyMatch(e->e.id().equals(privateId))
                 || NexusMapDetailSavedData.get(level).pages(id.id()).isEmpty()
@@ -1072,13 +1233,13 @@ public final class NexusInterfaceLifecycleGameTest {
     }
 
     @GameTest(maxTicks = 2000, environment = "totem-nexus-gametest:map_teleport", structure = "totem-nexus-gametest:map_landing_region")
-    public void survivalMapCrossDimensionPaysQuotedAmethyst(GameTestHelper helper) {
-        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP), false, true, false, "cross_dimension", true);
+    public void survivalCompassCrossDimensionPaysQuotedAmethyst(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.COMPASS), false, false, false, "cross_dimension", true);
     }
 
     @GameTest(maxTicks = 2000, environment = "totem-nexus-gametest:map_teleport", structure = "totem-nexus-gametest:map_landing_region")
-    public void survivalMapCrossDimensionMissingAmethystDoesNotPay(GameTestHelper helper) {
-        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.MAP), false, true, false, "cross_resources", true);
+    public void survivalCompassCrossDimensionMissingAmethystDoesNotPay(GameTestHelper helper) {
+        verifyBoundInterfaceTeleport(helper, new ItemStack(Items.COMPASS), false, false, false, "cross_resources", true);
     }
 
     private static void verifyBoundInterfaceTeleport(GameTestHelper helper, ItemStack input) {
@@ -1327,10 +1488,10 @@ public final class NexusInterfaceLifecycleGameTest {
             if (bound.is(Items.FILLED_MAP)) {
                 ItemStack heldMap = player.getMainHandItem();
                 var data = MapItem.getSavedData(heldMap, level);
-                if (!mapAnchorId.equals(NexusInterfaceBinding.read(heldMap))
+                if (NexusInterfaceBinding.read(heldMap) != null
                         || !bound.get(DataComponents.MAP_ID).equals(heldMap.get(DataComponents.MAP_ID))
                         || data.centerX != mapAnchor.getX() || data.centerZ != mapAnchor.getZ())
-                    throw helper.assertionException("Map teleport mutated anchor/MapId/center");
+                    throw helper.assertionException("Map teleport mutated MapId/center or restored item identity");
             }
             if (deathTarget && !NexusRecoveryLanding.reachable(level, landed, deathBackpack[0].blockPosition()))
                 throw helper.assertionException("Arrival did not follow moving backpack within short walk");
@@ -1362,6 +1523,19 @@ public final class NexusInterfaceLifecycleGameTest {
         return level.getServer().overworld().getDataStorage().computeIfAbsent(NexusMapBindingSavedData.TYPE);
     }
 
+    private static MapId unusedMapId(ServerLevel level) {
+        var storage = level.getServer().overworld().getDataStorage();
+        var records = storage.get(NexusMapRecordSavedData.TYPE);
+        var legacy = NexusMapBindingSavedData.loadCanonical(storage);
+        for (int attempt = 0; attempt < 1024; attempt++) {
+            MapId candidate = level.getFreeMapId();
+            if (level.getMapData(candidate) == null
+                    && (records == null || records.get(candidate).isEmpty())
+                    && legacy.get(candidate).isEmpty()) return candidate;
+        }
+        throw new IllegalStateException("Could not allocate an unused GameTest MapId");
+    }
+
     private static ItemStack bindSingle(
             GameTestHelper helper,
             net.minecraft.server.level.ServerPlayer player,
@@ -1375,11 +1549,34 @@ public final class NexusInterfaceLifecycleGameTest {
                 .orElseThrow(() -> helper.assertionException("Interface did not resolve for binding"));
         if (!NexusSpaceUnitAuthority.bindInterface(
                 player, InteractionHand.MAIN_HAND, stack, input, level, anchor, unitId)) {
-            throw helper.assertionException("Interface binding failed");
+            var unit = NexusSpaceUnitSavedData.loadCanonical(level.getServer().overworld().getDataStorage())
+                    .get(unitId).orElse(null);
+            throw helper.assertionException("Interface binding failed: type=" + input.type()
+                    + ", loaded=" + level.isLoaded(anchor)
+                    + ", block=" + (level.isLoaded(anchor) ? level.getBlockState(anchor) : "unloaded")
+                    + ", unit=" + unit);
         }
         ItemStack result = player.getItemInHand(InteractionHand.MAIN_HAND).copy();
+        if (input.type() == TeleportInterfaceItemResolver.RegistrationInputType.EMPTY_MAP
+                && !result.is(Items.FILLED_MAP)) {
+            result = takeCreatedMap(player);
+            if (result.isEmpty()) {
+                throw helper.assertionException("Creative map binding did not return its created map");
+            }
+        }
         if (result.is(Items.FILLED_MAP)) java.util.Arrays.fill(MapItem.getSavedData(result, level).colors, (byte) 4);
         return result;
+    }
+
+    private static ItemStack takeCreatedMap(net.minecraft.server.level.ServerPlayer player) {
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            ItemStack candidate = player.getInventory().getItem(slot);
+            if (!candidate.is(Items.FILLED_MAP)) continue;
+            ItemStack result = candidate.copy();
+            player.getInventory().setItem(slot, ItemStack.EMPTY);
+            return result;
+        }
+        return ItemStack.EMPTY;
     }
 
     private static ItemStack findBound(

@@ -60,15 +60,14 @@ public final class NexusMapDetailNetworking {
         MapId mapId=new MapId(request.mapId());
         if(heldNexusMap(player,mapId)==null) return;
         MapItemSavedData base=MapItem.getSavedData(mapId,player.level());
-        var bindings=NexusMapBindingSavedData.loadCanonical(player.level().getServer().overworld().getDataStorage());
-        var binding=bindings.resolve(mapId,base).orElse(null);
-        if(base==null || binding==null) return;
+        var records=player.level().getServer().overworld().getDataStorage().get(NexusMapRecordSavedData.TYPE);
+        var record=base==null||records==null?null:records.resolve(mapId,base).orElse(null);
+        if(base==null || record==null) return;
         var store=NexusMapDetailSavedData.available(player.level()).orElse(null);
         if(store==null) return;
-        store.initialize(player.level(),mapId,base,binding);
         int x=request.radius()==0?base.centerX:request.centerX(), z=request.radius()==0?base.centerZ:request.centerZ();
         int radius=request.radius()==0?64<<base.scale:request.radius();
-        long extent=64L<<binding.extent(base).scale();
+        long extent=64L<<record.extent(base).scale();
         if(Math.abs((long)x-base.centerX)>extent || Math.abs((long)z-base.centerZ)>extent) return;
         if(request.scale()>base.scale) return;
         if(player==recipient) OWNER_VIEWS.put(player.getUUID(),request);
@@ -84,7 +83,7 @@ public final class NexusMapDetailNetworking {
         var geometry=new ArrayList<NexusMapDetailPayload.Layer>();
         geometry.add(new NexusMapDetailPayload.Layer(mapId.id(),base.centerX,base.centerZ,base.scale,base.dimension.identifier().toString(),base.locked));
         for(var p:selected) geometry.add(new NexusMapDetailPayload.Layer(p.id,p.x,p.z,p.scale,base.dimension.identifier().toString(),true));
-        var detail=new NexusMapDetailPayload(mapId.id(),selected.stream().map(p->p.id).toList(),geometry,binding.extent(base).scale());
+        var detail=new NexusMapDetailPayload(mapId.id(),selected.stream().map(p->p.id).toList(),geometry,record.extent(base).scale());
         boolean geometryChanged=!detail.equals(GEOMETRY_SENT.get(recipient.getUUID()));
         if(geometryChanged) { ServerPlayNetworking.send(recipient,detail);GEOMETRY_SENT.put(recipient.getUUID(),detail); }
         var sent=SENT.computeIfAbsent(recipient.getUUID(),ignored->new HashMap<>());

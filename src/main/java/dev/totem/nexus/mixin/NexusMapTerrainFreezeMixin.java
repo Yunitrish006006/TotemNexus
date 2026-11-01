@@ -19,10 +19,10 @@ public abstract class NexusMapTerrainFreezeMixin implements NexusMapTerrainFreez
     @Override public boolean totem$hasTerrainFreeze(Object token) { return token != null && totem$terrainFreeze == token; }
     @Inject(method = "updateColor", at = @At("HEAD"), cancellable = true)
     private void totem$holdUpdate(int x, int z, byte color, CallbackInfoReturnable<Boolean> cir) {
-        if (totem$terrainFreeze != null) cir.setReturnValue(false);
+        if (totem$terrainFreeze != null || NexusMapTerrainFreeze.blocksCurrentThreadRecording()) cir.setReturnValue(false);
     }
     @Inject(method = "setColor", at = @At("HEAD"), cancellable = true)
     private void totem$holdSet(int x, int z, byte color, CallbackInfo ci) {
-        if (totem$terrainFreeze != null) ci.cancel();
+        if (totem$terrainFreeze != null || NexusMapTerrainFreeze.blocksCurrentThreadRecording()) ci.cancel();
     }
 }

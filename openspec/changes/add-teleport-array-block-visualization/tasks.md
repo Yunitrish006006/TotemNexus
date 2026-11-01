@@ -74,7 +74,7 @@
   screenshots showing ordinary blocks, expansion emitters, through-wall
   visibility, narrow layout and Observer-disabled behavior; inspect rather than
   blindly blessing screenshots.
-- [ ] 5.5 Add and run the repository-required dedicated three-JVM E2E and
+- [x] 5.5 Add and run the repository-required dedicated three-JVM E2E and
   Production Runtime checks for enable, response, render activation, disable
   and disconnect cleanup.
 - [x] 5.6 Update Nexus's minimum Core dependency to the publishing patch and run

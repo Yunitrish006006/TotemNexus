@@ -13,6 +13,7 @@ import net.minecraft.world.inventory.AbstractCraftingMenu;
 import net.minecraft.world.inventory.CartographyTableMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 
 /** One native result take. Nested shift-click iterations commit independently. */
@@ -24,16 +25,35 @@ public final class NexusMapCraftingTransaction {
                             Supplier<T> operation, T denied) {
         Slot result = menu instanceof AbstractCraftingMenu crafting ? crafting.getResultSlot()
                 : menu instanceof CartographyTableMenu ? menu.getSlot(CartographyTableMenu.RESULT_SLOT) : null;
-        if (result == null || slotId < 0 || slotId >= menu.slots.size() || menu.getSlot(slotId) != result
-                || !result.getItem().has(DataComponents.MAP_POST_PROCESSING)
+        if (result == null || slotId < 0 || slotId >= menu.slots.size() || menu.getSlot(slotId) != result) {
+            return operation.get();
+        }
+        CartographyTableMenu cartography = menu instanceof CartographyTableMenu value ? value : null;
+        boolean cleansingAttempt = cartography != null
+                && (cartography.container.getItem(CartographyTableMenu.ADDITIONAL_SLOT).is(Items.WATER_BUCKET)
+                || NexusMapRecipeInputs.isCleanEmptyMap(result.getItem()));
+        if (cleansingAttempt && !NexusMapRecipeInputs.matchesCleansingTake(
+                cartography.container.getItem(CartographyTableMenu.MAP_SLOT),
+                cartography.container.getItem(CartographyTableMenu.ADDITIONAL_SLOT), result.getItem())) {
+            return denied;
+        }
+        if (!cleansingAttempt && (!result.getItem().has(DataComponents.MAP_POST_PROCESSING)
                 || NexusMapLifecycleAuthority.postProcessEligibility(result.getItem(), player.level(),
                     result.getItem().get(DataComponents.MAP_POST_PROCESSING))
-                    == NexusMapLifecycleAuthority.ScaleEligibility.NOT_NEXUS) return operation.get();
+                    == NexusMapLifecycleAuthority.ScaleEligibility.NOT_NEXUS)) return operation.get();
         Scope previous = CURRENT.get();
-        Scope scope = new Scope(menu, player, result);
+        if (cleansingAttempt && previous != null && previous.cleansing && previous.menu == menu) {
+            return operation.get();
+        }
+        Scope scope = new Scope(menu, player, result, cleansingAttempt);
         CURRENT.set(scope);
         try {
-            return operation.get();
+            T value = operation.get();
+            if (!scope.finishCleansing()) {
+                scope.restore();
+                return denied;
+            }
+            return value;
         } catch (Denied failure) {
             if (failure.scope != scope) throw failure;
             scope.restore();
@@ -88,9 +108,11 @@ public final class NexusMapCraftingTransaction {
         final int removeCount;
         final int craftedStat;
         net.minecraft.world.level.saveddata.maps.MapId processed;
+        final boolean cleansing;
         final List<Cell> cells = new ArrayList<>();
-        Scope(AbstractContainerMenu menu, ServerPlayer player, Slot output) {
+        Scope(AbstractContainerMenu menu, ServerPlayer player, Slot output, boolean cleansing) {
             this.menu = menu; this.player = player; this.output = output;
+            this.cleansing = cleansing;
             result = output.getItem().copy(); carried = menu.getCarried().copy();
             removeCount = output instanceof dev.totem.nexus.mixin.NexusResultSlotAccessor accessor ? accessor.totem$removeCount() : 0;
             craftedStat = player.getStats().getValue(net.minecraft.stats.Stats.ITEM_CRAFTED.get(net.minecraft.world.item.Items.FILLED_MAP));
@@ -101,6 +123,27 @@ public final class NexusMapCraftingTransaction {
         void save(Map<Container, java.util.Set<Integer>> seen, Container container, int index) {
             if (seen.computeIfAbsent(container, ignored -> new java.util.HashSet<>()).add(index))
                 cells.add(new Cell(container, index, container.getItem(index).copy()));
+        }
+        boolean finishCleansing() {
+            if (!cleansing) return true;
+            CartographyTableMenu cartography = (CartographyTableMenu) menu;
+            ItemStack map = cartography.container.getItem(CartographyTableMenu.MAP_SLOT);
+            ItemStack addition = cartography.container.getItem(CartographyTableMenu.ADDITIONAL_SLOT);
+            if (NexusMapRecipeInputs.matchesCleansingTake(map, addition, output.getItem())) {
+                return inventoryAndCursorUnchanged();
+            }
+            if (!map.isEmpty() || !addition.isEmpty()) return false;
+            cartography.container.setItem(CartographyTableMenu.ADDITIONAL_SLOT, new ItemStack(Items.BUCKET));
+            menu.broadcastChanges();
+            return true;
+        }
+        boolean inventoryAndCursorUnchanged() {
+            if (!ItemStack.matches(carried, menu.getCarried())) return false;
+            for (Cell cell : cells) {
+                if (cell.container == output.container && cell.index == output.getContainerSlot()) continue;
+                if (!ItemStack.matches(cell.value, cell.container.getItem(cell.index))) return false;
+            }
+            return true;
         }
         void restore() {
             // Input listeners may recompute previews while restoring. Restore output last.

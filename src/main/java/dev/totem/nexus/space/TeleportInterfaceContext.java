@@ -40,6 +40,11 @@ public record TeleportInterfaceContext(UUID playerId, TeleportInterfaceType inte
     public boolean isExpired(long gameTime) { return gameTime > expiresGameTime; }
     public boolean isStillHeldBy(ServerPlayer player) {
         if (player == null || !playerId.equals(player.getUUID())) return false;
+        if (interfaceType == TeleportInterfaceType.FILLED_MAP && boundUnitId == null) {
+            return NexusHeldMapResolver.resolve(player, interactionHand)
+                    .filter(resolved -> resolved.mapId().equals(mapId))
+                    .isPresent();
+        }
         Optional<TeleportInterfaceItemResolver.ResolvedInterface> resolved =
                 TeleportInterfaceItemResolver.resolve(player, interactionHand);
         return resolved.isPresent()

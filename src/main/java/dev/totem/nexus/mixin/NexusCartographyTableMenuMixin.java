@@ -1,6 +1,7 @@
 package dev.totem.nexus.mixin;
 
 import dev.totem.nexus.space.NexusMapLifecycleAuthority;
+import dev.totem.nexus.space.NexusMapRecipeInputs;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.inventory.CartographyTableMenu;
 import net.minecraft.world.inventory.ContainerLevelAccess;
@@ -26,6 +27,11 @@ public abstract class NexusCartographyTableMenuMixin {
             ItemStack addition,
             ItemStack previousResult,
             CallbackInfo ci) {
+        if (addition.is(Items.WATER_BUCKET)) {
+            this.resultContainer.setItem(CartographyTableMenu.RESULT_SLOT,
+                    NexusMapRecipeInputs.cleansingPreview(map, addition));
+            return;
+        }
         MapPostProcessing processing = addition.is(Items.PAPER)
                 ? MapPostProcessing.SCALE
                 : addition.is(Items.GLASS_PANE) ? MapPostProcessing.LOCK : null;

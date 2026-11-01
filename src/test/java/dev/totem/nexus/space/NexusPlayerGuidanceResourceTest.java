@@ -23,7 +23,6 @@ class NexusPlayerGuidanceResourceTest {
             "message.totem.space_unit.interface_source_identity",
             "message.totem.space_unit.map_need_bound_interface",
             "message.totem.space_unit.registration_item_changed",
-            "message.totem.space_unit.interface.map_source_mismatch",
             "message.totem.space_unit.interface.management_unavailable",
             "message.totem.space_unit.map_unnamed_nexus",
             "message.totem.space_unit.map_destination_dimension",
@@ -55,7 +54,7 @@ class NexusPlayerGuidanceResourceTest {
         JsonObject traditionalChinese = language("zh_tw");
         JsonObject spanish = language("es_es");
 
-        assertEquals(441, english.size(), "The complete English Nexus language surface must remain stable");
+        assertEquals(440, english.size(), "The complete English Nexus language surface must remain stable");
         assertLocaleParity(english, "en_us", traditionalChinese, "zh_tw");
         assertLocaleParity(english, "en_us", spanish, "es_es");
         assertSpanishIdentifiersArePreserved(english, spanish);
@@ -88,12 +87,12 @@ class NexusPlayerGuidanceResourceTest {
                 .contains("兩種羅盤：清單傳送"));
         assertTrue(text(traditionalChinese, "book.totem.nexus_diagram.interfaces_bind_manage")
                 .contains("地圖：標記選點"));
-        assertTrue(text(english, "book.totem.nexus_diagram.empty_map_create").contains("new MapId"));
+        assertTrue(text(english, "book.totem.nexus_diagram.empty_map_create").contains("exact-centered MapId"));
         assertTrue(text(traditionalChinese, "book.totem.nexus_diagram.empty_map_create")
-                .contains("新地圖識別碼"));
-        assertTrue(text(english, "book.totem.nexus_diagram.scale_anchor").contains("unloaded"));
+                .contains("精確中心 MapId"));
+        assertTrue(text(english, "book.totem.nexus_diagram.scale_anchor").contains("without requiring"));
         assertTrue(text(traditionalChinese, "book.totem.nexus_diagram.scale_anchor")
-                .contains("未載入"));
+                .contains("不要求"));
         assertTrue(text(english, "message.totem.space_unit.array_preview_hint").contains("until hidden"));
         assertTrue(text(traditionalChinese, "message.totem.space_unit.array_preview_hint")
                 .contains("直到手動隱藏"));

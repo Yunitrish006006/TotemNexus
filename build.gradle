@@ -9,7 +9,7 @@ group = project.maven_group
 base { archivesName = project.archives_base_name }
 
 def totemCoreJar = file(providers.gradleProperty('totemCoreJar')
-        .getOrElse('../TotemCore/build/libs/totem-core-0.7.22.jar'))
+        .getOrElse('../TotemCore/build/libs/totem-core-0.7.23.jar'))
 
 loom {
     splitEnvironmentSourceSets()
@@ -136,10 +136,89 @@ tasks.named('processGametestResources').configure {
             def manifest = file("${destinationDir}/fabric.mod.json")
             def data = new groovy.json.JsonSlurper().parse(manifest)
             data.entrypoints['fabric-gametest'] = data.entrypoints['fabric-gametest'].findAll {
-                it.endsWith('NexusMapRecordingGameTest') || it.endsWith('NexusMapResolutionGameTest') || it.endsWith('NexusInterfaceLifecycleGameTest') || it.endsWith('NexusMapCraftingTransactionGameTest') || it.endsWith('NexusMapOverviewGameTest')
+                it.endsWith('NexusMapRecordingGameTest') || it.endsWith('NexusMapOpenPreflightGameTest') || it.endsWith('NexusMapTeleportCommitGameTest') || it.endsWith('NexusMapExactCreationGameTest') || it.endsWith('NexusMapDerivationGameTest') || it.endsWith('NexusMapOriginIndependenceGameTest') || it.endsWith('NexusMapResolutionGameTest') || it.endsWith('NexusInterfaceLifecycleGameTest') || it.endsWith('NexusMapCraftingTransactionGameTest') || it.endsWith('NexusMapOverviewGameTest')
             }
             data.entrypoints['fabric-client-gametest'] = data.entrypoints['fabric-client-gametest'].findAll {
                 it.endsWith('NexusMapNetworkResolutionClientGameTest') || it.endsWith('NexusMapPlayerMarkerClientGameTest') || it.endsWith('NexusSpaceUnitMapVisualGameTest') || it.endsWith('NexusObserverProviderClientGameTest') || it.endsWith('NexusObserverMapDetailClientGameTest') || it.endsWith('NexusMapOverviewClientGameTest')
+            }
+            manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+        } else if (nexusTestFocus.get() == 'map-interface') {
+            def manifest = file("${destinationDir}/fabric.mod.json")
+            def data = new groovy.json.JsonSlurper().parse(manifest)
+            data.entrypoints['fabric-gametest'] = data.entrypoints['fabric-gametest'].findAll {
+                it.endsWith('NexusInterfaceLifecycleGameTest') || it.endsWith('NexusMapOpenPreflightGameTest') || it.endsWith('NexusMapTeleportCommitGameTest') || it.endsWith('NexusMapExactCreationGameTest')
+            }
+            manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+        } else if (nexusTestFocus.get() == 'map-open-preflight') {
+            def manifest = file("${destinationDir}/fabric.mod.json")
+            def data = new groovy.json.JsonSlurper().parse(manifest)
+            data.entrypoints['fabric-gametest'] = data.entrypoints['fabric-gametest'].findAll {
+                it.endsWith('NexusMapOpenPreflightGameTest')
+            }
+            manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+        } else if (nexusTestFocus.get() == 'map-teleport-commit') {
+            def manifest = file("${destinationDir}/fabric.mod.json")
+            def data = new groovy.json.JsonSlurper().parse(manifest)
+            data.entrypoints['fabric-gametest'] = data.entrypoints['fabric-gametest'].findAll {
+                it.endsWith('NexusMapTeleportCommitGameTest')
+            }
+            manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+        } else if (nexusTestFocus.get() == 'map-exact-creation') {
+            def manifest = file("${destinationDir}/fabric.mod.json")
+            def data = new groovy.json.JsonSlurper().parse(manifest)
+            data.entrypoints['fabric-gametest'] = data.entrypoints['fabric-gametest'].findAll {
+                it.endsWith('NexusMapExactCreationGameTest')
+            }
+            manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+        } else if (nexusTestFocus.get() == 'map-derivation') {
+            def manifest = file("${destinationDir}/fabric.mod.json")
+            def data = new groovy.json.JsonSlurper().parse(manifest)
+            data.entrypoints['fabric-gametest'] = data.entrypoints['fabric-gametest'].findAll {
+                it.endsWith('NexusMapDerivationGameTest')
+            }
+            manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+        } else if (nexusTestFocus.get() == 'map-origin-independence') {
+            def manifest = file("${destinationDir}/fabric.mod.json")
+            def data = new groovy.json.JsonSlurper().parse(manifest)
+            data.entrypoints['fabric-gametest'] = data.entrypoints['fabric-gametest'].findAll {
+                it.endsWith('NexusMapOriginIndependenceGameTest')
+            }
+            manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+        } else if (nexusTestFocus.get() == 'map-activation-removal') {
+            def manifest = file("${destinationDir}/fabric.mod.json")
+            def data = new groovy.json.JsonSlurper().parse(manifest)
+            data.entrypoints['fabric-gametest'] = data.entrypoints['fabric-gametest'].findAll {
+                it.endsWith('NexusMapActivationRemovalGameTest')
+            }
+            manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+        } else if (nexusTestFocus.get() == 'map-cleansing-preview') {
+            def manifest = file("${destinationDir}/fabric.mod.json")
+            def data = new groovy.json.JsonSlurper().parse(manifest)
+            data.entrypoints['fabric-gametest'] = data.entrypoints['fabric-gametest'].findAll {
+                it.endsWith('NexusMapCleansingPreviewGameTest')
+            }
+            manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+        } else if (nexusTestFocus.get() == 'cartography-native-regression') {
+            def manifest = file("${destinationDir}/fabric.mod.json")
+            def data = new groovy.json.JsonSlurper().parse(manifest)
+            data.entrypoints['fabric-gametest'] = data.entrypoints['fabric-gametest'].findAll {
+                it.endsWith('NexusNativeCartographyRegressionGameTest')
+            }
+            manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+        } else if (nexusTestFocus.get() == 'map-integrated-records') {
+            def manifest = file("${destinationDir}/fabric.mod.json")
+            def data = new groovy.json.JsonSlurper().parse(manifest)
+            data.entrypoints['fabric-gametest'] = data.entrypoints['fabric-gametest'].findAll {
+                it.endsWith('NexusMapOpenPreflightGameTest') ||
+                        it.endsWith('NexusMapExactCreationGameTest') ||
+                        it.endsWith('NexusMapDerivationGameTest')
+            }
+            manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+        } else if (nexusTestFocus.get() == 'map-migration-freeze') {
+            def manifest = file("${destinationDir}/fabric.mod.json")
+            def data = new groovy.json.JsonSlurper().parse(manifest)
+            data.entrypoints['fabric-gametest'] = data.entrypoints['fabric-gametest'].findAll {
+                it.endsWith('NexusMapSourceCaptureGameTest')
             }
             manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
         } else if (nexusTestFocus.get() == 'map-crafting') {
@@ -163,8 +242,49 @@ tasks.named('processGametestResources').configure {
                 it.endsWith('NexusMapNetworkResolutionClientGameTest')
             }
             manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+        } else if (nexusTestFocus.get() == 'map-overview-client') {
+            def manifest = file("${destinationDir}/fabric.mod.json")
+            def data = new groovy.json.JsonSlurper().parse(manifest)
+            data.entrypoints['fabric-gametest'] = []
+            data.entrypoints['fabric-client-gametest'] = data.entrypoints['fabric-client-gametest'].findAll {
+                it.endsWith('NexusMapOverviewClientGameTest')
+            }
+            manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+        } else if (nexusTestFocus.get() == 'map-observer') {
+            def manifest = file("${destinationDir}/fabric.mod.json")
+            def data = new groovy.json.JsonSlurper().parse(manifest)
+            data.entrypoints['fabric-gametest'] = []
+            data.entrypoints['fabric-client-gametest'] = data.entrypoints['fabric-client-gametest'].findAll {
+                it.endsWith('NexusObserverProviderClientGameTest') ||
+                        it.endsWith('NexusObserverMapDetailClientGameTest')
+            }
+            manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+        } else if (nexusTestFocus.get() == 'map-runtime') {
+            def manifest = file("${destinationDir}/fabric.mod.json")
+            def data = new groovy.json.JsonSlurper().parse(manifest)
+            data.entrypoints['fabric-gametest'] = data.entrypoints['fabric-gametest'].findAll {
+                it.endsWith('NexusPortableRecoveryGameTest') ||
+                        it.endsWith('NexusRecoveryRoutingGameTest') ||
+                        it.endsWith('NexusMapOverviewGameTest')
+            }
+            manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+        } else if (nexusTestFocus.get() == 'map-resolution') {
+            def manifest = file("${destinationDir}/fabric.mod.json")
+            def data = new groovy.json.JsonSlurper().parse(manifest)
+            data.entrypoints['fabric-gametest'] = data.entrypoints['fabric-gametest'].findAll {
+                it.endsWith('NexusMapResolutionGameTest')
+            }
+            manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
+        } else if (nexusTestFocus.get() == 'array-visualization') {
+            def manifest = file("${destinationDir}/fabric.mod.json")
+            def data = new groovy.json.JsonSlurper().parse(manifest)
+            data.entrypoints['fabric-gametest'] = []
+            data.entrypoints['fabric-client-gametest'] = data.entrypoints['fabric-client-gametest'].findAll {
+                it.endsWith('NexusArrayVisualizationClientGameTest')
+            }
+            manifest.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(data))
         } else if (nexusTestFocus.get() != 'all') {
-            throw new GradleException('nexusTestFocus must be all, map, map-crafting, map-storage or map-network')
+            throw new GradleException('nexusTestFocus must be all, map, map-interface, map-open-preflight, map-teleport-commit, map-exact-creation, map-derivation, map-origin-independence, map-activation-removal, map-cleansing-preview, cartography-native-regression, map-integrated-records, map-migration-freeze, map-crafting, map-storage, map-network, map-overview-client, map-observer, map-runtime, map-resolution or array-visualization')
         }
     }
 }

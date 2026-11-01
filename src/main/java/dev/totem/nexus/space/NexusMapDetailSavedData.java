@@ -113,6 +113,12 @@ public final class NexusMapDetailSavedData extends SavedData {
         return migrationSnapshot == null && pages.size() + missingHistory < MAX_WORLD_PAGES
                 && inherited + missingHistory < MAX_PAGES_PER_MAP;
     }
+    /** MapId-owned records have no legacy ancestor import to reserve. */
+    boolean canDerive(int source) {
+        int inherited = maps.getOrDefault(source, List.of()).size();
+        return migrationSnapshot == null && pages.size() < MAX_WORLD_PAGES
+                && inherited < MAX_PAGES_PER_MAP;
+    }
     public void derive(ServerLevel level, MapId source, MapItemSavedData base,
                        NexusMapBindingSavedData.Entry binding, MapId result) {
         if (migrationSnapshot != null) throw new IllegalStateException("Terrain recording frozen for migration");

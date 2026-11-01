@@ -35,14 +35,16 @@ public final class NexusMapNetworkResolutionClientGameTest implements FabricClie
                 NexusSpaceUnitSavedData.loadCanonical(server.overworld().getDataStorage()).put(new NexusSpaceUnitRecord(
                         unit,SpaceUnitType.LODESTONE,level.dimension(),anchor,player.getUUID(),"Network resolution",
                         SpaceUnitVisibility.PUBLIC,SpaceUnitStatus.ACTIVE,Set.of(),Set.of(),SpaceStructureSnapshot.EMPTY,1,1));
-                NexusMapBindingSavedData.loadCanonical(server.overworld().getDataStorage()).bind(id,unit,GlobalPos.of(level.dimension(),anchor),base);
+                var registration=server.overworld().getDataStorage().computeIfAbsent(NexusMapRecordSavedData.TYPE).bootstrap(id,base);
+                if(registration.result()==NexusMapRecordSavedData.RegisterResult.CONFLICT)
+                    throw new AssertionError("Network MapId fixture registration failed");
                 var store=NexusMapDetailSavedData.get(level);
                 for(int z=0;z<128;z++) for(int x=0;x<128;x++) {
                     int a=x&7,b=z&7;
                     var color=a==0&&b==0?MapColor.WATER:a<2&&b<2?MapColor.SAND:a<4&&b<4?MapColor.STONE:MapColor.WOOD;
                     store.record(level,id.id(),x,z,color.getPackedId(MapColor.Brightness.NORMAL));
                 }
-                var stack=new ItemStack(Items.FILLED_MAP);stack.set(DataComponents.MAP_ID,id);NexusInterfaceBinding.write(stack,level,anchor,unit);
+                var stack=new ItemStack(Items.FILLED_MAP);stack.set(DataComponents.MAP_ID,id);
                 player.setItemInHand(InteractionHand.MAIN_HAND,stack);
                 payload.set(new SpaceUnitMapPayload(unit,"lodestone","Network resolution",level.dimension().identifier().toString(),
                         64,64,64,TeleportInterfaceType.FILLED_MAP,id.id(),List.of()));
@@ -93,23 +95,25 @@ public final class NexusMapNetworkResolutionClientGameTest implements FabricClie
                 UUID unit=UUID.randomUUID();
                 NexusSpaceUnitSavedData.loadCanonical(server.overworld().getDataStorage()).put(new NexusSpaceUnitRecord(unit,SpaceUnitType.LODESTONE,
                         level.dimension(),anchor,player.getUUID(),"Extended viewport",SpaceUnitVisibility.PUBLIC,SpaceUnitStatus.ACTIVE,Set.of(),Set.of(),SpaceStructureSnapshot.EMPTY,1,1));
-                var ledger=NexusMapBindingSavedData.loadCanonical(server.overworld().getDataStorage());var store=NexusMapDetailSavedData.get(level);
+                var records=server.overworld().getDataStorage().computeIfAbsent(NexusMapRecordSavedData.TYPE);var store=NexusMapDetailSavedData.get(level);
                 var id=level.getFreeMapId();var base=NexusMapItemSavedDataInvoker.totem$createExact(64,64,(byte)4,false,false,false,level.dimension());
                 java.util.Arrays.fill(base.colors,MapColor.GRASS.getPackedId(MapColor.Brightness.NORMAL));level.setMapData(id,base);
-                if(!ledger.bind(id,unit,GlobalPos.of(level.dimension(),anchor),base)) throw new AssertionError("Extended fixture binding failed");
+                if(records.bootstrap(id,base).result()==NexusMapRecordSavedData.RegisterResult.CONFLICT)
+                    throw new AssertionError("Extended fixture registration failed");
                 for(int scale=5;scale<=7;scale++) {
                     var next=level.getFreeMapId();var copy=NexusMapItemSavedDataInvoker.totem$createExact(64,64,(byte)4,false,false,false,level.dimension());
-                    System.arraycopy(base.colors,0,copy.colors,0,16384);var binding=ledger.get(id).orElseThrow();
-                    if(!ledger.derive(id,base,next,copy,scale)) throw new AssertionError("Extended fixture derivation failed");
-                    store.derive(level,id,base,binding,next);level.setMapData(next,copy);id=next;base=copy;
+                    System.arraycopy(base.colors,0,copy.colors,0,16384);
+                    var prepared=records.prepareDerivation(id,base,next,copy,scale).orElseThrow();
+                    if(!records.commitDerivation(prepared)) throw new AssertionError("Extended fixture derivation failed");
+                    store.derive(level,id,base,null,next);level.setMapData(next,copy);id=next;base=copy;
                 }
                 for(int z=0;z<128;z++) for(int x=3072;x<3200;x++) store.record(level,id.id(),x,z,MapColor.SAND.getPackedId(MapColor.Brightness.NORMAL));
-                var stack=new ItemStack(Items.FILLED_MAP);stack.set(DataComponents.MAP_ID,id);NexusInterfaceBinding.write(stack,level,anchor,unit);
+                var stack=new ItemStack(Items.FILLED_MAP);stack.set(DataComponents.MAP_ID,id);
                 player.setItemInHand(InteractionHand.MAIN_HAND,stack);player.setNoGravity(true);player.setPos(3136,70,64);
                 payload.set(new SpaceUnitMapPayload(unit,"lodestone","Extended viewport",level.dimension().identifier().toString(),64,64,64,TeleportInterfaceType.FILLED_MAP,id.id(),List.of()));
             });
             int id=payload.get().mapId();
-            context.waitFor(client->client.level.getMapData(new MapId(id))!=null && NexusMapDetailClientState.effectiveScale(id,4)==7,200);
+            context.waitFor(client->client.level.getMapData(new MapId(id))!=null && NexusMapDetailClientState.effectiveScale(id,4)==7,600);
             context.setScreen(()->new NexusSpaceUnitMapScreen(payload.get()));context.waitForScreen(NexusSpaceUnitMapScreen.class);
             context.takeScreenshot("nexus-extended-viewport-before-drag");
             context.runOnClient(client->{

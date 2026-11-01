@@ -16,6 +16,8 @@ import static dev.totem.nexus.space.NexusAccessE2eServer.*;
 
 public final class NexusAccessE2eClient implements ClientModInitializer {
     private boolean connected, opened, selected, granted, reopened;
+    private boolean visualizationStarted, visualizationScreenshotRequested, visualizationDisabled;
+    private boolean visualizationReenabled, disconnectRequested;
     private int ticks;
     private int screenshotTicks;
     @Override public void onInitializeClient() {
@@ -56,8 +58,63 @@ public final class NexusAccessE2eClient implements ClientModInitializer {
             }
         }
         if (granted && !reopened && exists("grant-ok") && exists("observer-closed")) { reopened=true; open(client); }
+        if (exists("access-done")) targetVisualization(client);
+    }
+    private void targetVisualization(Minecraft client) {
+        if (!visualizationStarted) {
+            client.setScreenAndShow(null);
+            client.player.setYRot(180.0F);
+            client.player.setXRot(20.0F);
+            NexusArrayVisualizationClient.toggleArray("lodestone", UNIT);
+            visualizationStarted=true;
+            mark("target-visualization-requested");
+            return;
+        }
+        if (!visualizationScreenshotRequested
+                && NexusArrayVisualizationClient.isArrayEnabledFor(UNIT)
+                && NexusArrayVisualizationClient.hasSnapshotFor(UNIT)
+                && NexusArrayVisualizationClient.hasRendered(UNIT)) {
+            visualizationScreenshotRequested=true;
+            Screenshot.takeScreenshot(client.gameRenderer.mainRenderTarget(), image -> {
+                try (var owned = image) {
+                    owned.writeToFile(RESULTS.resolve("nexus-array-visualization-target.png"));
+                    mark("target-visualization-rendered");
+                } catch (Exception error) { NexusAccessE2eServer.fail(error); }
+            });
+            return;
+        }
+        if (!visualizationDisabled && exists("server-visualization-enabled") && exists("observer-overlay-absent")) {
+            NexusArrayVisualizationClient.toggleArray("lodestone", UNIT);
+            if (NexusArrayVisualizationClient.isActiveFor(UNIT))
+                throw new AssertionError("Explicit disable retained the target overlay");
+            visualizationDisabled=true;
+            mark("target-visualization-disabled");
+            return;
+        }
+        if (visualizationDisabled && !visualizationReenabled && exists("server-visualization-disabled")) {
+            NexusArrayVisualizationClient.toggleArray("lodestone", UNIT);
+            visualizationReenabled=true;
+            return;
+        }
+        if (visualizationReenabled && !exists("target-visualization-reenabled")
+                && NexusArrayVisualizationClient.hasSnapshotFor(UNIT)
+                && NexusArrayVisualizationClient.hasRendered(UNIT)) {
+            mark("target-visualization-reenabled");
+            return;
+        }
+        if (!disconnectRequested && exists("server-visualization-reenabled")) {
+            disconnectRequested=true;
+            mark("target-disconnecting");
+            client.stop();
+        }
     }
     private void observer(Minecraft client) {
+        if (exists("target-visualization-rendered") && exists("server-visualization-enabled")
+                && !exists("observer-overlay-absent")) {
+            if (NexusArrayVisualizationClient.isActiveFor(UNIT))
+                throw new AssertionError("Observer client activated the target's world overlay");
+            mark("observer-overlay-absent");
+        }
         if (!(client.gui.screen() instanceof NexusAccessScreen screen)) {
             if (exists("target-granted")) mark("observer-closed");
             return;

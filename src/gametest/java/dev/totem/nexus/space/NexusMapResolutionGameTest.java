@@ -108,9 +108,13 @@ public final class NexusMapResolutionGameTest {
         NexusSpaceUnitSavedData.loadCanonical(level.getServer().overworld().getDataStorage()).put(new NexusSpaceUnitRecord(
                 unit,SpaceUnitType.LODESTONE,level.dimension(),anchor,owner.getUUID(),"Scheduler fixture",SpaceUnitVisibility.PUBLIC,
                 SpaceUnitStatus.ACTIVE,java.util.Set.of(),java.util.Set.of(),SpaceStructureSnapshot.EMPTY,1L,1L));
-        NexusMapBindingSavedData.loadCanonical(level.getServer().overworld().getDataStorage()).bind(id,unit,net.minecraft.core.GlobalPos.of(level.dimension(),anchor),base);
+        var registration = level.getServer().overworld().getDataStorage()
+                .computeIfAbsent(NexusMapRecordSavedData.TYPE).bootstrap(id,base);
+        if(registration.result()==NexusMapRecordSavedData.RegisterResult.CONFLICT)
+            helper.fail("Could not register scheduler MapId fixture");
         var stack=new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.FILLED_MAP);
-        stack.set(net.minecraft.core.component.DataComponents.MAP_ID,id);NexusInterfaceBinding.writeIdentity(stack,unit);
+        stack.set(net.minecraft.core.component.DataComponents.MAP_ID,id);
+        NexusInterfaceBinding.clearIdentityMetadata(stack);
         return stack;
     }
 

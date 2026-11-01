@@ -17,7 +17,7 @@ public final class NexusMapOverviewGameTest {
     new NexusSpaceUnitRecord(unit,SpaceUnitType.LODESTONE,level.dimension(),anchor,player.getUUID(),
      "Overview",SpaceUnitVisibility.PRIVATE,SpaceUnitStatus.ACTIVE,java.util.Set.of(),java.util.Set.of(),
      SpaceStructureSnapshot.EMPTY,level.getGameTime(),level.getGameTime()));
-   var map=NexusMapLifecycleAuthority.createBoundMap(level,anchor,unit,new ItemStack(Items.MAP)).orElseThrow();
+   var map=NexusMapLifecycleAuthority.createExactCenteredMap(level,anchor,unit,new ItemStack(Items.MAP)).orElseThrow();
    player.setItemInHand(InteractionHand.MAIN_HAND,map);var id=map.get(DataComponents.MAP_ID);
    var base=MapItem.getSavedData(map,level);java.util.Arrays.fill(base.colors,(byte)4);
    var request=new RequestMapOverviewPayload(UUID.randomUUID(),id.id(),-1);
@@ -35,7 +35,10 @@ public final class NexusMapOverviewGameTest {
     framed.setItem(ItemStack.EMPTY);
     if(frameJob.valid(player))h.fail("Empty frame remained authorized");
     var forged=map.copy();NexusInterfaceBinding.writeIdentity(forged,UUID.randomUUID());framed.setItem(forged);
-    if(frameJob.valid(player))h.fail("Changed frame binding remained authorized");
+    if(!frameJob.valid(player))h.fail("Irrelevant frame item identity invalidated its MapId");
+    var changed=NexusMapLifecycleAuthority.createExactCenteredMap(level,anchor,unit,new ItemStack(Items.MAP)).orElseThrow();
+    framed.setItem(changed);
+    if(frameJob.valid(player))h.fail("Changed frame MapId remained authorized");
     framed.setItem(map.copy());
     player.setPos(anchor.getX()+100,anchor.getY(),anchor.getZ());
     if(frameJob.valid(player)||NexusMapOverviewAuthority.create(player,frameRequest)!=null)h.fail("Remote frame authorized terrain");

@@ -31,17 +31,18 @@ public final class NexusMapOverviewClientGameTest implements FabricClientGameTes
                 NexusSpaceUnitSavedData.loadCanonical(server.overworld().getDataStorage()).put(new NexusSpaceUnitRecord(unit,
                         SpaceUnitType.LODESTONE,level.dimension(),anchor,player.getUUID(),"Overview",SpaceUnitVisibility.PRIVATE,
                         SpaceUnitStatus.ACTIVE,Set.of(),Set.of(),SpaceStructureSnapshot.EMPTY,1,1));
-                var ledger=NexusMapBindingSavedData.loadCanonical(server.overworld().getDataStorage());
+                var records=server.overworld().getDataStorage().computeIfAbsent(NexusMapRecordSavedData.TYPE);
                 var original=level.getFreeMapId();var id=level.getFreeMapId();
                 var base=NexusMapItemSavedDataInvoker.totem$createExact(64,64,(byte)4,false,false,false,level.dimension());
                 var result=NexusMapItemSavedDataInvoker.totem$createExact(64,64,(byte)4,false,false,false,level.dimension());
                 Arrays.fill(base.colors,MapColor.GRASS.getPackedId(MapColor.Brightness.NORMAL));
                 System.arraycopy(base.colors,0,result.colors,0,16384);level.setMapData(original,base);level.setMapData(id,result);
-                if(!ledger.bind(original,unit,GlobalPos.of(level.dimension(),anchor),base)||!ledger.derive(original,base,id,result,5))
+                if(records.bootstrap(original,base).result()==NexusMapRecordSavedData.RegisterResult.CONFLICT
+                        || !records.commitDerivation(records.prepareDerivation(original,base,id,result,5).orElseThrow()))
                     throw new AssertionError("Overview fixture could not derive extended map");
                 var store=NexusMapDetailSavedData.get(level);
                 for(int z=0;z<128;z+=32)for(int x=1536;x<1664;x+=32)store.record(level,id.id(),x,z,MapColor.GOLD.getPackedId(MapColor.Brightness.NORMAL));
-                var map=new ItemStack(Items.FILLED_MAP);map.set(DataComponents.MAP_ID,id);NexusInterfaceBinding.write(map,level,anchor,unit);
+                var map=new ItemStack(Items.FILLED_MAP);map.set(DataComponents.MAP_ID,id);
                 player.setItemInHand(InteractionHand.MAIN_HAND,map);player.setNoGravity(true);player.teleportTo(level,64.5,90,68.5,Set.of(),180,60,false);
                 player.setYRot(180);player.setXRot(60);mapId.set(id.id());
             });
@@ -72,10 +73,10 @@ public final class NexusMapOverviewClientGameTest implements FabricClientGameTes
                 var source=MapItem.getSavedData(map,level);var newId=level.getFreeMapId();
                 var locked=NexusMapItemSavedDataInvoker.totem$createExact(64,64,(byte)4,false,false,true,level.dimension());
                 System.arraycopy(source.colors,0,locked.colors,0,16384);
-                var ledger=NexusMapBindingSavedData.loadCanonical(server.overworld().getDataStorage());
-                var binding=ledger.get(sourceId).orElseThrow();
-                if(!ledger.derive(sourceId,source,newId,locked,5))throw new AssertionError("Frame lock derivation failed");
-                NexusMapDetailSavedData.get(level).derive(level,sourceId,source,binding,newId);
+                var records=server.overworld().getDataStorage().computeIfAbsent(NexusMapRecordSavedData.TYPE);
+                if(!records.commitDerivation(records.prepareDerivation(sourceId,source,newId,locked,5).orElseThrow()))
+                    throw new AssertionError("Frame lock derivation failed");
+                NexusMapDetailSavedData.get(level).derive(level,sourceId,source,null,newId);
                 level.setMapData(newId,locked);map.set(DataComponents.MAP_ID,newId);
                 frame.setItem(map);level.addFreshEntity(frame);frameId.set(frame.getId());
                 player.setItemInHand(InteractionHand.MAIN_HAND,ItemStack.EMPTY);player.setYRot(180);player.setXRot(18);

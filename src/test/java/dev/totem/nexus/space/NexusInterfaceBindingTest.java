@@ -80,6 +80,11 @@ class NexusInterfaceBindingTest {
         assertEquals(TeleportInterfaceItemResolver.RegistrationInputType.EMPTY_MAP,
                 TeleportInterfaceItemResolver.resolveRegistrationInput(new ItemStack(Items.MAP)).orElseThrow().type());
         assertTrue(TeleportInterfaceItemResolver.resolve(new ItemStack(Items.FILLED_MAP)).isEmpty());
+        ItemStack filledMap = new ItemStack(Items.FILLED_MAP);
+        filledMap.set(DataComponents.MAP_ID, new net.minecraft.world.level.saveddata.maps.MapId(7));
+        assertTrue(TeleportInterfaceItemResolver.resolveRegistrationInput(filledMap).isEmpty());
+        assertTrue(NexusInterfaceBinding.writeIdentity(filledMap, UUID.randomUUID()));
+        assertTrue(TeleportInterfaceItemResolver.resolveRegistrationInput(filledMap).isEmpty());
     }
 
     @Test

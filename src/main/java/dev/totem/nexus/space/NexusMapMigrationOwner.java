@@ -40,6 +40,10 @@ public final class NexusMapMigrationOwner {
     public static CompletableFuture<Lease> prepare(ServerLevel level) {
         return forStorage(level.getServer().overworld().getDataStorage(), level.getServer()).begin();
     }
+    /** Explicit migration path: freeze every native map before the joined native save establishes T0. */
+    public static CompletableFuture<Lease> prepareFullInventory(ServerLevel level) {
+        return forStorage(level.getServer().overworld().getDataStorage(), level.getServer()).beginFullInventory();
+    }
     static NexusMapMigrationOwner forStorage(SavedDataStorage storage, MinecraftServer server) {
         return ((StorageAccess) storage).totem$mapMigrationOwner(server);
     }
@@ -113,16 +117,26 @@ public final class NexusMapMigrationOwner {
 
     /** Never join this response on the server thread. Cancellation still drains internal IO. */
     synchronized CompletableFuture<Lease> begin() {
+        return begin(false);
+    }
+    synchronized CompletableFuture<Lease> beginFullInventory() {
+        return begin(true);
+    }
+    private CompletableFuture<Lease> begin(boolean freezeFullInventory) {
         checkThread();
         if (closing || active != null || !pendingDisk.isDone()) return CompletableFuture.failedFuture(new IllegalStateException("Migration owner unavailable"));
         var ledger = NexusMapBindingSavedData.loadCanonical(storage);
         Object token = ledger.freezeForMigration();
+        NexusMapTerrainFreeze.FullInventoryHold recordingHold = null;
         final Session session;
         try {
-            session = new Session(ledger, token, NexusMapBindingWitness.capture(ledger), Math.incrementExact(nextEpoch));
+            if (freezeFullInventory) recordingHold = NexusMapTerrainFreeze.acquireFullInventory(server);
+            session = new Session(ledger, token, NexusMapBindingWitness.capture(ledger),
+                    Math.incrementExact(nextEpoch), recordingHold);
             nextEpoch = session.epoch;
             active = session;
         } catch (RuntimeException failure) {
+            if (recordingHold != null) recordingHold.release();
             ledger.releaseMigrationFreeze(token);
             return CompletableFuture.failedFuture(failure);
         }
@@ -181,6 +195,7 @@ public final class NexusMapMigrationOwner {
     private synchronized void release(Session session) {
         if (active != session) return;
         if (session.capture != null) session.capture.close();
+        if (session.recordingHold != null) session.recordingHold.release();
         session.ledger.releaseMigrationFreeze(session.token);
         retrySave.set(true);
         active = null;
@@ -251,10 +266,18 @@ public final class NexusMapMigrationOwner {
         private final NexusMapMigrationOwner owner;
         private final Session session;
         private Lease(NexusMapMigrationOwner owner, Session session) { this.owner = owner; this.session = session; }
-        public boolean valid() { return !owner.closing && owner.active == session && session.held && session.failure.get() == null; }
+        public boolean valid() { return !owner.closing && owner.active == session && session.held
+                && session.failure.get() == null
+                && (session.recordingHold == null || session.recordingHold.held()); }
         /** Cache-only, server-thread capture. A controller must stage/verify disk sources separately. */
         SourceCapture captureSource(MapId id) { return captureSource(id, false); }
         SourceCapture captureFrozenSource(MapId id) { return captureSource(id, true); }
+        SourceCapture captureFrozenInventorySource(MapId id) {
+            owner.checkThread();
+            if (session.recordingHold == null || !session.recordingHold.valid())
+                throw new IllegalStateException("Full native inventory is not frozen");
+            return captureSource(id, false);
+        }
         private SourceCapture captureSource(MapId id, boolean freezeNative) {
             owner.checkThread();
             synchronized (owner) {
@@ -343,7 +366,8 @@ public final class NexusMapMigrationOwner {
         private void check() {
             lease.owner.checkThread();
             if (closed) throw new IllegalStateException("Source capture released");
-            if ((nativeHold != null && (!nativeHold.valid() || nativeSource.colors == null
+            boolean frozenNative = nativeHold != null || lease.session.recordingHold != null;
+            if ((frozenNative && ((nativeHold != null && !nativeHold.valid()) || nativeSource.colors == null
                     || java.nio.ByteBuffer.wrap(nativeSource.colors).mismatch(base.colors()) != -1))
                     || !lease.valid() || cached(lease.owner.server.getDataStorage(), MapItemSavedData.type(id)) != nativeSource
                     || cached(lease.owner.storage, NexusMapDetailSavedData.TYPE) != detailSource
@@ -355,7 +379,8 @@ public final class NexusMapMigrationOwner {
         /** Selected native base plus full detail are held; other native sources still need reconciliation. */
         NexusMapSourceSnapshot frozenSnapshot() {
             var snapshot = result();
-            if (nativeHold == null) throw new IllegalStateException("Native recording is not frozen");
+            if (nativeHold == null && lease.session.recordingHold == null)
+                throw new IllegalStateException("Native recording is not frozen");
             return snapshot;
         }
         boolean step(int budget) {
@@ -711,13 +736,16 @@ public final class NexusMapMigrationOwner {
         final Object token;
         final NexusMapBindingWitness.Expected expected;
         final long epoch;
+        final NexusMapTerrainFreeze.FullInventoryHold recordingHold;
         final CompletableFuture<Lease> response = new CompletableFuture<>();
         final CompletableFuture<Void> drained = new CompletableFuture<>();
         final AtomicReference<Throwable> failure = new AtomicReference<>();
         volatile boolean sealed, held;
         SourceCapture capture;
-        Session(NexusMapBindingSavedData ledger, Object token, NexusMapBindingWitness.Expected expected, long epoch) {
+        Session(NexusMapBindingSavedData ledger, Object token, NexusMapBindingWitness.Expected expected, long epoch,
+                NexusMapTerrainFreeze.FullInventoryHold recordingHold) {
             this.ledger = ledger; this.token = token; this.expected = expected; this.epoch = epoch;
+            this.recordingHold = recordingHold;
         }
     }
 }

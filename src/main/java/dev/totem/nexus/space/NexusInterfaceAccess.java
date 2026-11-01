@@ -12,8 +12,19 @@ final class NexusInterfaceAccess {
         var storage = player.level().getServer().overworld().getDataStorage();
         var friends = storage.computeIfAbsent(NexusFriendSavedData.TYPE);
         if (!unit.canView(player.getUUID(), friends.areFriends(player.getUUID(), unit.owner()))) return false;
-        if (NexusSpaceDiscoverySavedData.loadCanonical(storage).hasDiscovered(player.getUUID(), unit.id())) return true;
-        return context.interfaceType().hasMapVisualization()
-                && NexusMapRecordedCoverage.covers(player, context.mapId(), unit.dimension(), unit.pos());
+        NexusSpaceDiscoverySavedData discovery = NexusSpaceDiscoverySavedData.loadCanonical(storage);
+        if (!context.interfaceType().hasMapVisualization()) {
+            return discovery.hasDiscovered(player.getUUID(), unit.id());
+        }
+        var nativeData = net.minecraft.world.item.MapItem.getSavedData(context.mapId(), player.level());
+        var records = storage.get(NexusMapRecordSavedData.TYPE);
+        var record = nativeData == null || records == null
+                ? null : records.resolve(context.mapId(), nativeData).orElse(null);
+        return record != null && !NexusMapNodeProjection.select(
+                player.getUUID(), record, nativeData, java.util.List.of(unit),
+                (viewer, owner) -> friends.areFriends(viewer, owner),
+                id -> discovery.hasDiscovered(player.getUUID(), id),
+                candidate -> NexusMapRecordedCoverage.covers(
+                        player, context.mapId(), candidate.dimension(), candidate.pos())).isEmpty();
     }
 }

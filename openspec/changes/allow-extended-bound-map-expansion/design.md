@@ -883,6 +883,31 @@ terrain import or activation. Startup automation, saved-source reconciliation,
 legacy import and activation remain unimplemented.
 
 
+### Durable terrain-import manifest and completion receipt contract
+
+A standalone canonical record binds one PREPARED ticket to the exact saved-source
+inventory receipt hash, native MapId/unit/dimension/center, effective scale/lock,
+the ordered immutable tile/page hashes and the resulting immutable-index root.
+The root is recomputed from the production page and node encodings without writing
+storage. The manifest therefore rejects reordered/duplicate tiles, changed pixels
+or coverage, changed geometry/source identity and caller-supplied root disagreement.
+
+Manifest and completion files use separate versioned, checksummed, size-bounded
+records named by ticket. Reads are no-follow, fixed-size and distinguish record
+absence; completion fails closed without its manifest, while future, corrupt,
+truncated, trailing or noncanonical data always refuse. Publication uses
+CREATE_NEW, file and directory durability, exact immutable retry and uncertain-
+commit reporting; conflicting records are retained without repair or replacement.
+A completion receipt cannot be read or published without the exact durable
+manifest. It additionally binds the exact revision-zero registry identity, scale,
+lock, expected root, empty previous root and manifest hash as operation receipt.
+
+This contract does not normalize legacy/native source pixels, write immutable
+blocks, publish a registry row, run under the migration owner, activate sparse
+storage, retire legacy data or authorize gameplay. Those steps must verify this
+same manifest and completion receipt while the full-inventory Lease remains held.
+
+
 ### Production-first server expansion path
 
 The user prioritizes completing gameplay over further recovery infrastructure.

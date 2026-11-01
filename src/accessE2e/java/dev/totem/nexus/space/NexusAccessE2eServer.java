@@ -15,7 +15,8 @@ public final class NexusAccessE2eServer implements ModInitializer {
     public static final UUID UNIT = UUID.fromString("bbc66000-0000-4000-8000-000000000001");
     public static final UUID OFFLINE = UUID.fromString("bbc66000-0000-4000-8000-000000000002");
     public static final Path RESULTS = Path.of(System.getProperty("nexus.access.e2e.results","build/access-e2e/results"));
-    private boolean setup, observing;
+    private boolean setup, observing, targetWasConnected;
+    private UUID targetId;
     private int ticks;
     public static boolean exists(String name) { return Files.exists(RESULTS.resolve(name)); }
     public static void mark(String name) {
@@ -33,14 +34,27 @@ public final class NexusAccessE2eServer implements ModInitializer {
                 if (++ticks > 20*180) throw new AssertionError("Access E2E timed out");
                 var target = server.getPlayerList().getPlayerByName("AccessTarget");
                 var observer = server.getPlayerList().getPlayerByName("AccessObserver");
+                if (target != null) {
+                    targetWasConnected = true;
+                    targetId = target.getUUID();
+                }
+                if (targetWasConnected && target == null && exists("target-disconnecting")) {
+                    if (targetId == null || NexusArrayVisualizationAuthority.hasSession(targetId))
+                        throw new AssertionError("Disconnect retained the server visualization session");
+                    mark("server-disconnect-cleanup");
+                    mark("done");
+                    return;
+                }
                 if (target == null || observer == null) return;
                 var level = server.overworld();
                 var units = level.getDataStorage().computeIfAbsent(NexusSpaceUnitSavedData.TYPE);
                 if (!setup) {
                     BlockPos pos = new BlockPos(0,100,0);
                     level.setBlockAndUpdate(pos,Blocks.LODESTONE.defaultBlockState());
-                    target.teleportTo(.5,101,.5); target.setGameMode(GameType.CREATIVE);
-                    observer.teleportTo(.5,101,.5); observer.setGameMode(GameType.CREATIVE);
+                    level.setBlockAndUpdate(new BlockPos(0,100,4), Blocks.STONE.defaultBlockState());
+                    level.setBlockAndUpdate(new BlockPos(6,100,6), Blocks.STONE.defaultBlockState());
+                    target.teleportTo(.5,101,4.5); target.setGameMode(GameType.CREATIVE);
+                    observer.teleportTo(6.5,101,6.5); observer.setGameMode(GameType.CREATIVE);
                     server.getPlayerList().op(new net.minecraft.server.players.NameAndId(observer.getGameProfile()));
                     units.put(new NexusSpaceUnitRecord(UNIT,SpaceUnitType.LODESTONE,level.dimension(),pos,target.getUUID(),"E2E Anchor",
                             SpaceUnitVisibility.PRIVATE,SpaceUnitStatus.ACTIVE,Set.of(),Set.of(),SpaceStructureSnapshot.EMPTY,0,0));
@@ -58,8 +72,14 @@ public final class NexusAccessE2eServer implements ModInitializer {
                 if (units.get(UNIT).orElseThrow().administrators().contains(OFFLINE)) mark("grant-ok");
                 if (exists("stop-sent") && !observer.isSpectator()) {
                     if (observer.gameMode.getGameModeForPlayer()!=GameType.CREATIVE) throw new AssertionError("Observer mode not restored");
-                    mark("done");
+                    mark("access-done");
                 }
+                if (exists("target-visualization-rendered") && NexusArrayVisualizationAuthority.hasSession(target.getUUID()))
+                    mark("server-visualization-enabled");
+                if (exists("target-visualization-disabled") && !NexusArrayVisualizationAuthority.hasSession(target.getUUID()))
+                    mark("server-visualization-disabled");
+                if (exists("target-visualization-reenabled") && NexusArrayVisualizationAuthority.hasSession(target.getUUID()))
+                    mark("server-visualization-reenabled");
             } catch (Throwable e) { fail(e); }
         });
     }

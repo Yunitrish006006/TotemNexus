@@ -31,10 +31,12 @@ public final class NexusRecoveryRoutingGameTest {
     @GameTest(maxTicks = 30)
     public void extendedDestinationsUseExactTerrainOrCurrentHolderDiscovery(GameTestHelper h) {
         var p = h.makeMockServerPlayerInLevel();
+        p.getAbilities().instabuild = false;
         var receiver = h.makeMockServerPlayerInLevel();
         var level = h.getLevel();
         var anchor = lodestone(h, p, h.absolutePos(new BlockPos(2, 2, 2)));
-        ItemStack map = NexusMapLifecycleAuthority.createBoundMap(level, anchor.pos(), anchor.id(), new ItemStack(Items.MAP)).orElseThrow();
+        ItemStack map = NexusMapLifecycleAuthority.createExactCenteredMap(
+                level, anchor.pos(), anchor.id(), new ItemStack(Items.MAP)).orElseThrow();
         for (int i = 0; i < 5; i++) require(h,
                 NexusMapLifecycleAuthority.postProcess(map, level, net.minecraft.world.item.component.MapPostProcessing.SCALE)
                         == NexusMapLifecycleAuthority.PostProcessResult.PROCESSED, "Extended fixture failed");
@@ -55,22 +57,20 @@ public final class NexusRecoveryRoutingGameTest {
         require(h, NexusInterfaceAccess.allows(p, context, exact), "Exact extended terrain was rejected");
         require(h, !NexusInterfaceAccess.allows(p, context, hole), "Overview color authorized an unrecorded neighboring block");
         require(h, !NexusInterfaceAccess.allows(p, context, beyondExtent), "Terrain outside logical extent authorized target");
-        require(h, NexusInterfaceAccess.allows(p, context, offMap), "Map required a separate compass for discovered cross-dimension destination");
+        require(h, !NexusInterfaceAccess.allows(p, context, offMap), "Map leaked a discovered cross-dimension destination");
         var payload = NexusSpaceUnitAuthority.currentMapPayload(p).orElseThrow();
         require(h, payload.entries().stream().anyMatch(e -> e.id().equals(exact.id()))
-                && payload.entries().stream().anyMatch(e -> e.id().equals(offMap.id()))
-                && payload.entries().stream().noneMatch(e -> e.id().equals(hole.id()) || e.id().equals(beyondExtent.id())),
+                && payload.entries().stream().noneMatch(e -> e.id().equals(offMap.id())
+                || e.id().equals(hole.id()) || e.id().equals(beyondExtent.id())),
                 "Live payload reapplied native-only coverage or leaked unknown terrain");
         var quote = new NexusMapQuoteAuthority().quote(p, context, exact.id());
         require(h, quote.interfaceBonusActive(), "Exact recorded terrain lost map benefit in quote");
-        var crossQuote = new NexusMapQuoteAuthority().quote(p, context, offMap.id());
-        require(h, crossQuote.amethystCost() > 0 && !crossQuote.interfaceBonusActive(), "Discovery fallback changed cross-dimension costs or invented terrain benefit");
         receiver.setItemInHand(InteractionHand.MAIN_HAND, map.copy());
         var received = NexusSpaceUnitAuthority.establishInterfaceContext(receiver, InteractionHand.MAIN_HAND, "player", receiver.getUUID()).orElseThrow();
         require(h, NexusInterfaceAccess.allows(receiver, received, exact), "Transfer lost recorded terrain");
         require(h, !NexusInterfaceAccess.allows(receiver, received, offMap), "Transfer inherited former holder discoveries");
         discovery(receiver).markDiscovered(receiver.getUUID(), offMap.id());
-        require(h, NexusInterfaceAccess.allows(receiver, received, offMap), "Receiver discovery was ignored");
+        require(h, !NexusInterfaceAccess.allows(receiver, received, offMap), "Receiver discovery bypassed map dimension");
         units(p).disableLodestone(offMap.id(), level.getGameTime());
         require(h, !NexusInterfaceAccess.allows(receiver, received, units(p).get(offMap.id()).orElseThrow()), "Discovery revived disabled target");
         require(h, !level.isLoaded(exact.pos()), "Authorization force-loaded remote terrain");
@@ -95,7 +95,8 @@ public final class NexusRecoveryRoutingGameTest {
         var a = lodestone(h, p, anchor);
         var b = lodestone(h, p, anchor.offset(3, 0, 0));
         var c = lodestone(h, p, anchor.offset(5, 0, 0));
-        ItemStack map = NexusMapLifecycleAuthority.createBoundMap(level, anchor, a.id(), new ItemStack(Items.MAP)).orElseThrow();
+        ItemStack map = NexusMapLifecycleAuthority.createExactCenteredMap(
+                level, anchor, a.id(), new ItemStack(Items.MAP)).orElseThrow();
         var mapId = map.get(DataComponents.MAP_ID);
         MapItemSavedData data = MapItem.getSavedData(map, level);
         int centerX = data.centerX, centerZ = data.centerZ;
@@ -104,7 +105,8 @@ public final class NexusRecoveryRoutingGameTest {
         require(h, NexusSpaceUnitAuthority.establishInterfaceContext(p, InteractionHand.MAIN_HAND, "lodestone", b.id()).isEmpty(), "Unpainted source accepted");
         Arrays.fill(data.colors, (byte) 4);
         var context = NexusSpaceUnitAuthority.establishInterfaceContext(p, InteractionHand.MAIN_HAND, "lodestone", b.id()).orElseThrow();
-        require(h, context.sourceId().equals(b.id()) && context.boundUnitId().equals(a.id()), "Source replaced map anchor");
+        require(h, context.sourceId().equals(b.id()) && context.boundUnitId() == null,
+                "Clicked source changed MapId-only interface identity");
         require(h, NexusInterfaceAccess.allows(p, context, c), "Map required discovery for covered destination");
         require(h, !discovery(p).hasDiscovered(p.getUUID(), c.id()), "Map silently changed discovery");
         net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.invoker().interact(p, level, InteractionHand.MAIN_HAND,
@@ -113,8 +115,8 @@ public final class NexusRecoveryRoutingGameTest {
         NexusSpaceUnitAuthority.setFavorite(p, "lodestone", b.id(), c.id(), true);
         require(h, discovery(p).isFavorite(p.getUUID(), c.id()) && !discovery(p).hasDiscovered(p.getUUID(), c.id()),
                 "Map favorite failed or granted compass discovery");
-        require(h, map.get(DataComponents.MAP_ID).equals(mapId) && NexusInterfaceBinding.read(map).equals(a.id())
-                && data.centerX == centerX && data.centerZ == centerZ, "Activation changed map identity/center");
+        require(h, map.get(DataComponents.MAP_ID).equals(mapId) && NexusInterfaceBinding.read(map) == null
+                && data.centerX == centerX && data.centerZ == centerZ, "Activation changed MapId/center or added item identity");
         require(h, NexusMapLifecycleAuthority.expansionAnchorEligibility(map, level) == NexusMapLifecycleAuthority.ScaleEligibility.ALLOWED,
                 "Expansion no longer validates original anchor");
         var outside = new NexusSpaceUnitRecord(UUID.randomUUID(), SpaceUnitType.LODESTONE, level.dimension(),
@@ -131,9 +133,12 @@ public final class NexusRecoveryRoutingGameTest {
                 UUID.randomUUID(), "Private", SpaceUnitVisibility.PRIVATE, SpaceUnitStatus.ACTIVE, Set.of(), Set.of(), SpaceStructureSnapshot.EMPTY, 1, 1);
         units(p).put(foreign);
         require(h, !NexusInterfaceAccess.allows(p, context, foreign), "Map leaked unauthorized unit");
+        context = NexusSpaceUnitAuthority.establishInterfaceContext(
+                p, InteractionHand.MAIN_HAND, "lodestone", b.id()).orElseThrow();
         ItemStack forged = map.copy(); NexusInterfaceBinding.writeIdentity(forged, b.id());
         p.setItemInHand(InteractionHand.MAIN_HAND, forged);
-        require(h, NexusSpaceUnitAuthority.currentInterfaceContext(p).isEmpty(), "Forged anchor survived held validation");
+        require(h, NexusSpaceUnitAuthority.currentInterfaceContext(p).isPresent(),
+                "Irrelevant item identity invalidated the held MapId context");
         p.setItemInHand(InteractionHand.MAIN_HAND, map);
         Arrays.fill(data.colors, (byte) 0);
         require(h, !NexusInterfaceAccess.allows(p, context, c), "Stale painted coverage accepted");
@@ -144,7 +149,8 @@ public final class NexusRecoveryRoutingGameTest {
     public void mapPayloadMaintenanceNeverLoadsPaintedRemoteChunk(GameTestHelper h) {
         var p = h.makeMockServerPlayerInLevel(); var level = h.getLevel();
         var anchor = lodestone(h, p, h.absolutePos(new BlockPos(2, 2, 2)));
-        ItemStack map = NexusMapLifecycleAuthority.createBoundMap(level, anchor.pos(), anchor.id(), new ItemStack(Items.MAP)).orElseThrow();
+        ItemStack map = NexusMapLifecycleAuthority.createExactCenteredMap(
+                level, anchor.pos(), anchor.id(), new ItemStack(Items.MAP)).orElseThrow();
         for (int scale = 0; scale < 4; scale++) require(h,
                 NexusMapLifecycleAuthority.postProcess(map, level, net.minecraft.world.item.component.MapPostProcessing.SCALE)
                         == NexusMapLifecycleAuthority.PostProcessResult.PROCESSED, "Expansion failed");

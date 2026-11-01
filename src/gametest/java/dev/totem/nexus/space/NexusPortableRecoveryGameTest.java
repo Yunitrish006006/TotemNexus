@@ -77,7 +77,8 @@ public final class NexusPortableRecoveryGameTest {
                 SpaceUnitVisibility.PRIVATE, SpaceUnitStatus.ACTIVE, Set.of(), Set.of(), SpaceStructureSnapshot.EMPTY, 0, 0));
         NexusSpaceDiscoverySavedData.loadCanonical(level.getServer().overworld().getDataStorage()).markDiscovered(p.getUUID(), id);
         for (var item : new net.minecraft.world.item.Item[]{Items.COMPASS, Items.RECOVERY_COMPASS, Items.MAP}) {
-            var stack = item == Items.MAP ? NexusMapLifecycleAuthority.createBoundMap(level, pos, id, new ItemStack(item)).orElseThrow() : new ItemStack(item);
+            var stack = item == Items.MAP ? NexusMapLifecycleAuthority.createExactCenteredMap(
+                    level, pos, id, new ItemStack(item)).orElseThrow() : new ItemStack(item);
             if (item != Items.MAP) NexusInterfaceBinding.write(stack, level, pos, id);
             else java.util.Arrays.fill(MapItem.getSavedData(stack, level).colors, (byte) 4);
             p.setItemInHand(InteractionHand.MAIN_HAND, stack);

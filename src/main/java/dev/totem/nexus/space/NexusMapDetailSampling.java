@@ -45,10 +45,10 @@ public final class NexusMapDetailSampling {
                 if (base==null || base.locked || !base.dimension.equals(player.level().dimension())) continue;
                 var store=NexusMapDetailSavedData.available(player.level()).orElse(null);
                 if(store==null || !store.acceptsMutation()) continue;
-                var binding=NexusMapBindingSavedData.loadCanonical(server.overworld().getDataStorage()).resolve(held.mapId(),base).orElse(null);
-                if (binding==null) continue;
+                var records=server.overworld().getDataStorage().get(NexusMapRecordSavedData.TYPE);
+                var record=records==null?null:records.resolve(held.mapId(),base).orElse(null);
+                if (record==null) continue;
                 boolean first=visited.add(held.mapId().id());
-                store.initialize(player.level(),held.mapId(),base,binding);
                 Work work=WORK.computeIfAbsent(held.mapId().id(),ignored->new Work());
                 int radius=player.level().dimensionType().hasCeiling()?64:128;
                 int tx=Math.floorDiv(player.blockPosition().getX(),8),tz=Math.floorDiv(player.blockPosition().getZ(),8);
@@ -59,7 +59,7 @@ public final class NexusMapDetailSampling {
                     if(dx*dx+dz*dz<(radius/8)*(radius/8)) work.queue.offer(tx+dx,tz+dz,false,tick);
                 }
                 if(!first) continue; // Other holders still add their own legitimate nearby work.
-                budget-=advance(player.level(),held.mapId().id(),base,store,work.queue,tick,Math.min(512,budget),blockReads,deadline,binding.extent(base), () -> notifyCapacity(player,tick));
+                budget-=advance(player.level(),held.mapId().id(),base,store,work.queue,tick,Math.min(512,budget),blockReads,deadline,record.extent(base), () -> notifyCapacity(player,tick));
             }
         }
         WORK.keySet().retainAll(visited); rotation=(rotation+1)%players.size();

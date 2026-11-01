@@ -2,7 +2,6 @@ package dev.totem.nexus.client;
 
 import dev.totem.nexus.network.MapOverviewPayload;
 import dev.totem.nexus.network.RequestMapOverviewPayload;
-import dev.totem.nexus.space.NexusInterfaceBinding;
 import java.util.*;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -26,7 +25,7 @@ public final class NexusMapOverviewClient {
     private static ClientLevel level;
     private static long ticks;
     private static boolean registered;
-    private record Key(int map, int frame, UUID binding) {}
+    private record Key(int map, int frame) {}
     private static final class Entry {
         final Key key;
         final Identifier textureId = Identifier.fromNamespaceAndPath("totem", "map_overview/"+UUID.randomUUID());
@@ -60,8 +59,8 @@ public final class NexusMapOverviewClient {
         ENTRIES.clear();level=null;ticks=0;
     }
     private static Key key(ItemStack stack,int frame) {
-        var id=stack.get(DataComponents.MAP_ID);var binding=NexusInterfaceBinding.read(stack);
-        return id==null||binding==null?null:new Key(id.id(),frame,binding);
+        var id=stack.get(DataComponents.MAP_ID);
+        return id==null?null:new Key(id.id(),frame);
     }
     private static boolean valid(Key key) {
         var mc=Minecraft.getInstance();

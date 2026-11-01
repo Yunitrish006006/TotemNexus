@@ -898,6 +898,7 @@ pending. Abandoned pending files remain quota charges until future bounded
 reclamation. No production flow calls staging. No merge, push, version change
 or release occurred.
 
+
 Independent final review accepted P2-corrected standalone raw staging with no
 remaining blocker after frozen-source validation. Acceptance covers quota,
 no-overwrite publication, exact retry and failure handling, and excludes owner/
@@ -1350,4 +1351,69 @@ presentations and the owning Observer path, precise extended coverage and
 current-holder compass-equivalent off-map authorization, capacity feedback, and
 required client/E2E/runtime validation remain. No further experimental migration
 integration is a prerequisite for this existing-format production path. No merge,
+push, version change or release occurred.
+
+
+### Lease-owned full native-inventory recording freeze (2026-10-31)
+
+The explicit experimental migration owner can now acquire one server-thread-scoped
+full-native-inventory recording hold after the metadata ledger freeze and before
+the joined native save that establishes T0. While the Lease is held, both selected
+and unrelated cached native maps reject `setColor`/`updateColor`; a checked capture
+may select any inventory member against the same frozen T0. Closing a child capture
+does not release the inventory hold. Lease close, owner-establishment failure and
+storage shutdown release it, after which native recording resumes. The ordinary
+single-map owner path remains unchanged and cannot claim full-inventory capture.
+
+The first focused GameTest attempt incorrectly ran the new global hold concurrently
+with the existing source-capture cases and caused nine isolation failures; it is not
+passing evidence. Dedicated GameTest environments isolate both new lifecycle cases.
+The final focused `map-migration-freeze` run completed all 69 required tests in
+12.41 seconds, including pre-readiness blocking, common-T0 capture, child/parent
+ownership, normal release and storage-close failure cleanup. The full server suite
+then completed all 273 required tests in 7.028 minutes; the narrow durable copy is
+`/tmp/nexus-full-inventory-freeze-gametest.log`. Its known post-summary test-world
+save hang was interrupted only after the exact success summary. A separate Java 25
+`test assemble validateAccessWidener` run exited 0 with `BUILD SUCCESSFUL in 40s`;
+all 318 JUnit tests passed with zero failures, errors or skips.
+
+Impact review found no changed Core API, player-facing Screen, Observer provider,
+packet, audit relay, teleport authorization or death-node contract. The full hold
+is explicit and currently has no automatic gameplay caller. Immutable-store import
+manifests/receipts, activation, recovery and reclamation remain separate deferred
+tasks; this checkpoint does not claim any of them. No commit, push, version change
+or release occurred.
+
+
+### Durable terrain-import manifest and completion receipt contract (2026-10-31)
+
+A new standalone record binds one PREPARED ticket and saved-inventory receipt hash
+to exact map identity/geometry, ordered immutable tile/page hashes and a root
+recomputed with the production immutable-index encodings. The completion record
+requires that same durable manifest plus an exact revision-zero registry entry,
+expected root, empty previous root and manifest hash as operation receipt. Empty
+terrain is represented explicitly by the empty root rather than by absence.
+
+Both files are versioned, checksummed and size/count bounded. Fixed-size no-follow
+reads reject missing dependencies, future versions, corruption, truncation,
+trailing bytes and noncanonical tile order. CREATE_NEW publication retains
+conflicts, forces the file and directory, verifies an exact reread and reports
+post-create failures as uncertain commits requiring an exact retry. A completion
+record cannot be read or published unless its exact manifest is already durable.
+
+The first focused attempt failed only at test compilation because the new test
+omitted the `StandardOpenOption` import; it is not passing evidence. After that
+test-only correction, the final focused import/index/registry set passed all 30
+tests with zero failures/errors/skips. The final Java 25
+`test assemble validateAccessWidener` run exited 0 with `BUILD SUCCESSFUL in 37s`;
+all 325 JUnit tests passed with zero failures, errors or skips. The focused suite
+independently derives the same two-page root through the production index writer,
+then compares it with the pure manifest root, in addition to codec, immutable
+retry, conflict, corruption, future-version, completion-row and cancellation cases.
+
+Impact and consumer review found no new production caller and no changed Core API,
+Screen/Observer provider, packet/relay, teleport, death-node or EventBus contract.
+No client or three-JVM runtime claim is made for this standalone disk contract.
+Source normalization, immutable block/root publication, migration-owner lifecycle,
+activation, legacy retirement, recovery and reclamation remain pending. No commit,
 push, version change or release occurred.

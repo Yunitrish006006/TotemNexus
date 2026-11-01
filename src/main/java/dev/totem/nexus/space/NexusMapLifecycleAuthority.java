@@ -19,6 +19,60 @@ import java.util.UUID;
 public final class NexusMapLifecycleAuthority {
     private NexusMapLifecycleAuthority() { }
 
+    static Optional<ItemStack> createExactCenteredMap(
+            ServerLevel level,
+            BlockPos anchorPos,
+            UUID unitId,
+            ItemStack componentSource) {
+        if (level == null || anchorPos == null || unitId == null || componentSource == null
+                || !componentSource.is(Items.MAP) || !level.isLoaded(anchorPos)
+                || !level.getBlockState(anchorPos).is(Blocks.LODESTONE)) return Optional.empty();
+
+        var storage = level.getServer().overworld().getDataStorage();
+        NexusSpaceUnitRecord unit = NexusSpaceUnitSavedData.loadCanonical(storage).get(unitId)
+                .filter(value -> value.isLodestoneAnchor()
+                        && value.status() == SpaceUnitStatus.ACTIVE
+                        && value.dimension().equals(level.dimension())
+                        && value.pos().equals(anchorPos))
+                .orElse(null);
+        if (unit == null) return Optional.empty();
+
+        MapItemSavedData mapData = exactData(
+                anchorPos.getX(), anchorPos.getZ(), (byte) 0, false, level.dimension());
+        NexusMapRecordSavedData records;
+        try {
+            records = storage.computeIfAbsent(NexusMapRecordSavedData.TYPE);
+        } catch (RuntimeException exception) {
+            return Optional.empty();
+        }
+        NexusMapBindingSavedData legacy = NexusMapBindingSavedData.loadCanonical(storage);
+        MapId mapId = null;
+        for (int attempt = 0; attempt < 1024; attempt++) {
+            if (mapAllocatorExhausted(level)) break;
+            MapId candidate = nextMapId(level);
+            if (level.getMapData(candidate) != null || records.get(candidate).isPresent()
+                    || legacy.get(candidate).isPresent()) {
+                consumeExpectedMapId(level, candidate);
+                continue;
+            }
+            consumeExpectedMapId(level, candidate);
+            NexusMapRecordSavedData.BootstrapResult baseline = records.bootstrap(candidate, mapData);
+            if (baseline.result() != NexusMapRecordSavedData.RegisterResult.CONFLICT) {
+                mapId = candidate;
+                break;
+            }
+        }
+        if (mapId == null) return Optional.empty();
+
+        ItemStack result = new ItemStack(Items.FILLED_MAP);
+        result.applyComponents(componentSource.getComponentsPatch());
+        result.set(DataComponents.MAP_ID, mapId);
+        result.remove(DataComponents.MAP_DECORATIONS);
+        NexusInterfaceBinding.clearIdentityMetadata(result);
+        level.setMapData(mapId, mapData);
+        return Optional.of(result);
+    }
+
     static Optional<ItemStack> createBoundMap(
             ServerLevel level,
             BlockPos anchorPos,
@@ -68,6 +122,24 @@ public final class NexusMapLifecycleAuthority {
             ItemStack stack,
             ServerLevel level,
             MapPostProcessing processing) {
+        MapIdRecordResolution mapIdResolution = resolveMapIdRecord(stack, level);
+        if (mapIdResolution.registered()) {
+            MapIdValidatedMap map = mapIdResolution.validated();
+            if (map == null || processing == null) return ScaleEligibility.DENIED;
+            var terrain = NexusMapDetailSavedData.available(level).orElse(null);
+            if (terrain == null || !terrain.acceptsMutation() || !terrain.canDerive(map.mapId().id())) {
+                return ScaleEligibility.DENIED;
+            }
+            if (processing == MapPostProcessing.SCALE) {
+                return map.data().locked || map.entry().extent(map.data()).expanded().isEmpty()
+                        ? ScaleEligibility.DENIED : ScaleEligibility.ALLOWED;
+            }
+            if (processing == MapPostProcessing.LOCK) {
+                return map.data().locked ? ScaleEligibility.DENIED : ScaleEligibility.ALLOWED;
+            }
+            return ScaleEligibility.DENIED;
+        }
+
         RegistryResolution resolution = resolveRegistryBinding(stack, level);
         if (!resolution.registered()) return ScaleEligibility.NOT_NEXUS;
         ValidatedMap validated = resolution.validated();
@@ -78,7 +150,6 @@ public final class NexusMapLifecycleAuthority {
         if (processing == MapPostProcessing.SCALE) {
             return validated.data().locked || validated.entry().extent(validated.data()).expanded().isEmpty()
                     || !terrain.canDerive(validated.mapId().id(), validated.entry())
-                    || !anchorAvailable(level, validated.entry(), validated.unit())
                     ? ScaleEligibility.DENIED : ScaleEligibility.ALLOWED;
         }
         if (processing == MapPostProcessing.LOCK) {
@@ -98,6 +169,13 @@ public final class NexusMapLifecycleAuthority {
             ServerLevel level,
             MapPostProcessing processing) {
         if (processing == null) return PostProcessResult.NOT_NEXUS;
+        MapIdRecordResolution mapIdResolution = resolveMapIdRecord(stack, level);
+        if (mapIdResolution.registered()) {
+            return mapIdResolution.validated() == null
+                    ? PostProcessResult.DENIED
+                    : postProcessMapId(stack, level, processing, mapIdResolution.validated());
+        }
+
         RegistryResolution resolution = resolveRegistryBinding(stack, level);
         if (!resolution.registered()) return PostProcessResult.NOT_NEXUS;
         ValidatedMap validated = resolution.validated();
@@ -110,8 +188,7 @@ public final class NexusMapLifecycleAuthority {
         MapItemSavedData resultData;
         if (processing == MapPostProcessing.SCALE) {
             if (validated.data().locked || validated.entry().extent(validated.data()).expanded().isEmpty()
-                    || !terrain.canDerive(validated.mapId().id(), validated.entry())
-                    || !anchorAvailable(level, validated.entry(), validated.unit())) {
+                    || !terrain.canDerive(validated.mapId().id(), validated.entry())) {
                 return PostProcessResult.DENIED;
             }
             resultData = exactData(
@@ -119,7 +196,7 @@ public final class NexusMapLifecycleAuthority {
                     validated.entry().centerZ(),
                     validated.entry().extent(validated.data()).expanded().orElseThrow().vanillaScale(),
                     false,
-                    validated.entry().anchor().dimension());
+                    validated.data().dimension);
             // Native pixels retain their true scale-four coordinates beyond vanilla's limit.
             // Extended exploration lives in map-owned detail pages, never a stretched authorization pixel.
             if (validated.data().scale == MapItemSavedData.MAX_SCALE) {
@@ -163,6 +240,99 @@ public final class NexusMapLifecycleAuthority {
         return PostProcessResult.PROCESSED;
     }
 
+    private static PostProcessResult postProcessMapId(
+            ItemStack stack,
+            ServerLevel level,
+            MapPostProcessing processing,
+            MapIdValidatedMap map) {
+        var terrain = NexusMapDetailSavedData.available(level).orElse(null);
+        if (terrain == null || !terrain.acceptsMutation() || !terrain.canDerive(map.mapId().id())) {
+            return PostProcessResult.DENIED;
+        }
+
+        NexusMapExtent extent = map.entry().extent(map.data());
+        int targetLogicalScale = extent.scale();
+        MapItemSavedData resultData;
+        if (processing == MapPostProcessing.SCALE) {
+            NexusMapExtent expanded = extent.expanded().orElse(null);
+            if (map.data().locked || expanded == null) return PostProcessResult.DENIED;
+            targetLogicalScale = expanded.scale();
+            resultData = exactData(map.entry().centerX(), map.entry().centerZ(), expanded.vanillaScale(),
+                    false, map.entry().dimension());
+            copyScaledPixels(map.data(), resultData);
+        } else if (processing == MapPostProcessing.LOCK) {
+            if (map.data().locked) return PostProcessResult.DENIED;
+            resultData = map.data().locked();
+        } else {
+            return PostProcessResult.NOT_NEXUS;
+        }
+
+        MapId resultMapId = null;
+        for (int attempt = 0; attempt < 1024; attempt++) {
+            if (mapAllocatorExhausted(level)) break;
+            MapId candidate = nextMapId(level);
+            if (level.getMapData(candidate) != null || map.records().get(candidate).isPresent()) {
+                consumeExpectedMapId(level, candidate);
+                continue;
+            }
+            consumeExpectedMapId(level, candidate);
+            resultMapId = candidate;
+            break;
+        }
+        if (resultMapId == null) return PostProcessResult.DENIED;
+        var prepared = map.records().prepareDerivation(map.mapId(), map.data(), resultMapId,
+                resultData, targetLogicalScale);
+        if (prepared.isEmpty()) return PostProcessResult.DENIED;
+        if (!map.records().commitDerivation(prepared.get())) {
+            throw new IllegalStateException("Prepared Nexus MapId derivation changed during commit");
+        }
+        terrain.derive(level, map.mapId(), map.data(), null, resultMapId);
+        level.setMapData(resultMapId, resultData);
+        stack.set(DataComponents.MAP_ID, resultMapId);
+        return PostProcessResult.PROCESSED;
+    }
+
+    private static boolean mapAllocatorExhausted(ServerLevel level) {
+        var index = level.getServer().getDataStorage()
+                .computeIfAbsent(net.minecraft.world.level.saveddata.maps.MapIndex.TYPE);
+        return mapAllocatorExhausted(
+                ((dev.totem.nexus.mixin.NexusMapIndexAccessor) index).totem$lastMapId());
+    }
+
+    static boolean mapAllocatorExhausted(int lastMapId) {
+        return lastMapId == Integer.MAX_VALUE;
+    }
+
+    private static MapId nextMapId(ServerLevel level) {
+        var index = level.getServer().getDataStorage()
+                .computeIfAbsent(net.minecraft.world.level.saveddata.maps.MapIndex.TYPE);
+        int last = ((dev.totem.nexus.mixin.NexusMapIndexAccessor) index).totem$lastMapId();
+        return new MapId(last + 1);
+    }
+
+    private static void consumeExpectedMapId(ServerLevel level, MapId expected) {
+        MapId allocated = level.getFreeMapId();
+        if (!expected.equals(allocated)) {
+            throw new IllegalStateException("Map allocator changed during Nexus MapId allocation");
+        }
+    }
+
+    private static void copyScaledPixels(MapItemSavedData source, MapItemSavedData target) {
+        if (source.scale == MapItemSavedData.MAX_SCALE) {
+            System.arraycopy(source.colors, 0, target.colors, 0, source.colors.length);
+            return;
+        }
+        for (int z = 0; z < 64; z++) for (int x = 0; x < 64; x++) {
+            int[] counts = new int[256];
+            int selected = 0;
+            for (int dz = 0; dz < 2; dz++) for (int dx = 0; dx < 2; dx++) {
+                int color = source.colors[x * 2 + dx + (z * 2 + dz) * 128] & 255;
+                if (color / 4 != 0 && ++counts[color] > counts[selected]) selected = color;
+            }
+            if (selected != 0) target.setColor(32 + x, 32 + z, (byte) selected);
+        }
+    }
+
     static MapItemSavedData exactData(
             int centerX,
             int centerZ,
@@ -181,30 +351,31 @@ public final class NexusMapLifecycleAuthority {
         var storage = level.getServer().overworld().getDataStorage();
         NexusMapBindingSavedData.Entry entry = NexusMapBindingSavedData.loadCanonical(storage)
                 .get(mapId).orElse(null);
-        if (entry == null) return NexusInterfaceBinding.read(stack) == null
-                ? RegistryResolution.NOT_NEXUS : RegistryResolution.INVALID_NEXUS;
+        if (entry == null) return NexusInterfaceBinding.hasIdentityMetadata(stack)
+                ? RegistryResolution.INVALID_NEXUS : RegistryResolution.NOT_NEXUS;
+        if (!NexusInterfaceBinding.hasIdentityMetadata(stack)) return RegistryResolution.NOT_NEXUS;
         UUID claimedUnitId = NexusInterfaceBinding.read(stack);
         MapItemSavedData mapData = level.getMapData(mapId);
         if (claimedUnitId == null || mapData == null
                 || !entry.unitId().equals(claimedUnitId)
                 || !entry.matchesMapData(mapData)) return RegistryResolution.INVALID_NEXUS;
-        NexusSpaceUnitRecord unit = NexusSpaceUnitSavedData.loadCanonical(storage)
-                .get(entry.unitId()).filter(entry::matchesUnit).orElse(null);
-        return unit == null
-                ? RegistryResolution.INVALID_NEXUS
-                : new RegistryResolution(true, new ValidatedMap(mapId, mapData, entry, unit));
+        return new RegistryResolution(true, new ValidatedMap(mapId, mapData, entry));
     }
 
-    private static boolean anchorAvailable(
-            ServerLevel currentLevel,
-            NexusMapBindingSavedData.Entry entry,
-            NexusSpaceUnitRecord unit) {
-        if (!entry.matchesUnit(unit)) return false;
-        ServerLevel anchorLevel = currentLevel.getServer().getLevel(entry.anchor().dimension());
-        BlockPos anchorPos = entry.anchor().pos();
-        return anchorLevel != null
-                && anchorLevel.isLoaded(anchorPos)
-                && anchorLevel.getBlockState(anchorPos).is(Blocks.LODESTONE);
+    private static MapIdRecordResolution resolveMapIdRecord(ItemStack stack, ServerLevel level) {
+        if (stack == null || level == null || !stack.is(Items.FILLED_MAP)) {
+            return MapIdRecordResolution.NOT_NEXUS;
+        }
+        MapId mapId = stack.get(DataComponents.MAP_ID);
+        if (mapId == null) return MapIdRecordResolution.NOT_NEXUS;
+        var storage = level.getServer().overworld().getDataStorage();
+        NexusMapRecordSavedData records = storage.get(NexusMapRecordSavedData.TYPE);
+        if (records == null || records.get(mapId).isEmpty()) return MapIdRecordResolution.NOT_NEXUS;
+        MapItemSavedData mapData = level.getMapData(mapId);
+        NexusMapRecordSavedData.Entry entry = records.resolve(mapId, mapData).orElse(null);
+        return entry == null
+                ? MapIdRecordResolution.INVALID_NEXUS
+                : new MapIdRecordResolution(true, new MapIdValidatedMap(mapId, mapData, entry, records));
     }
 
     public enum ScaleEligibility { NOT_NEXUS, ALLOWED, DENIED }
@@ -214,11 +385,21 @@ public final class NexusMapLifecycleAuthority {
     private record ValidatedMap(
             MapId mapId,
             MapItemSavedData data,
-            NexusMapBindingSavedData.Entry entry,
-            NexusSpaceUnitRecord unit) { }
+            NexusMapBindingSavedData.Entry entry) { }
 
     private record RegistryResolution(boolean registered, ValidatedMap validated) {
         private static final RegistryResolution NOT_NEXUS = new RegistryResolution(false, null);
         private static final RegistryResolution INVALID_NEXUS = new RegistryResolution(true, null);
+    }
+
+    private record MapIdValidatedMap(
+            MapId mapId,
+            MapItemSavedData data,
+            NexusMapRecordSavedData.Entry entry,
+            NexusMapRecordSavedData records) { }
+
+    private record MapIdRecordResolution(boolean registered, MapIdValidatedMap validated) {
+        private static final MapIdRecordResolution NOT_NEXUS = new MapIdRecordResolution(false, null);
+        private static final MapIdRecordResolution INVALID_NEXUS = new MapIdRecordResolution(true, null);
     }
 }

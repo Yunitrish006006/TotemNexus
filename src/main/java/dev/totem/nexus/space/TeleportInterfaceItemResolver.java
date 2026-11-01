@@ -6,7 +6,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.saveddata.maps.MapId;
-import net.minecraft.world.item.MapItem;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -17,22 +16,13 @@ public final class TeleportInterfaceItemResolver {
 
     public static Optional<ResolvedInterface> resolve(ServerPlayer player, InteractionHand hand) {
         if (player == null || hand == null) return Optional.empty();
-        Optional<ResolvedInterface> resolved = resolve(player.getItemInHand(hand));
-        if (resolved.isPresent() && resolved.get().type() == TeleportInterfaceType.FILLED_MAP) {
-            var mapData = MapItem.getSavedData(resolved.get().mapId(), player.level());
-            NexusMapBindingSavedData bindings = NexusMapBindingSavedData.loadCanonical(player.level().getServer().overworld().getDataStorage());
-            // The server's map ledger is durable binding proof. Origin-node lifecycle
-            // must not invalidate an already issued map; endpoints are checked separately.
-            NexusMapBindingSavedData.Entry serverBinding = bindings.resolve(resolved.get().mapId(), mapData)
-                    .filter(entry -> entry.unitId().equals(resolved.get().boundUnitId()))
-                    .orElse(null);
-            if (serverBinding == null) return Optional.empty();
+        Optional<NexusHeldMapResolver.ResolvedMap> heldMap = NexusHeldMapResolver.resolve(player, hand);
+        if (heldMap.isPresent()) {
             return Optional.of(new ResolvedInterface(
-                    TeleportInterfaceType.FILLED_MAP,
-                    resolved.get().mapId(),
-                    serverBinding.unitId()));
+                    TeleportInterfaceType.FILLED_MAP, heldMap.get().mapId(), null));
         }
-        return resolved;
+        ItemStack stack = player.getItemInHand(hand);
+        return stack.is(Items.FILLED_MAP) ? Optional.empty() : resolve(stack);
     }
 
     public static Optional<ResolvedInterface> resolve(ItemStack stack) {
@@ -43,7 +33,7 @@ public final class TeleportInterfaceItemResolver {
         if (stack.is(Items.BOOK)) return Optional.of(new ResolvedInterface(TeleportInterfaceType.BOOK, null, binding));
         if (stack.is(Items.FILLED_MAP)) {
             MapId mapId = stack.get(DataComponents.MAP_ID);
-            return mapId == null || binding == null
+            return mapId == null
                     ? Optional.empty()
                     : Optional.of(new ResolvedInterface(TeleportInterfaceType.FILLED_MAP, mapId, binding));
         }
@@ -53,7 +43,11 @@ public final class TeleportInterfaceItemResolver {
     public static Optional<RegistrationInput> resolveRegistrationInput(ItemStack stack) {
         if (stack == null || stack.isEmpty()) return Optional.empty();
         if (stack.is(Items.MAP)) return Optional.of(new RegistrationInput(RegistrationInputType.EMPTY_MAP, null, null));
-        return resolve(stack).map(value -> new RegistrationInput(
+        Optional<ResolvedInterface> resolved = resolve(stack);
+        if (resolved.isEmpty() || resolved.get().type() == TeleportInterfaceType.FILLED_MAP) {
+            return Optional.empty();
+        }
+        return resolved.map(value -> new RegistrationInput(
                 RegistrationInputType.fromInterface(value.type()), value.mapId(), value.boundUnitId()));
     }
 
@@ -61,19 +55,23 @@ public final class TeleportInterfaceItemResolver {
         if (player == null || hand == null) return Optional.empty();
         ItemStack stack = player.getItemInHand(hand);
         if (stack.is(Items.MAP)) return Optional.of(new RegistrationInput(RegistrationInputType.EMPTY_MAP, null, null));
-        return resolve(player, hand).map(value -> new RegistrationInput(
+        Optional<ResolvedInterface> resolved = resolve(player, hand);
+        if (resolved.isEmpty() || resolved.get().type() == TeleportInterfaceType.FILLED_MAP) {
+            return Optional.empty();
+        }
+        return resolved.map(value -> new RegistrationInput(
                 RegistrationInputType.fromInterface(value.type()), value.mapId(), value.boundUnitId()));
     }
 
     public enum RegistrationInputType {
-        COMPASS, RECOVERY_COMPASS, BOOK, EMPTY_MAP, NEXUS_MAP;
+        COMPASS, RECOVERY_COMPASS, BOOK, EMPTY_MAP;
 
         static RegistrationInputType fromInterface(TeleportInterfaceType type) {
             return switch (type) {
                 case COMPASS -> COMPASS;
                 case RECOVERY_COMPASS -> RECOVERY_COMPASS;
                 case BOOK -> BOOK;
-                case FILLED_MAP -> NEXUS_MAP;
+                case FILLED_MAP -> throw new IllegalArgumentException("Filled maps are not lodestone binding inputs");
             };
         }
     }
@@ -85,9 +83,6 @@ public final class TeleportInterfaceItemResolver {
         public ResolvedInterface {
             if (type == null || (type == TeleportInterfaceType.FILLED_MAP) != (mapId != null)) {
                 throw new IllegalArgumentException("Only a filled-map interface may carry a map ID");
-            }
-            if (type == TeleportInterfaceType.FILLED_MAP && boundUnitId == null) {
-                throw new IllegalArgumentException("A filled-map interface must carry a Nexus binding");
             }
         }
     }

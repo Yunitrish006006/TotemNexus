@@ -43,7 +43,7 @@ public final class NexusMapDetailClientState {
             for(var hand:net.minecraft.world.InteractionHand.values()) {
                 var stack=client.player.getItemInHand(hand);
                 var id=stack.get(net.minecraft.core.component.DataComponents.MAP_ID);
-                if(id!=null && dev.totem.nexus.space.NexusInterfaceBinding.read(stack)!=null) heldIds.add(id.id());
+                if(id!=null) heldIds.add(id.id());
             }
             if(client.gui.screen() instanceof NexusSpaceUnitMapScreen screen && screen.observerPayload().mapId()>=0) {
                 request(screen.observerPayload().mapId());

@@ -28,6 +28,29 @@ public final class NexusMapRecipeInputs {
         return matches ? Optional.of(map) : Optional.empty();
     }
 
+    /** Returns the non-mutating native cartography preview for an exact cleansing pair. */
+    public static ItemStack cleansingPreview(ItemStack map, ItemStack addition) {
+        if (!isCleansingPair(map, addition)) {
+            return ItemStack.EMPTY;
+        }
+        return new ItemStack(Items.MAP);
+    }
+
+    public static boolean isCleansingPair(ItemStack map, ItemStack addition) {
+        return map != null && addition != null
+                && map.getCount() == 1 && addition.getCount() == 1
+                && isSourceMap(map) && addition.is(Items.WATER_BUCKET);
+    }
+
+    public static boolean isCleanEmptyMap(ItemStack result) {
+        return result != null && result.getCount() == 1
+                && ItemStack.isSameItemSameComponents(new ItemStack(Items.MAP), result);
+    }
+
+    public static boolean matchesCleansingTake(ItemStack map, ItemStack addition, ItemStack result) {
+        return isCleansingPair(map, addition) && isCleanEmptyMap(result);
+    }
+
     public static boolean matchesResult(ItemStack source, ItemStack result, MapPostProcessing processing) {
         if (!isSourceMap(source) || result.getCount() != 1 || processing == null
                 || result.get(DataComponents.MAP_POST_PROCESSING) != processing) return false;

@@ -2,15 +2,17 @@
 set -euo pipefail
 root="$(pwd)"
 results="$root/build/access-e2e/results"
+run_id="$(date +%s)-$$"
 if (echo > /dev/tcp/127.0.0.1/25571) >/dev/null 2>&1; then
   echo 'Port 25571 is already occupied; refusing to reuse another server.' >&2
   exit 1
 fi
 mkdir -p "$results" build/access-e2e/{server,target,observer}
-# Only this harness's result files are replaced; world data is retained.
+# Result markers are replaced and every invocation receives a fresh generated
+# world, so an interrupted prior save cannot contaminate the authority proof.
 find "$results" -maxdepth 1 -type f -delete
 printf 'eula=true\n' > build/access-e2e/server/eula.txt
-printf '%s\n' 'server-port=25571' 'online-mode=false' 'enforce-secure-profile=false' 'spawn-protection=0' 'view-distance=2' 'simulation-distance=2' > build/access-e2e/server/server.properties
+printf '%s\n' 'server-port=25571' 'online-mode=false' 'enforce-secure-profile=false' 'white-list=false' 'enforce-whitelist=false' 'spawn-protection=0' 'view-distance=2' 'simulation-distance=2' "level-name=world-$run_id" > build/access-e2e/server/server.properties
 for role in target observer; do
   printf '%s\n' 'onboardAccessibility:false' 'skipMultiplayerWarning:true' 'tutorialStep:none' > "build/access-e2e/$role/options.txt"
 done
@@ -57,8 +59,9 @@ for role in target observer; do
 done
 for _ in $(seq 1 240); do
   if [[ -f "$results/failure.txt" ]]; then cat "$results/failure.txt"; exit 1; fi
-  if [[ -f "$results/done" && -s "$results/nexus-access-observer.png" && -s "$results/nexus-access-target.png" ]]; then
-    echo 'PASS: offline grant, Observer initial/update/close/reopen/privacy/stop and creative mode restoration'
+  if [[ -f "$results/done" && -s "$results/nexus-access-observer.png" && -s "$results/nexus-access-target.png" \
+      && -s "$results/nexus-array-visualization-target.png" && -f "$results/server-disconnect-cleanup" ]]; then
+    echo 'PASS: access Observer flow plus array enable/response/render, observer isolation, disable and disconnect cleanup'
     exit 0
   fi
   for pid in "${pids[@]}"; do
