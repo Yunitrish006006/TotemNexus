@@ -793,7 +793,9 @@ public final class NexusMapSourceCaptureGameTest {
             };
         }));
     }
-    @GameTest(maxTicks = 300)
+    // CI runs the disk-isolated capture fixtures concurrently; leave enough time for this
+    // late worker to be scheduled while retaining every corruption and lease assertion.
+    @GameTest(maxTicks = 1200)
     public void corruptedSavedDetailCannotJoinCompletedNativeBatch(GameTestHelper helper) {
         run(helper, true, f -> paired(helper, f, capture -> {
             prepareBatch(capture); var detail = capture.stagedSources().detailSource();
